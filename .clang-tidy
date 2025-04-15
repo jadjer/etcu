@@ -38,8 +38,14 @@ CheckOptions:
     value: camelBack
   - key: readability-identifier-naming.ConstantCase
     value: camelBack
+  - key: readability-identifier-naming.ConstantCase
+    value: camelCase
   - key: readability-identifier-naming.ConstantPrefix
-    value: "|m_"
+    value: ""
+  - key: readability-identifier-naming.ClassConstantCase
+    value: camelCase
+  - key: readability-identifier-naming.ClassConstantPrefix
+    value: "m_"
   - key: readability-identifier-naming.GlobalConstantCase
     value: UPPER_CASE
 

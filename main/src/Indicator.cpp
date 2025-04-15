@@ -14,18 +14,12 @@
 
 #include "Indicator.hpp"
 
-#include <esp_log.h>
 #include <esp_timer.h>
 
 auto const MICROSECONDS_IN_SECOND = 1000000;
 auto const MICROSECONDS_IN_MILLISECOND = 1000;
 
-Indicator::Indicator(Pin pin) : m_indicator(pin, gpio::PIN_LEVEL_LOW),
-                                m_currentStep(0),
-                                m_previousTime(0),
-                                m_mode(DISABLE_MODE),
-                                m_intervals() {
-}
+Indicator::Indicator(Pin pin) : m_indicator(pin, gpio::PIN_LEVEL_LOW), m_currentStep(0), m_previousTime(0), m_mode(DISABLE_MODE), m_intervals() {}
 
 void Indicator::setError() {
   m_error = true;

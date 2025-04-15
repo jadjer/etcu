@@ -47,7 +47,7 @@ public:
   void run();
 
 private:
-  ConfigurationPtr m_configuration = nullptr;
+  ConfigurationPtr const m_configuration = nullptr;
 
 private:
   Bluetooth m_bluetooth;
