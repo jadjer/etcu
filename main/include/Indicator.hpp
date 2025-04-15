@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <executor/Node.hpp>
 #include <gpio/OutputPin.hpp>
@@ -26,7 +27,7 @@ public:
   using Time = std::int64_t;
   using Interval = std::uint32_t;
 
-  enum IndicatorMode {
+  enum IndicatorMode : std::uint8_t {
     DISABLE_MODE = 0,
     NORMAL_MODE,
     CRUISE_READY_MODE,

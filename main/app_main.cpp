@@ -14,7 +14,11 @@
 
 #include "App.hpp"
 
-App app;
+namespace {
+
+static App app;
+
+} // namespace
 
 extern "C" void app_main() {
   app.setup();

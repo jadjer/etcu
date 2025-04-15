@@ -18,10 +18,10 @@
 
 auto const TAG = "App";
 
-App::App() : m_configuration(std::make_shared<Configuration>()),
-             m_bluetooth(m_configuration),
+App::App()
+    : m_configuration(std::make_shared<Configuration>()), m_bluetooth(m_configuration),
 
-             m_motor(std::make_unique<Motor>())
+      m_motor(std::make_unique<Motor>())
 
 //             m_guardSwitch(std::make_unique<Switch>(m_configuration->getGuardSwitchPin())),
 //             m_breakSwitch(std::make_unique<Switch>(m_configuration->getBreakSwitchPin())),
@@ -31,8 +31,7 @@ App::App() : m_configuration(std::make_shared<Configuration>()),
 //             m_controller(std::make_unique<Controller>(m_configuration)),
 //             m_modeButton(std::make_unique<ModeButton>(m_configuration->getModeButtonPin())),
 //             m_twistPosition(std::make_unique<TwistPosition>())
-{
-}
+{}
 
 void App::setup() {
   //  m_guardSwitch->registerSwitchCallback([this](bool const isEnabled) {

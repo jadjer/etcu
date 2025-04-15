@@ -9,9 +9,10 @@ dependencies:
 #  adc:
 #    git: https://github.com/jadjer/idf-adc.git
 #    version: "*"
-  i2c:
-    git: https://github.com/jadjer/esp-idf-i2c.git
-    version: "*"
   nimble:
     git: https://github.com/h2zero/esp-nimble-cpp.git
+    version: "*"
+
+  esp_pid:
+    git: https://github.com/jadjer/esp-pid.git
     version: "*"

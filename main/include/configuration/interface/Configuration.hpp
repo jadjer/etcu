@@ -25,13 +25,13 @@ public:
   virtual ~Configuration() = default;
 
 public:
-  [[nodiscard]] virtual Pin getIndicatorPin() const = 0;
-  [[nodiscard]] virtual Pin getModeButtonPin() const = 0;
-  [[nodiscard]] virtual Pin getBreakSwitchPin() const = 0;
-  [[nodiscard]] virtual Pin getGuardSwitchPin() const = 0;
-  [[nodiscard]] virtual Pin getClutchSwitchPin() const = 0;
-  [[nodiscard]] virtual Pin getTwistSensor1Pin() const = 0;
-  [[nodiscard]] virtual Pin getTwistSensor2Pin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getIndicatorPin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getModeButtonPin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getBreakSwitchPin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getGuardSwitchPin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getClutchSwitchPin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getTwistSensor1Pin() const = 0;
+  [[maybe_unused]] [[nodiscard]] virtual Pin getTwistSensor2Pin() const = 0;
 };
 
 }// namespace interface

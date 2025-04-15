@@ -18,14 +18,15 @@
 #include "HourMeter.hpp"
 #include "Indicator.hpp"
 #include "ModeButton.hpp"
+#include "Motor.hpp"
 #include "Switch.hpp"
 #include "Throttle.hpp"
 #include "TwistPosition.hpp"
 #include "bluetooth/Bluetooth.hpp"
 #include "configuration/interface/Configuration.hpp"
-#include "motor/Motor.hpp"
 
 #include <executor/Executor.hpp>
+#include <memory>
 
 class App {
 public:
@@ -42,10 +43,11 @@ public:
 
 public:
   void setup();
+
   void run();
 
 private:
-  ConfigurationPtr const m_configuration;
+  ConfigurationPtr m_configuration = nullptr;
 
 private:
   Bluetooth m_bluetooth;
