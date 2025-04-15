@@ -1,5 +1,5 @@
 dependencies:
-  idf: ">=5.4"
+  idf: ">=5.4.1"
 #  gpio:
 #    git: https://github.com/jadjer/idf-gpio.git
 #    version: "*"

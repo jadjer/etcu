@@ -14,33 +14,40 @@
 
 #pragma once
 
-#include "motor/AS5600.hpp"
+#include <memory>
 
 #include <executor/Node.hpp>
-#include <foc/motor/BaseMotor.hpp>
-#include <memory>
+#include <foc/Motor.hpp>
+#include <foc/driver/BLDCDriver6PWM.hpp>
+
+#include "motor/AS5600.hpp"
 
 class Motor : public executor::Node {
 public:
-  using Encoder = std::unique_ptr<AS5600>;
-  using FOCMotor = std::unique_ptr<foc::BaseMotor>;
-  using Position = std::uint16_t;
+    using Position = std::uint16_t;
 
 public:
-  Motor();
-  ~Motor() override = default;
+    using BLDCDriver = std::unique_ptr<foc::BLDCDriver6PWM>;
+    using BLDCMotor = std::unique_ptr<foc::Motor>;
+    using Encoder = std::unique_ptr<AS5600>;
 
 public:
-  void setPosition(Position position);
+    Motor();
+
+    ~Motor() override = default;
+
+public:
+    void setPosition(Position position);
 
 private:
-  void process() override;
+    void process() override;
 
 private:
-  Encoder m_encoder = nullptr;
-  FOCMotor m_motor = nullptr;
+    Encoder m_encoder = nullptr;
+    BLDCMotor m_motor = nullptr;
+    BLDCDriver m_driver = nullptr;
 
 private:
-  Motor::Position m_targetPosition = 0;
-  Motor::Position m_currentPosition = 0;
+    Motor::Position m_targetPosition = 0;
+    Motor::Position m_currentPosition = 0;
 };

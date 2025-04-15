@@ -14,8 +14,9 @@
 
 #include "App.hpp"
 
+App app;
+
 extern "C" void app_main() {
-  App app;
   app.setup();
   app.run();
 }

@@ -72,7 +72,7 @@ AS5600::AS5600() {
   ESP_LOGI(TAG, "Watchdog: %d", m_configuration.watchdog);
 }
 
-void AS5600::setPowerMode(AS5600::PowerMode powerMode) {
+[[maybe_unused]] void AS5600::setPowerMode(AS5600::PowerMode powerMode) {
   m_configuration.powerMode = powerMode;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -80,7 +80,7 @@ void AS5600::setPowerMode(AS5600::PowerMode powerMode) {
   m_device->write(REGISTER_CONF, configurationData);
 }
 
-void AS5600::setHysteresis(AS5600::Hysteresis hysteresis) {
+[[maybe_unused]] void AS5600::setHysteresis(AS5600::Hysteresis hysteresis) {
   m_configuration.hysteresis = hysteresis;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -88,7 +88,7 @@ void AS5600::setHysteresis(AS5600::Hysteresis hysteresis) {
   m_device->write(REGISTER_CONF, configurationData);
 }
 
-void AS5600::setOutputStage(AS5600::OutputStage outputStage) {
+[[maybe_unused]] void AS5600::setOutputStage(AS5600::OutputStage outputStage) {
   m_configuration.outputStage = outputStage;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -96,7 +96,7 @@ void AS5600::setOutputStage(AS5600::OutputStage outputStage) {
   m_device->write(REGISTER_CONF, configurationData);
 }
 
-void AS5600::setPWMFrequency(AS5600::PWMFrequency pwmFrequency) {
+[[maybe_unused]] void AS5600::setPWMFrequency(AS5600::PWMFrequency pwmFrequency) {
   m_configuration.pwmFrequency = pwmFrequency;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -104,7 +104,7 @@ void AS5600::setPWMFrequency(AS5600::PWMFrequency pwmFrequency) {
   m_device->write(REGISTER_CONF, configurationData);
 }
 
-void AS5600::setSlowFilter(AS5600::SlowFilter slowFilter) {
+[[maybe_unused]] void AS5600::setSlowFilter(AS5600::SlowFilter slowFilter) {
   m_configuration.slowFilter = slowFilter;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -112,7 +112,7 @@ void AS5600::setSlowFilter(AS5600::SlowFilter slowFilter) {
   m_device->write(REGISTER_CONF, configurationData);
 }
 
-void AS5600::setFastFilterThreshold(AS5600::FastFilterThreshold fastFilterThreshold) {
+[[maybe_unused]] void AS5600::setFastFilterThreshold(AS5600::FastFilterThreshold fastFilterThreshold) {
   m_configuration.fastFilterThreshold = fastFilterThreshold;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -120,7 +120,7 @@ void AS5600::setFastFilterThreshold(AS5600::FastFilterThreshold fastFilterThresh
   m_device->write(REGISTER_CONF, configurationData);
 }
 
-void AS5600::setWatchdog(bool enable) {
+[[maybe_unused]] void AS5600::setWatchdog(bool enable) {
   m_configuration.watchdog = enable;
 
   auto const configurationData = convertDataToBytes(m_configuration);
@@ -153,31 +153,31 @@ AS5600::Configuration AS5600::getConfiguration() {
 }
 
 float AS5600::getMechanicalAngle() {
-  return BaseEncoder::getMechanicalAngle();
+  return EncoderBase::getMechanicalAngle();
 }
 
 float AS5600::getAngle() {
-  return BaseEncoder::getAngle();
+  return EncoderBase::getAngle();
 }
 
 double AS5600::getPreciseAngle() {
-  return BaseEncoder::getPreciseAngle();
+  return EncoderBase::getPreciseAngle();
 }
 
 float AS5600::getVelocity() {
-  return BaseEncoder::getVelocity();
+  return EncoderBase::getVelocity();
 }
 
 int32_t AS5600::getFullRotations() {
-  return BaseEncoder::getFullRotations();
+  return EncoderBase::getFullRotations();
 }
 
 void AS5600::update() {
-  BaseEncoder::update();
+  EncoderBase::update();
 }
 
 int AS5600::needsSearch() {
-  return BaseEncoder::needsSearch();
+  return EncoderBase::needsSearch();
 }
 
 float AS5600::getSensorAngle() {
@@ -191,5 +191,5 @@ float AS5600::getSensorAngle() {
 }
 
 void AS5600::init() {
-  BaseEncoder::init();
+  EncoderBase::init();
 }
