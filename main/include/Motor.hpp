@@ -17,19 +17,19 @@
 #include <memory>
 
 #include <executor/Node.hpp>
-#include <foc/Motor.hpp>
-#include <foc/driver/BLDCDriver6PWM.hpp>
 
-#include "motor/AS5600.hpp"
+#include <foc/Motor.hpp>
+#include <foc/driver/Driver6PWM.hpp>
+#include <foc/encoder/AS5600.hpp>
 
 class Motor : public executor::Node {
 public:
     using Position = std::uint16_t;
 
 public:
-    using BLDCDriver = std::unique_ptr<foc::BLDCDriver6PWM>;
+    using BLDCDriver = std::unique_ptr<foc::Driver6PWM>;
     using BLDCMotor = std::unique_ptr<foc::Motor>;
-    using Encoder = std::unique_ptr<AS5600>;
+    using Encoder = std::unique_ptr<foc::AS5600>;
 
 public:
     Motor();

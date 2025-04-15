@@ -8,6 +8,7 @@ set(SOURCES
         app_main.cpp
 
         src/App.cpp
+        src/Motor.cpp
         src/Switch.cpp
         src/Throttle.cpp
         src/Indicator.cpp
@@ -15,9 +16,6 @@ set(SOURCES
         src/Controller.cpp
         src/ModeButton.cpp
         src/TwistPosition.cpp
-
-        src/motor/Motor.cpp
-        src/motor/AS5600.cpp
 
         src/bluetooth/Bluetooth.cpp
         src/bluetooth/ServerCallback.cpp

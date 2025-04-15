@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "motor/Motor.hpp"
+#include "Motor.hpp"
 
 #include <esp_log.h>
 
 auto const TAG = "Motor";
 
-Motor::Motor() : m_encoder(std::make_unique<AS5600>()),
+Motor::Motor() : m_encoder(std::make_unique<foc::AS5600>()),
                  m_motor(std::make_unique<foc::Motor>(22, 0.2, 360, 20)),
-                 m_driver(std::make_unique<foc::BLDCDriver6PWM>(14, 15, 22, 23, 31, 32)) {
+                 m_driver(std::make_unique<foc::Driver6PWM>(14, 15, 22, 23, 31, 32)) {
 
     m_motor->linkDriver(std::move(m_driver));
     m_motor->linkEncoder(std::move(m_encoder));
