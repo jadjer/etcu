@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 
 #include <executor/Node.hpp>
@@ -24,30 +25,30 @@
 
 class Motor : public executor::Node {
 public:
-    using Position = std::uint16_t;
+  using Position = std::uint16_t;
 
 public:
-    using BLDCDriver = std::unique_ptr<foc::Driver6PWM>;
-    using BLDCMotor = std::unique_ptr<foc::Motor>;
-    using Encoder = std::unique_ptr<foc::AS5600>;
+  using BLDCDriver = std::unique_ptr<foc::Driver6PWM>;
+  using BLDCMotor = std::unique_ptr<foc::Motor>;
+  using Encoder = std::unique_ptr<foc::AS5600>;
 
 public:
-    Motor();
+  Motor();
 
-    ~Motor() override = default;
+  ~Motor() override = default;
 
 public:
-    void setPosition(Position position);
+  void setPosition(Position position);
 
 private:
-    void process() override;
+  void process() override;
 
 private:
-    Encoder m_encoder = nullptr;
-    BLDCMotor m_motor = nullptr;
-    BLDCDriver m_driver = nullptr;
+  Encoder m_encoder = nullptr;
+  BLDCMotor m_motor = nullptr;
+  BLDCDriver m_driver = nullptr;
 
 private:
-    Motor::Position m_targetPosition = 0;
-    Motor::Position m_currentPosition = 0;
+  Motor::Position m_targetPosition = 0;
+  Motor::Position m_currentPosition = 0;
 };

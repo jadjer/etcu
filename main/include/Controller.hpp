@@ -17,7 +17,7 @@
 #include <cstdint>
 #include <functional>
 
-#include "PIDController.hpp"
+#include "pid/PIDController.hpp"
 #include "configuration/interface/Configuration.hpp"
 
 #include <executor/Node.hpp>
@@ -30,7 +30,7 @@ public:
   using Speed = std::uint16_t;
   using Position = std::uint8_t;
   using ErrorCallback = std::function<void()>;
-  using PIDController = PIDController<Controller::Position>;
+  using PIDController = pid::PIDController;
   using CruiseEnabledCallback = std::function<void(bool)>;
   using PositionUpdateCallback = std::function<void(Controller::Position)>;
 

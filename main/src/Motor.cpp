@@ -15,24 +15,20 @@
 #include "Motor.hpp"
 
 #include <esp_log.h>
+#include <utility>
 
 auto const TAG = "Motor";
 
-Motor::Motor() : m_encoder(std::make_unique<foc::AS5600>()),
-                 m_motor(std::make_unique<foc::Motor>(22, 0.2, 360, 20)),
-                 m_driver(std::make_unique<foc::Driver6PWM>(14, 15, 22, 23, 31, 32)) {
+Motor::Motor()
+    : m_encoder(std::make_unique<foc::AS5600>()), m_motor(std::make_unique<foc::Motor>(22, 0.2, 360, 20)), m_driver(std::make_unique<foc::Driver6PWM>(14, 15, 22, 23, 31, 32)) {
 
-    m_motor->linkDriver(std::move(m_driver));
-    m_motor->linkEncoder(std::move(m_encoder));
+  m_motor->linkDriver(std::move(m_driver));
+  m_motor->linkEncoder(std::move(m_encoder));
 
-    m_motor->init();
-    m_motor->initFOC();
+  m_motor->init();
+  m_motor->initFOC();
 }
 
-void Motor::setPosition(Motor::Position position) {
-    m_motor->move(position);
-}
+void Motor::setPosition(Motor::Position position) { m_motor->move(position); }
 
-void Motor::process() {
-    m_motor->loopFOC();
-}
+void Motor::process() { m_motor->loopFOC(); }
