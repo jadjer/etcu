@@ -14,84 +14,85 @@
 
 #include "App.hpp"
 
+#include <utility>
+
 #include "configuration/Configuration.hpp"
+
+namespace {
 
 auto const TAG = "App";
 
-App::App()
-    : m_configuration(std::make_shared<Configuration>()), m_bluetooth(m_configuration),
+} // namespace
 
-      m_motor(std::make_unique<Motor>())
-
-//             m_guardSwitch(std::make_unique<Switch>(m_configuration->getGuardSwitchPin())),
-//             m_breakSwitch(std::make_unique<Switch>(m_configuration->getBreakSwitchPin())),
-//             m_clutchSwitch(std::make_unique<Switch>(m_configuration->getClutchSwitchPin())),
-//             m_throttle(std::make_unique<Throttle>()),
-//             m_indicator(std::make_unique<Indicator>(m_configuration->getIndicatorPin())),
-//             m_controller(std::make_unique<Controller>(m_configuration)),
-//             m_modeButton(std::make_unique<ModeButton>(m_configuration->getModeButtonPin())),
-//             m_twistPosition(std::make_unique<TwistPosition>())
-{}
+App::App(Bluetooth::DeviceName const& deviceName) try
+    : configurationPointer(std::make_shared<Configuration>()), bluetooth(configurationPointer, deviceName),
+      components(Components{
+          .motor = std::make_shared<Motor>(),
+          .switchGuard = std::make_shared<Switch>(configurationPointer->getGuardSwitchPin()),
+          .switchBreak = std::make_shared<Switch>(configurationPointer->getBreakSwitchPin()),
+          .switchClutch = std::make_shared<Switch>(configurationPointer->getClutchSwitchPin()),
+          .throttle = std::make_shared<Throttle>(),
+          .indicator = std::make_shared<Indicator>(configurationPointer->getIndicatorPin()),
+          .controller = std::make_shared<Controller>(configurationPointer),
+          .modeButton = std::make_shared<ModeButton>(configurationPointer->getModeButtonPin()),
+          .twistPosition = std::make_unique<TwistPosition>(),
+      }) {
+} catch (std::exception const &e) {
+  ESP_LOGE(TAG, "Init app error: %s", e.what());
+  esp_restart();
+}
 
 void App::setup() {
-  //  m_guardSwitch->registerSwitchCallback([this](bool const isEnabled) {
-  //    m_controller->enableGuardMode();
-  //  });
-  //  m_breakSwitch->registerSwitchCallback([this](bool const isEnabled) {
-  //    if (isEnabled) {
-  //      m_controller->disableCruiseMode();
-  //    }
-  //  });
-  //  m_clutchSwitch->registerSwitchCallback([this](bool const isEnabled) {
-  //    if (isEnabled) {
-  //      m_controller->disableCruiseMode();
-  //    }
-  //  });
-  //
-  //  m_controller->registerPositionUpdateCallback([this](Controller::Position const position) {
-  //    m_throttle->setPosition(position);
-  //    m_controller->setThrottlePosition(position);
-  //  });
-  //  m_controller->registerCruiseEnableCallback([this](bool const isEnabled) {
-  //    if (isEnabled) {
-  //      m_indicator->setMode(Indicator::CRUISE_ON_MODE);
-  //    } else {
-  //      m_indicator->setMode(Indicator::NORMAL_MODE);
-  //    }
-  //  });
-  //  m_controller->registerErrorCallback([this] {
-  //    m_indicator->setError();
-  //  });
-  //
-  //  m_modeButton->registerHoldCallback([this] {
-  //    m_controller->holdRPM();
-  //    m_controller->enableCruiseMode();
-  //  });
-  //  m_modeButton->registerPressCallback([this] {
-  //    m_controller->releaseRPM();
-  //    m_controller->disableCruiseMode();
-  //  });
-  //
-  //  m_twistPosition->registerPositionChangeCallback([this](TwistPosition::Position const position) {
-  //    m_controller->setTwistPosition(position);
-  //  });
-  //  m_twistPosition->registerErrorCallback([this] {
-  //    m_indicator->setError();
-  //  });
+  components.switchGuard->registerSwitchCallback([this]([[maybe_unused]] bool const isEnabled) { components.controller->enableGuardMode(); });
+  components.switchBreak->registerSwitchCallback([this](bool const isEnabled) {
+    if (isEnabled) {
+      components.controller->disableCruiseMode();
+    }
+  });
+  components.switchClutch->registerSwitchCallback([this](bool const isEnabled) {
+    if (isEnabled) {
+      components.controller->disableCruiseMode();
+    }
+  });
+
+  components.controller->registerPositionUpdateCallback([this](Controller::Position const position) {
+    components.throttle->setPosition(position);
+    components.controller->setThrottlePosition(position);
+  });
+  components.controller->registerCruiseEnableCallback([this](bool const isEnabled) {
+    if (isEnabled) {
+      components.indicator->setMode(Indicator::CRUISE_ON_MODE);
+    } else {
+      components.indicator->setMode(Indicator::NORMAL_MODE);
+    }
+  });
+  components.controller->registerErrorCallback([this] { components.indicator->setError(); });
+
+  components.modeButton->registerHoldCallback([this] {
+    components.controller->holdRPM();
+    components.controller->enableCruiseMode();
+  });
+  components.modeButton->registerPressCallback([this] {
+    components.controller->releaseRPM();
+    components.controller->disableCruiseMode();
+  });
+
+  components.twistPosition->registerPositionChangeCallback([this](TwistPosition::Position const position) { components.controller->setTwistPosition(position); });
+  components.twistPosition->registerErrorCallback([this] { components.indicator->setError(); });
 }
 
 void App::run() {
-  m_bluetooth.advertise();
+  bluetooth.advertise();
 
-  m_executor.addNode(m_motor);
-  //    m_executor.addNode(m_guardSwitch);
-  //  m_executor.addNode(m_breakSwitch);
-  //  m_executor.addNode(m_clutchSwitch);
-  //  m_executor.addNode(m_throttle);
-  //  m_executor.addNode(m_indicator);
-  //  m_executor.addNode(m_controller);
-  //  m_executor.addNode(m_modeButton);
-  //  m_executor.addNode(m_twistPosition);
+  executor.addNode(components.motor);
+  executor.addNode(components.switchGuard);
+  executor.addNode(components.switchBreak);
+  executor.addNode(components.switchClutch);
+  executor.addNode(components.throttle);
+  executor.addNode(components.indicator);
+  executor.addNode(components.controller);
+  executor.addNode(components.modeButton);
+  executor.addNode(std::move(components.twistPosition));
 
-  m_executor.spin();
+  executor.spin();
 }

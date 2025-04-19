@@ -17,29 +17,36 @@
 #include <esp_log.h>
 #include <utility>
 
+namespace {
+
 auto const TAG = "Twist Position";
 
+struct Range {
+  float min;
+  float max;
+};
+
 // Функция для перевода значения из одного диапазона в другой с возвратом std::uint8_t
-std::uint8_t mapValue(float value, float fromMin, float fromMax, float toMin = 0, float toMax = 100) {
+[[nodiscard]] auto convertVoltageToPercentage(adc::Channel::Voltage value, Channel::Voltage fromMin, Range to = {.min = 0.f, .max = 100.f}) -> float {
   // Проверка на случай, если исходный диапазон нулевой
-  if (fromMin == fromMax) {
-    fromMin -= 1;
-    fromMax += 1;
+  if (from.min == from.max) {
+    from.min -= 1;
+    from.max += 1;
   }
 
   // Вычисление пропорции
-  float const fromRange = fromMax - fromMin;
-  float const toRange = toMax - toMin;
+  float const fromRange = from.max - from.min;
+  float const toRange = to.max - to.min;
 
   // Перевод значения в новый диапазон
-  float const scaledValue = (value - fromMin) / fromRange;
-  float result = toMin + (scaledValue * toRange);
+  float const scaledValue = (value - from.min) / fromRange;
+  float result = to.min + (scaledValue * toRange);
 
-  if (result < toMin) {
-    result = toMin;
+  if (result < to.min) {
+    result = to.min;
   }
-  if (result > toMax) {
-    result = toMax;
+  if (result > to.max) {
+    result = to.max;
   }
 
   result += 0.5f;
@@ -47,36 +54,38 @@ std::uint8_t mapValue(float value, float fromMin, float fromMax, float toMin = 0
   return static_cast<std::uint8_t>(result);
 }
 
-TwistPosition::TwistPosition() : m_adc(0),
-                                 m_sensor1(m_adc.createChannel(3)),
-                                 m_sensor2(m_adc.createChannel(6)),
-                                 m_positionMinSensor1(1000),
-                                 m_positionMaxSensor1(3000),
-                                 m_positionMinSensor2(500),
-                                 m_positionMaxSensor2(1500) {
+} // namespace
 
-//  m_sensor1->enableFilter();
-//  m_sensor2->enableFilter();
+TwistPosition::TwistPosition() try : unit(std::make_unique<adc::Unit>(0)), positionMinSensor1(1000), positionMaxSensor1(3000), positionMinSensor2(500), positionMaxSensor2(1500) {
+  sensor1 = std::make_unique<adc::Channel>(unit->createChannel(3));
+  sensor2 = std::make_unique<adc::Channel>(unit->createChannel(6));
+
+  //  sensor1->enableFilter();
+  //  sensor2->enableFilter();
+
+  ESP_LOGI(TAG, "TwistPosition initialized successfully");
+} catch (std::exception const &e) {
+  ESP_LOGE(TAG, "TwistPosition initialization failed: %s", e.what());
 }
 
-void TwistPosition::registerErrorCallback(TwistPosition::ErrorCallback callback) {
-  m_errorCallback = std::move(callback);
+auto TwistPosition::registerErrorCallback(TwistPosition::ErrorCallback callback) -> void {
+  if (not callback) {
+    throw std::invalid_argument("Error callback cannot be null");
+  }
+
+  errorCallback = std::move(callback);
 }
 
-void TwistPosition::registerPositionChangeCallback(TwistPosition::PositionChangeCallback callback) {
-  m_positionChangeCallback = std::move(callback);
-}
+auto TwistPosition::registerPositionChangeCallback(TwistPosition::PositionChangeCallback callback) -> void { positionChangeCallback = std::move(callback); }
 
-TwistPosition::Position TwistPosition::getPosition() const {
-  return m_position;
-}
+auto TwistPosition::getPosition() const -> TwistPosition::Position { return position; }
 
-void TwistPosition::process() {
-  auto const voltageSensor1 = m_sensor1->getVoltage();
-  auto const positionSensor1 = mapValue(voltageSensor1, m_positionMinSensor1, m_positionMaxSensor1, 0, 100);
+auto TwistPosition::process() -> void {
+  auto const voltageSensor1 = sensor1->getVoltage();
+  auto const positionSensor1 = convertPositionToPercentage(voltageSensor1, Range{.min = positionMinSensor1, .max = positionMaxSensor1});
 
-  auto const voltageSensor2 = m_sensor2->getVoltage();
-  auto const positionSensor2 = mapValue(voltageSensor2, m_positionMinSensor2, m_positionMaxSensor2, 0, 100);
+  auto const voltageSensor2 = sensor2->getVoltage();
+  auto const positionSensor2 = convertPositionToPercentage(voltageSensor2, positionMinSensor2, positionMaxSensor2);
 
   auto diffSensorValue = positionSensor1 - positionSensor2;
   if (diffSensorValue < 0) {
@@ -84,18 +93,18 @@ void TwistPosition::process() {
   }
 
   if (diffSensorValue > 5) {
-    m_position = 0;
+    position = 0;
 
-    if (m_errorCallback) {
-      m_errorCallback();
+    if (errorCallback) {
+      errorCallback();
     }
   } else {
-    m_position = positionSensor1;
+    position = positionSensor1;
   }
 
-//  ESP_LOGI(TAG, "Sensor 1: voltage %d, position %d; Sensor 2: voltage %d, position %d", voltageSensor1, positionSensor1, voltageSensor2, positionSensor2);
+  ESP_LOGD(TAG, "Sensor 1: voltage %d, position %d; Sensor 2: voltage %d, position %d", voltageSensor1, positionSensor1, voltageSensor2, positionSensor2);
 
-  if (m_positionChangeCallback) {
-    m_positionChangeCallback(m_position);
+  if (positionChangeCallback) {
+    positionChangeCallback(position);
   }
 }

@@ -13,9 +13,7 @@ Checks: >
   
   -llvm-header-guard,
 
-
 CheckOptions:
-  # Настройки именования (исправлены противоречия)
   - key: readability-identifier-naming.ClassCase
     value: CamelCase
   - key: readability-identifier-naming.StructCase
@@ -25,27 +23,19 @@ CheckOptions:
   - key: readability-identifier-naming.EnumConstantCase
     value: UPPER_CASE
   - key: readability-identifier-naming.FunctionCase
-    value: camelBack
+    value: camelCase
   - key: readability-identifier-naming.MemberCase
-    value: camelBack
-  - key: readability-identifier-naming.MemberPrefix
-    value: "m_"
+    value: camelCase
   - key: readability-identifier-naming.ParameterCase
-    value: camelBack
+    value: camelCase
   - key: readability-identifier-naming.UnionCase
     value: CamelCase
   - key: readability-identifier-naming.VariableCase
-    value: camelBack
-  - key: readability-identifier-naming.ConstantCase
-    value: camelBack
+    value: camelCase
   - key: readability-identifier-naming.ConstantCase
     value: camelCase
-  - key: readability-identifier-naming.ConstantPrefix
-    value: ""
   - key: readability-identifier-naming.ClassConstantCase
     value: camelCase
-  - key: readability-identifier-naming.ClassConstantPrefix
-    value: "m_"
   - key: readability-identifier-naming.GlobalConstantCase
     value: UPPER_CASE
 
@@ -53,7 +43,7 @@ CheckOptions:
   - key: readability-identifier-naming.IgnoreMainLikeFunctions
     value: true
 
-  # Дополнительные настройки проверок
+  # Дополнительные настройки
   - key: modernize-use-default-member-init.UseAssignment
     value: true
   - key: modernize-use-using.IgnoreMacros

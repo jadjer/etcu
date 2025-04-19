@@ -14,6 +14,14 @@
 
 #pragma once
 
+#include <expected>
+#include <memory>
+#include <source_location>
+#include <string_view>
+#include <utility>
+
+#include <executor/Executor.hpp>
+
 #include "Controller.hpp"
 #include "HourMeter.hpp"
 #include "Indicator.hpp"
@@ -25,43 +33,42 @@
 #include "bluetooth/Bluetooth.hpp"
 #include "configuration/interface/Configuration.hpp"
 
-#include <executor/Executor.hpp>
-#include <memory>
-
 class App {
 public:
-  using MotorPtr = std::shared_ptr<Motor>;
-  using SwitchPtr = std::shared_ptr<Switch>;
-  using ThrottlePtr = std::shared_ptr<Throttle>;
-  using IndicatorPtr = std::shared_ptr<Indicator>;
-  using ControllerPtr = std::shared_ptr<Controller>;
-  using ModeButtonPtr = std::shared_ptr<ModeButton>;
-  using TwistPositionPtr = std::shared_ptr<TwistPosition>;
+  using MotorPointer = std::shared_ptr<Motor>;
+  using SwitchPointer = std::shared_ptr<Switch>;
+  using ThrottlePointer = std::shared_ptr<Throttle>;
+  using IndicatorPointer = std::shared_ptr<Indicator>;
+  using ControllerPointer = std::shared_ptr<Controller>;
+  using ModeButtonPointer = std::shared_ptr<ModeButton>;
+  using TwistPositionPointer = std::unique_ptr<TwistPosition>;
+
+private:
+  struct Components {
+    MotorPointer motor;
+    SwitchPointer switchGuard;
+    SwitchPointer switchBreak;
+    SwitchPointer switchClutch;
+    ThrottlePointer throttle;
+    IndicatorPointer indicator;
+    ControllerPointer controller;
+    ModeButtonPointer modeButton;
+    TwistPositionPointer twistPosition;
+  };
 
 public:
-  App();
+  explicit App(Bluetooth::DeviceName const& deviceName);
 
 public:
   void setup();
-
   void run();
 
 private:
-  ConfigurationPtr const m_configuration = nullptr;
+  ConfigurationSharedPtr const configurationPointer = nullptr;
 
 private:
-  Bluetooth m_bluetooth;
-  HourMeter m_hourMeter;
-  executor::Executor m_executor;
-
-private:
-  App::MotorPtr m_motor = nullptr;
-  App::SwitchPtr m_guardSwitch = nullptr;
-  App::SwitchPtr m_breakSwitch = nullptr;
-  App::SwitchPtr m_clutchSwitch = nullptr;
-  App::ThrottlePtr m_throttle = nullptr;
-  App::IndicatorPtr m_indicator = nullptr;
-  App::ControllerPtr m_controller = nullptr;
-  App::ModeButtonPtr m_modeButton = nullptr;
-  App::TwistPositionPtr m_twistPosition = nullptr;
+  Bluetooth bluetooth;
+  HourMeter hourMeter;
+  Components components;
+  executor::Executor executor;
 };

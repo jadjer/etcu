@@ -16,7 +16,7 @@
 
 namespace {
 
-static App app;
+App app;
 
 } // namespace
 

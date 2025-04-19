@@ -15,27 +15,29 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 
 namespace interface {
 
-using Pin = std::uint8_t;
-
 class Configuration {
+public:
+  using Pin = std::uint8_t;
+
 public:
   virtual ~Configuration() = default;
 
 public:
-  [[maybe_unused]] [[nodiscard]] virtual Pin getIndicatorPin() const = 0;
-  [[maybe_unused]] [[nodiscard]] virtual Pin getModeButtonPin() const = 0;
-  [[maybe_unused]] [[nodiscard]] virtual Pin getBreakSwitchPin() const = 0;
-  [[maybe_unused]] [[nodiscard]] virtual Pin getGuardSwitchPin() const = 0;
-  [[maybe_unused]] [[nodiscard]] virtual Pin getClutchSwitchPin() const = 0;
-  [[maybe_unused]] [[nodiscard]] virtual Pin getTwistSensor1Pin() const = 0;
-  [[maybe_unused]] [[nodiscard]] virtual Pin getTwistSensor2Pin() const = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getIndicatorPin() const -> Pin = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getModeButtonPin() const -> Pin = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getBreakSwitchPin() const -> Pin = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getGuardSwitchPin() const -> Pin = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getClutchSwitchPin() const -> Pin = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getTwistSensor1Pin() const -> Pin = 0;
+  [[nodiscard]] [[maybe_unused]] virtual auto getTwistSensor2Pin() const -> Pin = 0;
 };
 
-}// namespace interface
+} // namespace interface
 
-#include <memory>
-
-using ConfigurationPtr = std::shared_ptr<interface::Configuration>;
+using ConfigurationSharedPtr = std::shared_ptr<interface::Configuration>;
+using ConfigurationUniquePtr = std::unique_ptr<interface::Configuration>;
+using ConfigurationWeakPtr = std::weak_ptr<interface::Configuration>;

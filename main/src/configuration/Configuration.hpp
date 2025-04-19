@@ -19,19 +19,22 @@
 #include "configuration/interface/Configuration.hpp"
 
 class Configuration : public interface::Configuration {
+private:
+  using StorageHandle = nvs_handle_t;
+
 public:
   Configuration();
-  ~Configuration() override;
+  ~Configuration() noexcept override;
 
 public:
-  [[nodiscard]] interface::Pin getIndicatorPin() const override;
-  [[nodiscard]] interface::Pin getModeButtonPin() const override;
-  [[nodiscard]] interface::Pin getBreakSwitchPin() const override;
-  [[nodiscard]] interface::Pin getGuardSwitchPin() const override;
-  [[nodiscard]] interface::Pin getClutchSwitchPin() const override;
-  [[nodiscard]] interface::Pin getTwistSensor1Pin() const override;
-  [[nodiscard]] interface::Pin getTwistSensor2Pin() const override;
+  [[nodiscard]] [[maybe_unused]] auto getIndicatorPin() const -> interface::Configuration::Pin override;
+  [[nodiscard]] [[maybe_unused]] auto getModeButtonPin() const -> interface::Configuration::Pin override;
+  [[nodiscard]] [[maybe_unused]] auto getBreakSwitchPin() const -> interface::Configuration::Pin override;
+  [[nodiscard]] [[maybe_unused]] auto getGuardSwitchPin() const -> interface::Configuration::Pin override;
+  [[nodiscard]] [[maybe_unused]] auto getClutchSwitchPin() const -> interface::Configuration::Pin override;
+  [[nodiscard]] [[maybe_unused]] auto getTwistSensor1Pin() const -> interface::Configuration::Pin override;
+  [[nodiscard]] [[maybe_unused]] auto getTwistSensor2Pin() const -> interface::Configuration::Pin override;
 
 private:
-  nvs_handle_t m_storageHandle;
+  StorageHandle storageHandle{0};
 };

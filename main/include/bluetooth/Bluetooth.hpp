@@ -20,19 +20,24 @@
 #include <NimBLEServer.h>
 #include <memory>
 
-using ServerCallbackPtr = std::unique_ptr<NimBLEServerCallbacks>;
-using CharacteristicCallbackPtr = std::unique_ptr<NimBLECharacteristicCallbacks>;
-
 class Bluetooth {
 public:
-  explicit Bluetooth(ConfigurationPtr configuration);
+  using DeviceName = std::string;
+  using ServerCallbackPtr = std::unique_ptr<NimBLEServerCallbacks>;
+  using CharacteristicCallbackPtr = std::unique_ptr<NimBLECharacteristicCallbacks>;
+
+public:
+  Bluetooth(ConfigurationSharedPtr const &configuration, DeviceName deviceName);
   ~Bluetooth();
 
 public:
-  void advertise();
+  auto advertise() -> void;
 
 private:
-  ServerCallbackPtr m_serverCallback = nullptr;
-  CharacteristicCallbackPtr m_otaCharacteristicCallback = nullptr;
-  CharacteristicCallbackPtr m_configurationCharacteristicCallback = nullptr;
+  DeviceName const deviceName{};
+
+private:
+  ServerCallbackPtr serverCallback{nullptr};
+  CharacteristicCallbackPtr otaCharacteristicCallback{nullptr};
+  CharacteristicCallbackPtr configurationCharacteristicCallback{nullptr};
 };

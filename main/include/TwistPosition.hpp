@@ -14,8 +14,9 @@
 
 #pragma once
 
-#include <adc/ADC.hpp>
 #include <adc/Channel.hpp>
+#include <adc/Unit.hpp>
+#include <concepts>
 #include <cstdint>
 #include <executor/Node.hpp>
 #include <functional>
@@ -24,36 +25,42 @@ class TwistPosition : public executor::Node {
 public:
   using Position = std::uint8_t;
   using ErrorCallback = std::function<void()>;
+  using PositionChangeCallback = std::function<void(Position)>;
+
+private:
   using SensorPosition = std::uint16_t;
-  using PositionChangeCallback = std::function<void(TwistPosition::Position)>;
+
+private:
+  using UnitPointer = std::unique_ptr<adc::Unit>;
+  using ChannelPointer = std::unique_ptr<adc::Channel>;
 
 public:
   TwistPosition();
   ~TwistPosition() override = default;
 
 public:
-  void registerErrorCallback(TwistPosition::ErrorCallback callback);
-  void registerPositionChangeCallback(TwistPosition::PositionChangeCallback callback);
+  auto registerErrorCallback(ErrorCallback callback) -> void;
+  auto registerPositionChangeCallback(PositionChangeCallback callback) -> void;
 
 public:
-  [[nodiscard]] TwistPosition::Position getPosition() const;
+  [[nodiscard]] auto getPosition() const -> Position;
 
 private:
-  void process() override;
+  auto process() -> void override;
 
 private:
-  TwistPosition::ErrorCallback m_errorCallback = nullptr;
-  TwistPosition::PositionChangeCallback m_positionChangeCallback = nullptr;
+  ErrorCallback errorCallback = nullptr;
+  PositionChangeCallback positionChangeCallback = nullptr;
 
 private:
-  adc::ADC m_adc;
-  ChannelPtr m_sensor1 = nullptr;
-  ChannelPtr m_sensor2 = nullptr;
+  UnitPointer unit = nullptr;
+  ChannelPointer sensor1 = nullptr;
+  ChannelPointer sensor2 = nullptr;
 
 private:
-  TwistPosition::Position m_position = 0;
-  TwistPosition::SensorPosition m_positionMinSensor1 = 0;
-  TwistPosition::SensorPosition m_positionMaxSensor1 = 0;
-  TwistPosition::SensorPosition m_positionMinSensor2 = 0;
-  TwistPosition::SensorPosition m_positionMaxSensor2 = 0;
+  Position position = 0;
+  SensorPosition positionMinSensor1 = 0;
+  SensorPosition positionMaxSensor1 = 0;
+  SensorPosition positionMinSensor2 = 0;
+  SensorPosition positionMaxSensor2 = 0;
 };
