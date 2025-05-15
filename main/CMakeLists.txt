@@ -8,14 +8,17 @@ set(SOURCES
         app_main.cpp
 
         src/App.cpp
-        src/Motor.cpp
-        src/Switch.cpp
-        src/Throttle.cpp
-        src/Indicator.cpp
-        src/HourMeter.cpp
+        src/Telemetry.cpp
+        src/Configuration.cpp
         src/Controller.cpp
-        src/ModeButton.cpp
-        src/TwistPosition.cpp
+
+        src/component/Motor.cpp
+        src/component/Switch.cpp
+        src/component/Throttle.cpp
+        src/component/Indicator.cpp
+        src/component/HourMeter.cpp
+        src/component/ModeButton.cpp
+        src/component/TwistPosition.cpp
 
         src/bluetooth/Bluetooth.cpp
         src/bluetooth/ServerCallback.cpp
@@ -24,8 +27,6 @@ set(SOURCES
         src/bluetooth/ota/Updater.cpp
         src/bluetooth/ota/MessageHandler.cpp
         src/bluetooth/ota/UpdateCharacteristicCallback.cpp
-
-        src/configuration/Configuration.cpp
 )
 
 idf_component_register(SRCS ${SOURCES} INCLUDE_DIRS ${INCLUDE_DIRS})

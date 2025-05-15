@@ -16,59 +16,43 @@
 
 #include <expected>
 #include <memory>
-#include <source_location>
-#include <string_view>
-#include <utility>
 
 #include <executor/Executor.hpp>
 
-#include "Controller.hpp"
-#include "HourMeter.hpp"
-#include "Indicator.hpp"
-#include "ModeButton.hpp"
-#include "Motor.hpp"
-#include "Switch.hpp"
-#include "Throttle.hpp"
-#include "TwistPosition.hpp"
+#include "Configuration.hpp"
+#include "Telemetry.hpp"
 #include "bluetooth/Bluetooth.hpp"
-#include "configuration/interface/Configuration.hpp"
 
 class App {
 public:
-  using MotorPointer = std::shared_ptr<Motor>;
-  using SwitchPointer = std::shared_ptr<Switch>;
-  using ThrottlePointer = std::shared_ptr<Throttle>;
-  using IndicatorPointer = std::shared_ptr<Indicator>;
-  using ControllerPointer = std::shared_ptr<Controller>;
-  using ModeButtonPointer = std::shared_ptr<ModeButton>;
-  using TwistPositionPointer = std::unique_ptr<TwistPosition>;
-
-private:
-  struct Components {
-    MotorPointer motor;
-    SwitchPointer switchGuard;
-    SwitchPointer switchBreak;
-    SwitchPointer switchClutch;
-    ThrottlePointer throttle;
-    IndicatorPointer indicator;
-    ControllerPointer controller;
-    ModeButtonPointer modeButton;
-    TwistPositionPointer twistPosition;
+  enum class Error : std::uint8_t {
+    CONFIGURATION_ERROR,
+    INDICATOR_ERROR,
+    TWIST_POSITION_ERROR,
+    MOTOR_ERROR,
+    CONTROLLER_INIT_ERROR,
   };
 
 public:
-  explicit App(Bluetooth::DeviceName const& deviceName);
+  using Pointer = std::unique_ptr<App>;
+  using ExecutorPointer = std::unique_ptr<executor::Executor>;
+  using BluetoothPointer = std::unique_ptr<Bluetooth>;
+  using TelemetryPointer = std::shared_ptr<Telemetry>;
+  using ConfigurationPointer = std::shared_ptr<Configuration>;
 
 public:
-  void setup();
-  void run();
+  static auto create() -> std::expected<Pointer, Error>;
 
 private:
-  ConfigurationSharedPtr const configurationPointer = nullptr;
+  explicit App(Configuration::Pointer const &configuration) noexcept;
+
+public:
+  auto setup() -> std::expected<void, Error>;
+  auto run() -> void;
 
 private:
-  Bluetooth bluetooth;
-  HourMeter hourMeter;
-  Components components;
-  executor::Executor executor;
+  ExecutorPointer const executor;
+  TelemetryPointer const telemetry;
+  BluetoothPointer const bluetooth;
+  ConfigurationPointer const configuration;
 };

@@ -12,40 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ModeButton.hpp"
+#include "component/ModeButton.hpp"
 
-#include <esp_timer.h>
 #include <utility>
 
-ModeButton::ModeButton(ModeButton::Pin const pin, ModeButton::Time const holdTimeInUS, ModeButton::Time const thresholdInUS)
-    : m_button(pin, gpio::PIN_LEVEL_HIGH),
+#include <esp_timer.h>
 
-      m_holdTime(holdTimeInUS),
-      m_threshold(thresholdInUS),
+auto ModeButton::create(ModeButton::Pin const pin, ModeButton::Time holdTimeInUS, ModeButton::Time const thresholdInUS) -> std::expected<ModeButton::Pointer, ModeButton::Error> {
+  auto button_ = gpio::InputPin::create(pin);
+  if (not button_) {
+    return std::unexpected(ModeButton::Error::BUTTON_INIT_FAILED);
+  }
 
-      m_isHeld(false),
-      m_isPressed(false),
-
-      m_pressTime(0),
-      m_releaseTime(0) {
+  return ModeButton::Pointer(new ModeButton(std::move(*button_), holdTimeInUS, thresholdInUS));
 }
 
-void ModeButton::registerHoldCallback(ModeButton::HoldCallback callback) {
-  m_holdCallback = std::move(callback);
-}
+ModeButton::ModeButton(gpio::InputPin::Pointer button, ModeButton::Time const holdTimeInUS, ModeButton::Time const thresholdInUS)
+    : button(std::move(button)),
 
-void ModeButton::registerPressCallback(ModeButton::PressCallback callback) {
-  m_pressCallback = std::move(callback);
-}
+      m_holdTime(holdTimeInUS), m_threshold(thresholdInUS),
+
+      m_isHeld(false), m_isPressed(false),
+
+      m_pressTime(0), m_releaseTime(0) {}
 
 void ModeButton::process() {
-  auto const buttonState = m_button.getLevel();
+  auto const buttonState = button->getLevel();
 
-  if (buttonState == gpio::PIN_LEVEL_HIGH) {
+  if (buttonState == gpio::PinLevel::HIGH) {
     return processButtonReleased();
   }
 
-  if (buttonState == gpio::PIN_LEVEL_LOW) {
+  if (buttonState == gpio::PinLevel::LOW) {
     return processButtonPressed();
   }
 }
@@ -75,9 +73,9 @@ void ModeButton::processButtonPressed() {
 
   m_isHeld = true;
 
-  if (m_holdCallback) {
-    m_holdCallback();
-  }
+  //  if (m_holdCallback) {
+  //    m_holdCallback();
+  //  }
 }
 
 void ModeButton::processButtonReleased() {
@@ -86,9 +84,9 @@ void ModeButton::processButtonReleased() {
   }
 
   if (not m_isHeld) {
-    if (m_pressCallback) {
-      m_pressCallback();
-    }
+    //    if (m_pressCallback) {
+    //      m_pressCallback();
+    //    }
   }
 
   m_releaseTime = esp_timer_get_time();

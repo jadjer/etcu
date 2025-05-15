@@ -16,8 +16,7 @@
 
 #include "bluetooth/Identificator.hpp"
 
-ConfigurationCharacteristicCallback::ConfigurationCharacteristicCallback(ConfigurationPtr configuration) : m_configuration(std::move(configuration)) {
-}
+ConfigurationCharacteristicCallback::ConfigurationCharacteristicCallback(Configuration::Pointer const &configuration) : configuration(std::move(configuration)) {}
 
 void ConfigurationCharacteristicCallback::onRead(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo) {
   NimBLECharacteristicCallbacks::onRead(pCharacteristic, connInfo);
@@ -95,9 +94,7 @@ void ConfigurationCharacteristicCallback::onWrite(NimBLECharacteristic *pCharact
   //  }
 }
 
-void ConfigurationCharacteristicCallback::onStatus(NimBLECharacteristic *pCharacteristic, int code) {
-  NimBLECharacteristicCallbacks::onStatus(pCharacteristic, code);
-}
+void ConfigurationCharacteristicCallback::onStatus(NimBLECharacteristic *pCharacteristic, int code) { NimBLECharacteristicCallbacks::onStatus(pCharacteristic, code); }
 
 void ConfigurationCharacteristicCallback::onSubscribe(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo, uint16_t subValue) {
   NimBLECharacteristicCallbacks::onSubscribe(pCharacteristic, connInfo, subValue);

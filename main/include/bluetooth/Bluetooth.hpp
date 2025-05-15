@@ -14,11 +14,11 @@
 
 #pragma once
 
-#include "configuration/interface/Configuration.hpp"
-
 #include <NimBLECharacteristic.h>
 #include <NimBLEServer.h>
 #include <memory>
+
+#include "Configuration.hpp"
 
 class Bluetooth {
 public:
@@ -27,14 +27,14 @@ public:
   using CharacteristicCallbackPtr = std::unique_ptr<NimBLECharacteristicCallbacks>;
 
 public:
-  Bluetooth(ConfigurationSharedPtr const &configuration, DeviceName deviceName);
+  explicit Bluetooth(Configuration::Pointer const &configuration);
   ~Bluetooth();
 
 public:
   auto advertise() -> void;
 
 private:
-  DeviceName const deviceName{};
+  DeviceName const deviceName;
 
 private:
   ServerCallbackPtr serverCallback{nullptr};

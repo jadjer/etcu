@@ -12,22 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "Throttle.hpp"
+#include "component/Throttle.hpp"
+
+#include <utility>
 
 #include <esp_log.h>
-#include <utility>
 
 auto const TAG = "Throttle";
 auto const POSITION_MINIMAL = 0;
 auto const POSITION_MAXIMAL = 100;
 
-void Throttle::registerErrorCallback(Throttle::ErrorCallback callback) {
-  m_errorCallback = std::move(callback);
-}
+void Throttle::registerErrorCallback(Throttle::ErrorCallback callback) { m_errorCallback = std::move(callback); }
 
-void Throttle::registerPositionChangeCallback(Throttle::PositionChangeCallback callback) {
-  m_positionChangeCallback = std::move(callback);
-}
+void Throttle::registerPositionChangeCallback(Throttle::PositionChangeCallback callback) { m_positionChangeCallback = std::move(callback); }
 
 void Throttle::setPosition(Throttle::Position position) const {
   auto requiredPosition = position;
@@ -47,5 +44,4 @@ void Throttle::setPosition(Throttle::Position position) const {
   ESP_LOGI(TAG, "Throttle position is set to %d", requiredPosition);
 }
 
-void Throttle::process() {
-}
+void Throttle::process() {}

@@ -15,40 +15,40 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
 #include <memory>
 
 #include <executor/Node.hpp>
+#include <gpio/InputPin.hpp>
 
-#include <foc/Motor.hpp>
-#include <foc/driver/Driver6PWM.hpp>
-#include <foc/encoder/AS5600.hpp>
-
-class Motor : public executor::Node {
+class Switch : public executor::Node {
 public:
-  using Position = std::uint16_t;
-
-public:
-  using BLDCDriver = std::unique_ptr<foc::Driver6PWM>;
-  using BLDCMotor = std::unique_ptr<foc::Motor>;
-  using Encoder = std::unique_ptr<foc::AS5600>;
+  enum class Error : std::uint8_t {
+    PIN_INIT_FAILED,
+  };
 
 public:
-  Motor();
-
-  ~Motor() override = default;
+  using Pin = std::uint8_t;
+  using Pointer = std::shared_ptr<Switch>;
 
 public:
-  void setPosition(Position position);
+  static auto create(Switch::Pin pin) -> std::expected<Pointer, Error>;
+
+private:
+  explicit Switch(gpio::InputPin::Pointer pin);
+
+public:
+  ~Switch() override = default;
+
+public:
+  [[nodiscard]] virtual bool isEnabled() const;
 
 private:
   void process() override;
 
 private:
-  Encoder m_encoder = nullptr;
-  BLDCMotor m_motor = nullptr;
-  BLDCDriver m_driver = nullptr;
+  gpio::InputPin::Pointer m_switch{nullptr};
 
 private:
-  Motor::Position m_targetPosition = 0;
-  Motor::Position m_currentPosition = 0;
+  bool m_enable{false};
 };

@@ -15,24 +15,32 @@
 #pragma once
 
 #include <cstdint>
-#include <executor/Node.hpp>
 #include <functional>
+
+#include <executor/Node.hpp>
 #include <gpio/InputPin.hpp>
 
 class ModeButton : public executor::Node {
 public:
+  enum class Error : std::uint8_t {
+    BUTTON_INIT_FAILED,
+  };
+
+public:
   using Pin = std::uint8_t;
   using Time = std::int64_t;
+  using Pointer = std::shared_ptr<ModeButton>;
   using HoldCallback = std::function<void()>;
   using PressCallback = std::function<void()>;
 
 public:
-  explicit ModeButton(ModeButton::Pin pin, ModeButton::Time holdTimeInUS = 1000000, ModeButton::Time thresholdInUS = 100000);
-  ~ModeButton() override = default;
+  static auto create(ModeButton::Pin pin, ModeButton::Time holdTimeInUS = 1000000, ModeButton::Time thresholdInUS = 100000) -> std::expected<Pointer, Error>;
+
+private:
+  ModeButton(gpio::InputPin::Pointer button, ModeButton::Time holdTimeInUS, ModeButton::Time thresholdInUS);
 
 public:
-  void registerHoldCallback(ModeButton::HoldCallback callback);
-  void registerPressCallback(ModeButton::PressCallback callback);
+  ~ModeButton() override = default;
 
 private:
   void process() override;
@@ -40,13 +48,7 @@ private:
   void processButtonReleased();
 
 private:
-  ModeButton::HoldCallback m_holdCallback = nullptr;
-  ModeButton::PressCallback m_pressCallback = nullptr;
-
-private:
-  gpio::InputPin m_button;
-
-private:
+  gpio::InputPin::Pointer const button;
   ModeButton::Time const m_holdTime;
   ModeButton::Time const m_threshold;
 

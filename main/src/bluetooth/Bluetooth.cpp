@@ -30,9 +30,11 @@ auto const MTU = BLE_ATT_MTU_MAX;
 
 } // namespace
 
-Bluetooth::Bluetooth(ConfigurationSharedPtr const &configuration, DeviceName deviceName)
-    : deviceName(std::move(deviceName)), serverCallback(std::make_unique<ServerCallback>()), otaCharacteristicCallback(nullptr),
+Bluetooth::Bluetooth(Configuration::Pointer const &configuration)
+    : deviceName("ETCU"), serverCallback(std::make_unique<ServerCallback>()), otaCharacteristicCallback(nullptr),
       configurationCharacteristicCallback(std::make_unique<ConfigurationCharacteristicCallback>(configuration)) {
+
+//  TODO Get name from config
 
   NimBLEDevice::init(deviceName);
   NimBLEDevice::setMTU(MTU);

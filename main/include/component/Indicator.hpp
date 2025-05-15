@@ -16,17 +16,16 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <executor/Node.hpp>
-#include <gpio/OutputPin.hpp>
+#include <expected>
+#include <memory>
 #include <vector>
+
+#include <executor/Node.hpp>
+#include <gpio/PinLevel.hpp>
+#include <gpio/interface/OutputPin.hpp>
 
 class Indicator : public executor::Node {
 public:
-  using Pin = std::uint8_t;
-  using Step = std::size_t;
-  using Time = std::int64_t;
-  using Interval = std::uint32_t;
-
   enum IndicatorMode : std::uint8_t {
     DISABLE_MODE = 0,
     NORMAL_MODE,
@@ -34,15 +33,34 @@ public:
     CRUISE_ON_MODE,
   };
 
+  enum Error : std::uint8_t {
+    INDICATOR_INIT_ERROR,
+  };
+
+public:
+  using Pin = std::uint8_t;
+  using Step = std::size_t;
+  using Time = std::int64_t;
+  using Pointer = std::shared_ptr<Indicator>;
+  using Interval = std::uint32_t;
+  using IndicatorPin = std::unique_ptr<gpio::interface::OutputPin<gpio::PinLevel>>;
+
+public:
   struct IntervalSetting {
     Indicator::Interval interval;
     gpio::PinLevel indicatorLevel;
   };
 
+private:
   using Intervals = std::vector<Indicator::IntervalSetting>;
 
 public:
-  explicit Indicator(Pin pin);
+  static auto create(Pin pin) -> std::expected<Pointer, Error>;
+
+private:
+  explicit Indicator(IndicatorPin pin);
+
+public:
   ~Indicator() override = default;
 
 public:
@@ -55,12 +73,12 @@ public:
   void process() override;
 
 private:
-  gpio::OutputPin m_indicator;
+  IndicatorPin m_indicator;
 
 private:
   bool m_error = false;
-  Indicator::Step m_currentStep;
-  Indicator::Time m_previousTime;
-  Indicator::IndicatorMode m_mode;
-  Indicator::Intervals m_intervals;
+  Step m_currentStep;
+  Time m_previousTime;
+  Intervals m_intervals;
+  IndicatorMode m_mode;
 };

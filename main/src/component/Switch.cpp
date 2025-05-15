@@ -12,43 +12,45 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "Switch.hpp"
+#include "component/Switch.hpp"
 
 #include <utility>
 
-Switch::Switch(Switch::Pin pin) : m_switch(pin, gpio::PIN_LEVEL_LOW) {
+auto Switch::create(Switch::Pin pin) -> std::expected<Switch::Pointer, Switch::Error> {
+  auto switchInstance = gpio::InputPin::create(pin, gpio::PinLevel::LOW);
+  if (not switchInstance) {
+    return std::unexpected(Switch::Error::PIN_INIT_FAILED);
+  }
+
+  return Switch::Pointer(new Switch(std::move(*switchInstance)));
 }
 
-void Switch::registerSwitchCallback(Switch::SwitchCallback callback) {
-  m_switchCallback = std::move(callback);
-}
+Switch::Switch(gpio::InputPin::Pointer pin) : m_switch(std::move(pin)) {}
 
-bool Switch::isEnabled() const {
-  return m_enable;
-}
+bool Switch::isEnabled() const { return m_enable; }
 
 void Switch::process() {
-  auto const level = m_switch.getLevel();
+  auto const level = m_switch->getLevel();
 
-  if (level == gpio::PIN_LEVEL_LOW) {
+  if (level == gpio::PinLevel::LOW) {
 
     if (m_enable) {
       m_enable = false;
 
-      if (m_switchCallback) {
-        m_switchCallback(m_enable);
-      }
+//      if (m_switchCallback) {
+//        m_switchCallback(m_enable);
+//      }
     }
   }
 
-  if (level == gpio::PIN_LEVEL_HIGH) {
+  if (level == gpio::PinLevel::HIGH) {
 
     if (not m_enable) {
       m_enable = true;
 
-      if (m_switchCallback) {
-        m_switchCallback(m_enable);
-      }
+//      if (m_switchCallback) {
+//        m_switchCallback(m_enable);
+//      }
     }
   }
 }

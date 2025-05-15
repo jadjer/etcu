@@ -16,71 +16,52 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 
-#include "pid/PIDController.hpp"
-#include "configuration/interface/Configuration.hpp"
-
+#include <executor/Executor.hpp>
 #include <executor/Node.hpp>
+#include <pid/PIDController.hpp>
+
+#include "Configuration.hpp"
+#include "Telemetry.hpp"
+#include "component/TwistPosition.hpp"
 
 class Controller : public executor::Node {
+public:
+  enum class Error : std::uint8_t {
+    TWIST_POSITION_INIT_FAILED,
+  };
+
 public:
   using RPM = std::uint16_t;
   using Time = std::int64_t;
   using Temp = float;
   using Speed = std::uint16_t;
+  using Pointer = std::unique_ptr<Controller>;
   using Position = std::uint8_t;
-  using ErrorCallback = std::function<void()>;
-  using PIDController = pid::PIDController;
-  using CruiseEnabledCallback = std::function<void(bool)>;
-  using PositionUpdateCallback = std::function<void(Controller::Position)>;
+  using ExecutorPointer = std::unique_ptr<executor::Executor>;
+  using TelemetryPointer = std::shared_ptr<Telemetry>;
+  using PIDControllerPointer = std::unique_ptr<pid::PIDController>;
 
 public:
-  explicit Controller(ConfigurationPtr configuration);
+  static auto create(Configuration::Pointer configuration, TelemetryPointer telemetry) -> std::expected<Pointer, Error>;
+
+private:
+  Controller(Configuration::Pointer configuration, TelemetryPointer telemetry, TwistPosition::Pointer twistPosition);
+
+public:
   ~Controller() override = default;
 
 public:
-  void registerErrorCallback(Controller::ErrorCallback callback);
-  void registerCruiseEnableCallback(Controller::CruiseEnabledCallback callback);
-  void registerPositionUpdateCallback(Controller::PositionUpdateCallback callback);
-
-public:
-  void setRPM(Controller::RPM rpm);
-  void setSpeed(Controller::Speed speed);
-  void setTemperature(Controller::Temp temp);
-  void setTwistPosition(Controller::Position position);
-  void setThrottlePosition(Controller::Position position);
-
-public:
-  void enableGuardMode();
-
-public:
-  void holdRPM();
-  void releaseRPM();
-
-public:
-  void enableCruiseMode();
-  void disableCruiseMode();
+  auto run() -> void;
 
 private:
   void process() override;
 
 private:
-  ConfigurationPtr m_configuration = nullptr;
-  Controller::ErrorCallback m_errorCallback = nullptr;
-  Controller::CruiseEnabledCallback m_cruiseEnabledCallback = nullptr;
-  Controller::PositionUpdateCallback m_positionUpdateCallback = nullptr;
-
-private:
-  Controller::PIDController m_pid;
-
-private:
-  Controller::RPM m_rpm = 0;
-  Controller::Temp m_temp = 0;
-  Controller::Speed m_speed = 0;
-  Controller::Time m_rpmLastUpdate = 0;
-  Controller::Time m_speedLastUpdate = 0;
-  Controller::Position m_twistPosition = 0;
-  Controller::Position m_throttlePosition = 0;
-  Controller::Position m_throttlePositionMaximal = 0;
-  Controller::Position m_throttlePositionMinimal = 0;
+  ExecutorPointer const m_executor;
+  PIDControllerPointer const m_pid;
+  TelemetryPointer const m_telemetry;
+  Configuration::Pointer const m_configuration;
+  TwistPosition::Pointer const m_twistPosition;
 };

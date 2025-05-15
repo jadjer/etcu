@@ -14,9 +14,14 @@
 
 #include "Controller.hpp"
 
+#include <utility>
+
 #include <esp_log.h>
 #include <esp_timer.h>
-#include <utility>
+
+#include "component/TwistPosition.hpp"
+
+namespace {
 
 auto const TAG = "Controller";
 auto const MICROSECONDS_IN_SECOND = 1000000;
@@ -25,122 +30,51 @@ auto const SPEED_MODE_CRUISE = 60;
 auto const POSITION_MINIMAL = 0;
 auto const POSITION_MAXIMAL = 100;
 
-// P (kp): Отвечает за быстрое увеличение дроссельной заслонки при отклонении скорости от заданной.
-// I (ki): Устраняет ситуацию, когда автомобиль не может достичь заданной скорости из-за нагрузки (например, подъём в гору).
-// D (kd): Предотвращает резкие изменения положения дроссельной заслонки, когда скорость приближается к заданной.
+} // namespace
 
-/*
- * Настройка коэффициентов:
-
-    Начните с P:
-        Установите ki = 0 и kd = 0.
-        Увеличивайте kp, пока система не начнёт быстро реагировать на ошибку, но без сильных колебаний.
-
-    Добавьте I:
-        Увеличивайте ki, чтобы устранить статическую ошибку.
-        Следите, чтобы система не стала слишком медленной или не начала колебаться.
-
-    Добавьте D:
-        Увеличивайте kd, чтобы уменьшить перерегулирование и колебания.
-        Убедитесь, что система не становится слишком "нервной" (резкие изменения управления).
- */
-
-Controller::Controller(ConfigurationPtr configuration) : m_configuration(std::move(configuration)),
-                                                         m_pid(5, 0, 0),
-                                                         m_throttlePositionMaximal(POSITION_MAXIMAL) {
-  m_pid.setPoint(POSITION_MINIMAL);
-}
-
-void Controller::registerErrorCallback(Controller::ErrorCallback callback) {
-  m_errorCallback = std::move(callback);
-}
-
-void Controller::registerCruiseEnableCallback(Controller::CruiseEnabledCallback callback) {
-  m_cruiseEnabledCallback = std::move(callback);
-}
-
-void Controller::registerPositionUpdateCallback(Controller::PositionUpdateCallback callback) {
-  m_positionUpdateCallback = std::move(callback);
-}
-
-void Controller::setRPM(Controller::RPM const rpm) {
-  m_rpm = rpm;
-  m_rpmLastUpdate = esp_timer_get_time();
-}
-
-void Controller::setSpeed(Controller::Speed const speed) {
-  m_speed = speed;
-  m_speedLastUpdate = esp_timer_get_time();
-}
-
-void Controller::setTemperature(Controller::Temp const temp) {
-  m_temp = temp;
-}
-
-void Controller::setTwistPosition(Controller::Position const position) {
-  m_twistPosition = position;
-}
-
-void Controller::setThrottlePosition(Controller::Position const position) {
-  m_throttlePosition = position;
-}
-
-void Controller::enableGuardMode() {
-  m_throttlePositionMaximal = POSITION_MINIMAL;
-}
-
-void Controller::holdRPM() {
-  if (m_speed >= SPEED_MODE_CRUISE) {
-    return;
+auto Controller::create(Configuration::Pointer configuration, TelemetryPointer telemetry) -> std::expected<Pointer, Error> {
+  auto twistPosition = TwistPosition::create();
+  if (not twistPosition) {
+    return std::unexpected(Controller::Error::TWIST_POSITION_INIT_FAILED);
   }
 
-  m_throttlePositionMinimal = m_throttlePosition;
+  return Controller::Pointer(new Controller(std::move(configuration), std::move(telemetry), std::move(*twistPosition)));
 }
 
-void Controller::releaseRPM() {
-  if (m_speed > SPEED_MODE_CRUISE) {
-    return;
-  }
+Controller::Controller(Configuration::Pointer configuration, TelemetryPointer telemetry, TwistPosition::Pointer twistPosition)
+    : m_executor(std::make_unique<executor::Executor>()), m_pid(std::make_unique<pid::PIDController>(5, 0, 0, 10, 1)), m_telemetry(std::move(telemetry)),
+      m_configuration(std::move(configuration)), m_twistPosition(std::move(twistPosition)) {
 
-  m_throttlePositionMinimal = POSITION_MINIMAL;
+  m_pid->reset();
+
+  m_executor->addNode(m_twistPosition, 1);
+  m_executor->start();
 }
 
-void Controller::enableCruiseMode() {
-  if (m_speed < SPEED_MODE_CRUISE) {
-    return;
-  }
-
-  m_pid.setPoint(m_speed);
-
-  if (m_cruiseEnabledCallback) {
-    m_cruiseEnabledCallback(true);
-  }
-}
-
-void Controller::disableCruiseMode() {
-  m_pid.setPoint(POSITION_MINIMAL);
-
-  if (m_cruiseEnabledCallback) {
-    m_cruiseEnabledCallback(false);
-  }
-}
+auto Controller::run() -> void {}
 
 void Controller::process() {
-  auto throttlePosition = m_pid.compute(m_speed);
+  auto const currentTwistPosition = m_twistPosition->getPosition();
 
-  if (throttlePosition < m_twistPosition) {
-    throttlePosition = m_twistPosition;
-  }
+//  m_telemetry->setTwistPosition(currentTwistPosition);
 
-  if (throttlePosition < m_throttlePositionMinimal) {
-    throttlePosition = m_throttlePositionMinimal;
-  }
+  ESP_LOGI(TAG, "Twist position: %u", currentTwistPosition);
 
-  if (throttlePosition > m_throttlePositionMaximal) {
-    throttlePosition = m_throttlePositionMaximal;
-  }
+  //  auto throttlePosition = m_pid.compute(m_speed);
+  //
+  //  if (throttlePosition < m_twistPosition) {
+  //    throttlePosition = m_twistPosition;
+  //  }
+  //
+  //  if (throttlePosition < m_throttlePositionMinimal) {
+  //    throttlePosition = m_throttlePositionMinimal;
+  //  }
+  //
+  //  if (throttlePosition > m_throttlePositionMaximal) {
+  //    throttlePosition = m_throttlePositionMaximal;
+  //  }
 
-  if (m_positionUpdateCallback) {
-    m_positionUpdateCallback(throttlePosition);
-  }
+  //  if (m_positionUpdateCallback) {
+  //    m_positionUpdateCallback(throttlePosition);
+  //  }
 }

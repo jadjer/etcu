@@ -16,7 +16,7 @@
 
 #include <utility>
 
-#include "configuration/Configuration.hpp"
+#include "Controller.hpp"
 
 namespace {
 
@@ -24,75 +24,31 @@ auto const TAG = "App";
 
 } // namespace
 
-App::App(Bluetooth::DeviceName const& deviceName) try
-    : configurationPointer(std::make_shared<Configuration>()), bluetooth(configurationPointer, deviceName),
-      components(Components{
-          .motor = std::make_shared<Motor>(),
-          .switchGuard = std::make_shared<Switch>(configurationPointer->getGuardSwitchPin()),
-          .switchBreak = std::make_shared<Switch>(configurationPointer->getBreakSwitchPin()),
-          .switchClutch = std::make_shared<Switch>(configurationPointer->getClutchSwitchPin()),
-          .throttle = std::make_shared<Throttle>(),
-          .indicator = std::make_shared<Indicator>(configurationPointer->getIndicatorPin()),
-          .controller = std::make_shared<Controller>(configurationPointer),
-          .modeButton = std::make_shared<ModeButton>(configurationPointer->getModeButtonPin()),
-          .twistPosition = std::make_unique<TwistPosition>(),
-      }) {
-} catch (std::exception const &e) {
-  ESP_LOGE(TAG, "Init app error: %s", e.what());
-  esp_restart();
+auto App::create() -> std::expected<App::Pointer, App::Error> {
+  auto configuration = Configuration::create();
+  if (not configuration) {
+    return std::unexpected(App::Error::CONFIGURATION_ERROR);
+  }
+
+  return App::Pointer(new App(*configuration));
 }
 
-void App::setup() {
-  components.switchGuard->registerSwitchCallback([this]([[maybe_unused]] bool const isEnabled) { components.controller->enableGuardMode(); });
-  components.switchBreak->registerSwitchCallback([this](bool const isEnabled) {
-    if (isEnabled) {
-      components.controller->disableCruiseMode();
-    }
-  });
-  components.switchClutch->registerSwitchCallback([this](bool const isEnabled) {
-    if (isEnabled) {
-      components.controller->disableCruiseMode();
-    }
-  });
+App::App(Configuration::Pointer const &configuration) noexcept
+    : executor(std::make_unique<executor::Executor>()), telemetry(std::make_shared<Telemetry>()), bluetooth(std::make_unique<Bluetooth>(configuration)),
+      configuration(configuration) {}
 
-  components.controller->registerPositionUpdateCallback([this](Controller::Position const position) {
-    components.throttle->setPosition(position);
-    components.controller->setThrottlePosition(position);
-  });
-  components.controller->registerCruiseEnableCallback([this](bool const isEnabled) {
-    if (isEnabled) {
-      components.indicator->setMode(Indicator::CRUISE_ON_MODE);
-    } else {
-      components.indicator->setMode(Indicator::NORMAL_MODE);
-    }
-  });
-  components.controller->registerErrorCallback([this] { components.indicator->setError(); });
+auto App::setup() -> std::expected<void, App::Error> {
+  auto controller = Controller::create(configuration, telemetry);
+  if (not controller) {
+    return std::unexpected(App::Error::CONTROLLER_INIT_ERROR);
+  }
 
-  components.modeButton->registerHoldCallback([this] {
-    components.controller->holdRPM();
-    components.controller->enableCruiseMode();
-  });
-  components.modeButton->registerPressCallback([this] {
-    components.controller->releaseRPM();
-    components.controller->disableCruiseMode();
-  });
+  executor->addNode(std::move(*controller));
 
-  components.twistPosition->registerPositionChangeCallback([this](TwistPosition::Position const position) { components.controller->setTwistPosition(position); });
-  components.twistPosition->registerErrorCallback([this] { components.indicator->setError(); });
+  return {};
 }
 
-void App::run() {
-  bluetooth.advertise();
-
-  executor.addNode(components.motor);
-  executor.addNode(components.switchGuard);
-  executor.addNode(components.switchBreak);
-  executor.addNode(components.switchClutch);
-  executor.addNode(components.throttle);
-  executor.addNode(components.indicator);
-  executor.addNode(components.controller);
-  executor.addNode(components.modeButton);
-  executor.addNode(std::move(components.twistPosition));
-
-  executor.spin();
+auto App::run() -> void {
+  bluetooth->advertise();
+  executor->spin();
 }

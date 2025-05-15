@@ -15,12 +15,12 @@
 #pragma once
 
 #include "NimBLECharacteristic.h"
-#include "configuration/interface/Configuration.hpp"
+#include "Configuration.hpp"
 
 
 class ConfigurationCharacteristicCallback : public NimBLECharacteristicCallbacks {
 public:
-  explicit ConfigurationCharacteristicCallback(ConfigurationPtr configuration);
+  explicit ConfigurationCharacteristicCallback(Configuration::Pointer const& configuration);
   ~ConfigurationCharacteristicCallback() override = default;
 
 public:
@@ -30,5 +30,5 @@ public:
   void onSubscribe(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo, uint16_t subValue) override;
 
 private:
-  ConfigurationPtr m_configuration = nullptr;
+  Configuration::Pointer const configuration ;
 };

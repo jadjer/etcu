@@ -16,10 +16,12 @@
 
 #include <cstdint>
 #include <functional>
+
 #include <executor/Node.hpp>
 
 class Throttle : public executor::Node {
 public:
+  using Pointer = std::shared_ptr<Throttle>;
   using Position = std::uint8_t;
   using ErrorCallback = std::function<void()>;
   using PositionChangeCallback = std::function<void(Throttle::Position)>;

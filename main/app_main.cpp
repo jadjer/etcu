@@ -12,15 +12,27 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <esp_log.h>
+
 #include "App.hpp"
 
 namespace {
 
-App app;
+auto const TAG = "App";
 
 } // namespace
 
 extern "C" void app_main() {
-  app.setup();
-  app.run();
+  auto app = App::create();
+  if (not app) {
+    ESP_LOGE(TAG, "System init failed");
+    return;
+  }
+
+  if (not(*app)->setup()) {
+    ESP_LOGE(TAG, "Components init failed");
+    return;
+  }
+
+  (*app)->run();
 }
