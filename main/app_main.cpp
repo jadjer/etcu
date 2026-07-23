@@ -27,8 +27,8 @@ namespace {
 Logger logger;
 
 devices::Accelerator accelerator;
-devices::Servo servo;
-devices::ECU ecu;
+devices::Servo<configs::UART::Servo, configs::Pins::UART::Servo::Tx, configs::Pins::UART::Servo::Rx> servo;
+devices::ECU<configs::UART::ECU, configs::Pins::UART::ECU::Tx, configs::Pins::UART::ECU::Rx> ecu;
 devices::Button<configs::Pins::Button> mode_button;
 devices::Switch<configs::Pins::Brake> brake_switch;
 devices::Switch<configs::Pins::Guard> guard_switch;
@@ -36,9 +36,7 @@ devices::Switch<configs::Pins::Clutch> clutch_switch;
 devices::Indicator<configs::Pins::Led> mode_indicator;
 devices::Indicator<configs::Pins::Led> status_indicator;
 
-Controller controller{logger,         accelerator,     servo,        ecu,
-                      mode_button,    brake_switch,    guard_switch, clutch_switch,
-                      mode_indicator, status_indicator};
+Controller controller{logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, clutch_switch, mode_indicator, status_indicator};
 SystemHost system_host{controller};
 
 }  // namespace

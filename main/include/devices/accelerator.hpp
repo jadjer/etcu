@@ -1,3 +1,17 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //
 // Created by jadjer on 23.07.26.
 //
@@ -73,9 +87,7 @@ class Accelerator {
     m_working_range = 4095;
   }
 
-  auto read(std::uint16_t& out_raw1,
-            std::uint16_t& out_raw2,
-            SystemError& current_errors) const noexcept -> std::uint16_t {
+  auto read(std::uint16_t& out_raw1, std::uint16_t& out_raw2, SystemError& current_errors) const noexcept -> std::uint16_t {
     if (m_adc_handle != nullptr)
       return 0;
 
@@ -87,8 +99,7 @@ class Accelerator {
     out_raw1 = static_cast<std::uint16_t>(val1);
     out_raw2 = static_cast<std::uint16_t>(val2);
 
-    if (std::uint16_t const diff = std::abs(val1 - val2);
-        std::cmp_greater(diff, configs::Safety::HallMismatchThreshold)) [[unlikely]] {
+    if (std::uint16_t const diff = std::abs(val1 - val2); std::cmp_greater(diff, configs::Safety::HallMismatchThreshold)) [[unlikely]] {
       current_errors = current_errors | SystemError::AcceleratorMismatch;
       return 0;
     }
@@ -97,9 +108,31 @@ class Accelerator {
     if (clean_input < 0)
       clean_input = 0;
 
-    std::uint32_t const target_pos =
-        (static_cast<std::uint32_t>(clean_input) * 4095) / m_working_range;
+    std::uint32_t const target_pos = (static_cast<std::uint32_t>(clean_input) * 4095) / m_working_range;
     return static_cast<std::uint16_t>(target_pos > 4095 ? 4095 : target_pos);
+  }
+
+  auto get_position(SystemError& current_errors) noexcept -> std::uint16_t {
+    if (m_adc_handle != nullptr) {
+      current_errors = current_errors | SystemError::AcceleratorInitFault;
+      return 0;
+    }
+
+    std::uint32_t sum1 = 0, sum2 = 0;
+
+    for (std::size_t i = 0; i < 32; ++i) {
+      int val1 = 0, val2 = 0;
+
+      std::ignore = adc_oneshot_read(m_adc_handle, configs::ADC::Hall1, &val1);
+      std::ignore = adc_oneshot_read(m_adc_handle, configs::ADC::Hall2, &val2);
+
+      sum1 += val1;
+      sum2 += val2;
+    }
+
+    std::uint32_t const current_position = (sum1 + sum2) / 2;
+
+    return current_position;
   }
 };
 

@@ -1,3 +1,17 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //
 // Created by jadjer on 23.07.26.
 //
@@ -32,13 +46,12 @@ class Controller {
   StatusInd& m_status_indicator;
 
   Core m_core;
+  SharedData m_shared_data;
 
-  // Атомарные мосты межъядерного взаимодействия
   std::atomic<Mode> m_current_mode{Mode::Normal};
-  std::atomic<SystemError> m_system_errors{SystemError::None};
-  std::atomic<DriverInput> m_driver_input{DriverInput{}};
-  std::atomic<uint16_t> m_target_cruise_pos{0};
-  std::atomic<uint16_t> m_actual_servo_pos{0};
+  std::atomic<std::uint32_t> m_system_errors{static_cast<std::uint32_t>(SystemError::None)};
+  std::atomic<bool> m_shared_data_ready{false};
+  std::atomic<std::uint16_t> m_target_speed{0};
 
  public:
   Controller(Logger& logger,
@@ -66,108 +79,79 @@ class Controller {
     m_logger.init();
     m_logger.log_info("Starting Throttle Controller Initialization...");
 
-    // Инициализация периферии
-    m_servo.init();
+    m_core.init();
+
     m_accelerator.init();
+    m_servo.init();
     m_ecu.init();
     m_mode_button.init();
-    m_clutch.init();
     m_brake.init();
     m_guard.init();
+    m_clutch.init();
     m_mode_indicator.init();
     m_status_indicator.init();
-
-    // m_core.init(m_adc_handle);
 
     m_logger.log_info("Executing automatic zero and range calibration...");
     // m_core.execute_auto_calibration();
   }
 
-  // Core 0 Task: Системная бизнес-логика, Конечный автомат (FSM), Отказоустойчивость
   auto process_system_loop() noexcept -> void {
-    // m_mode_button.update();
+    m_ecu.update();
+    m_mode_button.update();
 
-    // Считывание текущего слепка атомиков из критического ядра
-    SystemError current_errs = m_system_errors.load(std::memory_order_relaxed);
+    std::uint16_t const rpm = m_ecu.get_rpm();
+    std::uint16_t const tps = m_ecu.get_tps();
+    std::uint16_t const speed = m_ecu.get_speed();
+    auto const current_errors = static_cast<SystemError>(m_system_errors.load(std::memory_order_relaxed));
+
     Mode current_mode = m_current_mode.load(std::memory_order_relaxed);
-    DriverInput input = m_driver_input.load(std::memory_order_relaxed);
 
-    // Обработка критической ошибки аппаратного сторожа Guard (Мгновенное отключение)
-    // if (m_guard.is_active()) {
-    //   m_current_mode.store(Mode::Emergency, std::memory_order_release);
-    //   m_system_errors.store(current_errs | SystemError::AcceleratorMismatch,
-    //   std::memory_order_release);
-    // }
+    if (m_guard.is_active()) {
+      current_mode = Mode::Off;
+      m_current_mode.store(current_mode, std::memory_order_relaxed);
+      m_system_errors.fetch_or(static_cast<std::uint32_t>(SystemError::GuardLock), std::memory_order_relaxed);
+    }
 
-    // Конечный автомат переключения режимов
-    // switch (current_mode) {
-    // case Mode::Normal:
-    //   if (current_errs != SystemError::None) {
-    //     m_current_mode.store(Mode::Emergency, std::memory_order_release);
-    //   } else if (m_mode_button.is_long_press() && m_actual_servo_pos.load() == 0) {
-    //     // Калибровка нуля по долгому нажатию на нулевой скорости
-    //     // m_core.force_set_zero_calibration(input.raw_hall_1, input.raw_hall_2);
-    //     Logger::log_info("Manual Zero Calibrated via Long Press.");
-    //   } else if (m_mode_button.is_long_press() && m_actual_servo_pos.load() > 0) {
-    //     // Переход в Круиз Контроль
-    //     m_target_cruise_pos.store(m_actual_servo_pos.load(), std::memory_order_relaxed);
-    //     // m_current_mode.store(Mode::CruiseControl, std::memory_order_release);
-    //     Logger::log_info("Switched to Cruise Control Mode.");
-    //   }
-    //   break;
-    //
-    // case Mode::Eco:
-    //   if (current_errs != SystemError::None) {
-    //     m_current_mode.store(Mode::Emergency, std::memory_order_release);
-    //   } else if (m_mode_button.is_short_press() || m_clutch.is_active() || m_brake.is_active()) {
-    //     // Сброс круиза в обычный режим
-    //     m_current_mode.store(Mode::Normal, std::memory_order_release);
-    //     Logger::log_info("Cruise Control Deactivated.");
-    //   }
-    //   break;
-    //
-    // case Mode::Emergency:
-    //   if (m_mode_button.is_short_press() && !m_guard.is_active()) {
-    //     // Попытка сброса аварии коротким нажатием с очисткой калибровки
-    //     // m_core.reset_calibration();
-    //     m_system_errors.store(SystemError::None, std::memory_order_release);
-    //     m_current_mode.store(Mode::Normal, std::memory_order_release);
-    //     Logger::log_info("Emergency recovered. Hard reset calibration applied.");
-    //   }
-    //   break;
-    // }
+    if (current_errors != SystemError::None) {
+      m_current_mode.store(Mode::Off, std::memory_order_relaxed);
+    }
 
-    // Обновление индикации и передача пакетов в ECU
-    // m_mode_indicator.set_status(current_mode, current_errs);
-    // m_ecu.update(current_mode, m_actual_servo_pos.load(), current_errs);
+    if (m_clutch.is_active() || m_brake.is_active()) {
+      m_target_speed.store(0, std::memory_order_relaxed);
+    }
+
+    if (m_mode_button.is_long_press() && speed == 0) {
+      m_logger.log_info("Offset zero position");
+    }
+
+    if (m_mode_button.is_long_press() && speed > 60) {
+      m_target_speed.store(speed, std::memory_order_relaxed);
+      m_logger.log_info("Enable Cruise Control");
+    }
+
+    m_mode_indicator.set_status(current_mode, current_errors);
   }
 
-  // Core 1 Task: Hard Real-Time Секция (Сверхбыстрый расчет без задержек ввода-вывода)
   auto process_critical_loop() noexcept -> void {
-    SystemError local_errors = m_system_errors.load(std::memory_order_relaxed);
-    Mode local_mode = m_current_mode.load(std::memory_order_relaxed);
+    static SharedData shared_data{};
+    static ServoTelemetry servo_telemetry{};
 
-    // Чтение датчиков Холла
-    int raw1 = 0, raw2 = 0;
-    // adc_oneshot_read(m_adc_handle, config::ADC_HALL_1, &raw1);
-    // adc_oneshot_read(m_adc_handle, config::ADC_HALL_2, &raw2);
+    auto local_errors = static_cast<SystemError>(m_system_errors.load(std::memory_order_relaxed));
+    Mode const local_mode = m_current_mode.load(std::memory_order_relaxed);
 
-    // Публикация входных данных для Core 0
-    // DriverInput current_input{.raw_hall_1 = static_cast<uint16_t>(raw1),
-    //                           .raw_hall_2 = static_cast<uint16_t>(raw2),
-    //                           .clutch_pressed = m_clutch.is_active(),
-    //                           .brake_pressed = m_brake.is_active(),
-    //                           .guard_active = m_guard.is_active()};
-    // m_driver_input.store(current_input, std::memory_order_relaxed);
+    if (m_shared_data_ready.load(std::memory_order_acquire)) {
+      shared_data = m_shared_data;
+      m_shared_data_ready.store(false, std::memory_order_relaxed);
+    }
 
-    // Чтение фоновой телеметрии сервопривода ST3020 (ошибки тока/температуры)
-    // m_servo.read_telemetry(local_errors);
+    std::uint16_t const accelerator_position = m_accelerator.get_position(local_errors);
 
-    // Обработка данных вычислительным ядром
-    // uint16_t computed_pos = m_core.process(current_input, local_mode, m_target_cruise_pos.load(),
-    // local_errors);
-    //
-    // m_actual_servo_pos.store(computed_pos, std::memory_order_relaxed);
-    m_system_errors.store(local_errors, std::memory_order_release);
+    m_servo.read_telemetry(servo_telemetry, local_errors);
+
+    std::uint16_t const computed_position = m_core.calculate_servo_position(local_mode, accelerator_position, false, 0, 0);
+
+    m_servo.set_position(computed_position, local_errors);
+
+    m_system_errors.store(static_cast<std::uint32_t>(local_errors), std::memory_order_release);
   }
 };

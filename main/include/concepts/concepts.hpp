@@ -1,21 +1,33 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //
 // Created by jadjer on 23.07.26.
 //
 
 #pragma once
 
-#include "types.hpp"
-
 #include <concepts>
+#include "types.hpp"
 
 namespace concepts {
 
 template <typename T>
-concept AcceleratorConcept =
-    requires(T a, std::uint16_t& out1, std::uint16_t& out2, SystemError& err) {
-      { a.init() } noexcept -> std::same_as<void>;
-      { a.read(out1, out2, err) } noexcept -> std::same_as<std::uint16_t>;
-    };
+concept AcceleratorConcept = requires(T a, SystemError& err) {
+  { a.init() } noexcept -> std::same_as<void>;
+  { a.get_position(err) } noexcept -> std::same_as<std::uint16_t>;
+};
 
 template <typename T>
 concept ButtonConcept = requires(T b) {
@@ -26,9 +38,12 @@ concept ButtonConcept = requires(T b) {
 };
 
 template <typename T>
-concept ECUConcept = requires(T e, Mode mode, std::uint16_t pos, SystemError err) {
+concept ECUConcept = requires(T e) {
   { e.init() } noexcept -> std::same_as<void>;
-  // { e.update(mode, pos, err) } -> std::same_as<void>;
+  { e.update() } noexcept -> std::same_as<void>;
+  { e.get_rpm() } noexcept -> std::same_as<std::uint16_t>;
+  { e.get_tps() } noexcept -> std::same_as<std::uint16_t>;
+  { e.get_speed() } noexcept -> std::same_as<std::uint16_t>;
 };
 
 template <typename T>
@@ -38,10 +53,10 @@ concept IndicatorConcept = requires(T i, Mode mode, SystemError err) {
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, std::uint16_t position, SystemError err) {
+concept ServoConcept = requires(T s, std::uint16_t const position, ServoTelemetry& telemetry, SystemError& err) {
   { s.init() } noexcept -> std::same_as<void>;
   { s.set_position(position, err) } noexcept -> std::same_as<bool>;
-  // { s.read_telemetry(std::uint16_t) } -> std::same_as<void>;
+  { s.read_telemetry(telemetry, err) } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>

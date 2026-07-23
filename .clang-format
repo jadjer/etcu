@@ -1,5 +1,5 @@
 ---
 Language: Cpp
 Standard: Latest
-ColumnLimit: 100
+ColumnLimit: 160
 BasedOnStyle: Chromium

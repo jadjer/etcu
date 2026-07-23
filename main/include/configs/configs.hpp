@@ -1,3 +1,17 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //
 // Created by jadjer on 23.07.26.
 //
@@ -22,7 +36,7 @@ struct Pins {
       static constexpr gpio_num_t Rx = GPIO_NUM_18;
     };
 
-    struct Ecu {
+    struct ECU {
       static constexpr gpio_num_t Tx = GPIO_NUM_19;
       static constexpr gpio_num_t Rx = GPIO_NUM_20;
     };
@@ -38,7 +52,7 @@ struct Pins {
 struct UART {
   static constexpr uart_port_t Log = UART_NUM_0;
   static constexpr uart_port_t Servo = UART_NUM_1;
-  static constexpr uart_port_t Ecu = UART_NUM_2;
+  static constexpr uart_port_t ECU = UART_NUM_2;
 };
 
 struct ADC {
