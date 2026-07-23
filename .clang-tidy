@@ -3,6 +3,7 @@ Checks: >
   
   clang-diagnostic-*,
   llvm-*,
+  -llvm-include-order,
   misc-*,
   modernize-*,
   bugprone-*,
@@ -20,30 +21,43 @@ CheckOptions:
     value: CamelCase
   - key: readability-identifier-naming.EnumCase
     value: CamelCase
+
   - key: readability-identifier-naming.EnumConstantCase
-    value: UPPER_CASE
-  - key: readability-identifier-naming.FunctionCase
-    value: camelCase
-  - key: readability-identifier-naming.MemberCase
-    value: camelCase
-  - key: readability-identifier-naming.ParameterCase
-    value: camelCase
-  - key: readability-identifier-naming.UnionCase
     value: CamelCase
+
+  - key: readability-identifier-naming.FunctionCase
+    value: snake_case
+
+  - key: readability-identifier-naming.ClassMemberCase
+    value: snake_case
+  - key: readability-identifier-naming.ClassMemberPrefix
+    value: m_
+
+  - key: readability-identifier-naming.StructMemberCase
+    value: snake_case
+  - key: readability-identifier-naming.StructMemberPrefix
+    value: ""
+
+  - key: readability-identifier-naming.UnionMemberCase
+    value: snake_case
+  - key: readability-identifier-naming.UnionMemberPrefix
+    value: ""
+
+  - key: readability-identifier-naming.ParameterCase
+    value: snake_case
   - key: readability-identifier-naming.VariableCase
-    value: camelCase
+    value: snake_case
+
   - key: readability-identifier-naming.ConstantCase
-    value: camelCase
+    value: snake_case
   - key: readability-identifier-naming.ClassConstantCase
-    value: camelCase
+    value: CamelCase
   - key: readability-identifier-naming.GlobalConstantCase
     value: UPPER_CASE
 
-  # Исключения
   - key: readability-identifier-naming.IgnoreMainLikeFunctions
     value: true
 
-  # Дополнительные настройки
   - key: modernize-use-default-member-init.UseAssignment
     value: true
   - key: modernize-use-using.IgnoreMacros

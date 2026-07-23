@@ -1,4 +1,4 @@
-// Copyright 2025 Pavel Suprunov
+// Copyright 2026 Pavel Suprunov
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,27 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <esp_log.h>
-
-#include "App.hpp"
+#include "controller.hpp"
+#include "devices/accelerator.hpp"
+#include "devices/button.hpp"
+#include "devices/ecu.hpp"
+#include "devices/indicator.hpp"
+#include "devices/servo.hpp"
+#include "devices/switch.hpp"
+#include "logger.hpp"
+#include "system_host.hpp"
 
 namespace {
 
-auto const TAG = "App";
+Logger logger;
 
-} // namespace
+devices::Accelerator accelerator;
+devices::Servo servo;
+devices::ECU ecu;
+devices::Button<configs::Pins::Button> mode_button;
+devices::Switch<configs::Pins::Brake> brake_switch;
+devices::Switch<configs::Pins::Guard> guard_switch;
+devices::Switch<configs::Pins::Clutch> clutch_switch;
+devices::Indicator<configs::Pins::Led> mode_indicator;
+devices::Indicator<configs::Pins::Led> status_indicator;
+
+Controller controller{logger,         accelerator,     servo,        ecu,
+                      mode_button,    brake_switch,    guard_switch, clutch_switch,
+                      mode_indicator, status_indicator};
+SystemHost system_host{controller};
+
+}  // namespace
 
 extern "C" void app_main() {
-  auto app = App::create();
-  if (not app) {
-    ESP_LOGE(TAG, "System init failed");
-    return;
-  }
-
-  if (not(*app)->setup()) {
-    ESP_LOGE(TAG, "Components init failed");
-    return;
-  }
-
-  (*app)->run();
+  controller.init();
+  system_host.run();
 }

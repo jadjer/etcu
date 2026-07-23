@@ -1,7 +1,5 @@
 ---
-BasedOnStyle: LLVM
-ColumnLimit: 180  # Увеличиваем максимальную длину строки
-BinPackArguments: true  # Разрешаем упаковку аргументов в одну строку
-BinPackParameters: true  # Разрешаем упаковку параметров в одну строку
-AllowAllArgumentsOnNextLine: true  # Не переносить все аргументы, если не влезают
-BreakBeforeBraces: Attach  # Фигурные скобки на той же строке
+Language: Cpp
+Standard: Latest
+ColumnLimit: 100
+BasedOnStyle: Chromium

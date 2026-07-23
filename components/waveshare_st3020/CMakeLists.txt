@@ -5,15 +5,9 @@ set(INCLUDE_DIRS
 )
 
 set(SOURCES
-        "app_main.cpp"
 )
 
 set(REQUIRES
-        esp_driver_uart
-        esp_driver_ledc
-        esp_driver_gpio
-        esp_adc
-        esp_timer
 )
 
 idf_component_register(INCLUDE_DIRS ${INCLUDE_DIRS} SRCS ${SOURCES} REQUIRES ${REQUIRES})

@@ -1,22 +1,2 @@
 dependencies:
-  idf: ">=5.4.1"
-
-#  executor:
-#    git: https://github.com/jadjer/esp-executor.git
-#    version: "*"
-
-  #  esp_gpio:
-  #    git: https://github.com/jadjer/esp-gpio.git
-  #    version: "*"
-
-  #  esp_adc:
-  #    git: https://github.com/jadjer/esp-adc.git
-  #    version: "*"
-
-  nimble:
-    git: https://github.com/h2zero/esp-nimble-cpp.git
-    version: "*"
-
-#  esp_pid:
-#    git: https://github.com/jadjer/esp-pid.git
-#    version: "*"
+  idf: ">=6.0.2"
