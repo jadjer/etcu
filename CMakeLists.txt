@@ -1,12 +1,15 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.30.5)
+
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
-project(ETCU
-        VERSION 0.6.2
+project(
+        ETCU
         DESCRIPTION "Electronic throttle control unit for Honda Varadero based on esp32-s3"
-        HOMEPAGE_URL https://github.com/jadjer/electronic-throttle-control-unit-esp32
-        LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+        HOMEPAGE_URL https://github.com/jadjer/etcu-esp32
+        LANGUAGES CXX
+)

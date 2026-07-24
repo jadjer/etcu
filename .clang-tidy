@@ -1,0 +1,70 @@
+Checks: >
+  -*,
+  
+  clang-diagnostic-*,
+  llvm-*,
+  -llvm-include-order,
+  misc-*,
+  modernize-*,
+  bugprone-*,
+  performance-*,
+  portability-*,
+  
+  readability-identifier-naming,
+  
+  -llvm-header-guard,
+
+CheckOptions:
+  - key: readability-identifier-naming.ClassCase
+    value: CamelCase
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.EnumCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.EnumConstantCase
+    value: CamelCase
+
+  - key: readability-identifier-naming.FunctionCase
+    value: snake_case
+
+  - key: readability-identifier-naming.ClassMemberCase
+    value: snake_case
+  - key: readability-identifier-naming.ClassMemberPrefix
+    value: m_
+
+  - key: readability-identifier-naming.StructMemberCase
+    value: snake_case
+  - key: readability-identifier-naming.StructMemberPrefix
+    value: ""
+
+  - key: readability-identifier-naming.UnionMemberCase
+    value: snake_case
+  - key: readability-identifier-naming.UnionMemberPrefix
+    value: ""
+
+  - key: readability-identifier-naming.ParameterCase
+    value: snake_case
+  - key: readability-identifier-naming.VariableCase
+    value: snake_case
+
+  - key: readability-identifier-naming.ConstantCase
+    value: snake_case
+  - key: readability-identifier-naming.ClassConstantCase
+    value: CamelCase
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
+
+  - key: readability-identifier-naming.IgnoreMainLikeFunctions
+    value: true
+
+  - key: modernize-use-default-member-init.UseAssignment
+    value: true
+  - key: modernize-use-using.IgnoreMacros
+    value: true
+  - key: modernize-pass-by-value.IncludeStyle
+    value: llvm
+  - key: readability-redundant-member-init.IgnoreBaseInCopyConstructors
+    value: true
+
+WarningsAsErrors: 'bugprone-*,clang-diagnostic-error,performance-*'

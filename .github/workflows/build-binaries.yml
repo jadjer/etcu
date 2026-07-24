@@ -1,0 +1,60 @@
+name: Build and Artifact the ESP-IDF Project
+
+on:
+  push:
+    tags:
+     - 'v*'
+
+jobs:
+  build_for_esp32:
+    name: Build binary for ESP32
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: esp-idf build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3.1
+          target: esp32
+          path: '.'
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/CLS.bin
+          asset_name: cls-esp32-$tag.bin
+          tag: ${{ github.ref }}
+          overwrite: true
+
+  build_for_esp32s3:
+    name: Build binary for ESP32-S3
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: esp-idf build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.3.1
+          target: esp32s3
+          path: '.'
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build/CLS.bin
+          asset_name: cls-esp32s3-$tag.bin
+          tag: ${{ github.ref }}
+          overwrite: true
+
