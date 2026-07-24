@@ -47,9 +47,9 @@ class ECU {
     uart_driver_install(Port, 256, 256, 0, nullptr, 0);
   }
   auto update() noexcept -> void {
-    m_rpm = 1;
-    m_tps = 1;
-    m_speed = 1;
+    m_rpm = 0;
+    m_tps = 0;
+    m_speed = 0;
   }
 
   [[nodiscard]] auto get_rpm() const noexcept -> std::uint16_t { return m_rpm; }

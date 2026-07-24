@@ -26,9 +26,6 @@ namespace concepts {
 template <CoreID T>
 concept CoreConcept = (T <= 1);
 
-template <MilliSec T, MilliSec Min, MilliSec Max>
-concept RateConcept = (T >= Min && T <= Max);
-
 template <Ticks T, Ticks Min, Ticks Max>
 concept TicksConcept = (T >= Min && T <= Max);
 
@@ -42,12 +39,13 @@ concept AcceleratorConcept = requires(T a, Position position, SystemError& err) 
 };
 
 template <typename T>
-concept ButtonConcept = requires(T b) {
+concept ButtonConcept = requires(T b, Ticks ticks) {
   { b.init() } noexcept -> std::same_as<void>;
   { b.update() } noexcept -> std::same_as<void>;
   { b.is_active() } noexcept -> std::same_as<bool>;
   { b.is_short_press() } noexcept -> std::same_as<bool>;
   { b.is_long_press() } noexcept -> std::same_as<bool>;
+  { b.is_long_then(ticks) } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
@@ -69,7 +67,7 @@ concept IndicatorConcept = requires(T i, Mode mode, SystemError err) {
 template <typename T>
 concept ServoConcept = requires(T s, Position const position, ServoTelemetry& telemetry, SystemError& err) {
   { s.init() } noexcept -> std::same_as<void>;
-  { s.self_test(err) } noexcept -> std::same_as<bool>;
+  { s.self_test() } noexcept -> std::same_as<bool>;
   { s.set_position(position, err) } noexcept -> std::same_as<bool>;
   { s.read_telemetry(telemetry, err) } noexcept -> std::same_as<bool>;
 };

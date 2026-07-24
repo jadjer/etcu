@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <string_view>
+
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_adc/adc_oneshot.h"
@@ -50,10 +52,9 @@ enum class ButtonState : std::uint8_t {
 };
 
 enum class Mode : std::uint8_t {
-  Normal = 0,
-  Eco,
-  Off,
+  Off = 0,
   Fail,
+  Normal,
   Calibration,
 };
 
@@ -64,6 +65,7 @@ enum class SystemError : std::uint32_t {
   ServoCommsFault = 1 << 2,
   ServoOvercurrent = 1 << 3,
   ServoOvertemp = 1 << 4,
+  ServoMechanicalFault = 1 << 5,
 
   AcceleratorInitFault = 1 << 10,
   AcceleratorCalibrateFault = 1 << 11,

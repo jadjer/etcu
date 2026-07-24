@@ -23,9 +23,8 @@
 #include <types.hpp>
 #include "concepts/concepts.hpp"
 
-template <concepts::ControllerConcept Controller, CoreID SystemCore = 0, CoreID CriticalCore = 1, MilliSec SystemRate = 100, MilliSec CriticalRate = 10>
-  requires concepts::CoreConcept<SystemCore> && concepts::CoreConcept<CriticalCore> && concepts::RateConcept<SystemRate, 10, 1000> &&
-           concepts::RateConcept<CriticalRate, 10, 100>
+template <concepts::ControllerConcept Controller, CoreID SystemCore = 0, CoreID CriticalCore = 1>
+  requires concepts::CoreConcept<SystemCore> && concepts::CoreConcept<CriticalCore>
 class SystemHost {
   Controller& m_controller;
 
@@ -34,7 +33,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_system_loop();
-      vTaskDelay(pdMS_TO_TICKS(SystemRate));
+      vTaskDelay(pdMS_TO_TICKS(10));
     }
   }
 
@@ -44,7 +43,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_critical_loop();
-      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(CriticalRate));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(10));
     }
   }
 

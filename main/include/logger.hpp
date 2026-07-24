@@ -19,7 +19,7 @@
 #pragma once
 
 #include <esp_log.h>
-
+#include <array>
 #include <cstdio>
 
 class Logger {
@@ -49,5 +49,39 @@ class Logger {
   template <typename... Args>
   auto log_error(const char* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_ERROR, format, std::forward<Args>(args)...);
+  }
+
+  auto log_active_errors(SystemError const errors) noexcept -> void {
+    if (errors == SystemError::None) {
+      log_info("System status: No Errors");
+      return;
+    }
+
+    log_error("--- Active Hardware Faults ---");
+
+    if (has_error(errors, SystemError::ServoInitFault))
+      log_error(" - ServoInitFault");
+    if (has_error(errors, SystemError::ServoCommsFault))
+      log_error(" - ServoCommsFault");
+    if (has_error(errors, SystemError::ServoOvercurrent))
+      log_error(" - ServoOvercurrent");
+    if (has_error(errors, SystemError::ServoOvertemp))
+      log_error(" - ServoOvertemp");
+    if (has_error(errors, SystemError::ServoMechanicalFault))
+      log_error(" - ServoMechanicalFault");
+
+    if (has_error(errors, SystemError::AcceleratorInitFault))
+      log_error(" - AcceleratorInitFault");
+    if (has_error(errors, SystemError::AcceleratorCalibrateFault))
+      log_error(" - AcceleratorCalibrateFault");
+    if (has_error(errors, SystemError::AcceleratorReadFault))
+      log_error(" - AcceleratorReadFault");
+    if (has_error(errors, SystemError::AcceleratorMismatch))
+      log_error(" - AcceleratorMismatch");
+
+    if (has_error(errors, SystemError::GuardLock))
+      log_error(" - GuardLock");
+
+    log_error("------------------------------");
   }
 };

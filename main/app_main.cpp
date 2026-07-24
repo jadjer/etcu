@@ -37,7 +37,7 @@ devices::Indicator<configs::Pins::StatusLed> status_indicator;
 
 Controller controller{logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, clutch_switch, mode_indicator, status_indicator};
 
-SystemHost<decltype(controller), configs::System::SystemCore, configs::System::CriticalCore, 100, 10> system_host{controller};
+SystemHost<decltype(controller), configs::System::SystemCore, configs::System::CriticalCore> system_host{controller};
 
 }  // namespace
 

@@ -43,9 +43,11 @@ class Button {
   }
 
   auto update() noexcept -> void {
+    bool const is_pressed = is_active();
+
     switch (m_state) {
       case ButtonState::Idle: {
-        if (bool const is_pressed = is_active(); !is_pressed) {
+        if (!is_pressed) {
           m_current_event = ButtonEvent::None;
           return;
         }
@@ -55,7 +57,7 @@ class Button {
         m_state = ButtonState::Debounce;
       } break;
       case ButtonState::Debounce: {
-        if (bool const is_pressed = is_active(); !is_pressed) {
+        if (!is_pressed) {
           m_state = ButtonState::Idle;
           return;
         }
@@ -67,7 +69,7 @@ class Button {
         }
       } break;
       case ButtonState::Pressed: {
-        if (bool const is_pressed = is_active(); !is_pressed) {
+        if (!is_pressed) {
           m_state = ButtonState::Idle;
           m_current_event = ButtonEvent::ShortPress;
           return;
@@ -81,9 +83,11 @@ class Button {
         }
       } break;
       case ButtonState::WaitRelease: {
-        if (bool const is_pressed = is_active(); !is_pressed) {
+        if (!is_pressed) {
           m_state = ButtonState::Idle;
         }
+
+        m_ticks_count++;
       } break;
     }
   }
@@ -96,6 +100,8 @@ class Button {
   [[nodiscard]] auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
 
   [[nodiscard]] auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
+
+  [[nodiscard]] auto is_long_then(Ticks const ticks) const noexcept -> bool { return m_ticks_count > ticks; }
 };
 
 }  // namespace devices

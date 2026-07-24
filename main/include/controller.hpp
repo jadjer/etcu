@@ -19,7 +19,9 @@
 #pragma once
 
 #include <atomic>
+
 #include "concepts/concepts.hpp"
+#include "logger.hpp"
 #include "logic.hpp"
 #include "types.hpp"
 
@@ -48,10 +50,11 @@ class Controller {
   Logic m_logic;
 
   SharedData m_shared_data;
-  std::atomic<Mode> m_current_mode{Mode::Normal};
+  std::atomic<Mode> m_current_mode{Mode::Off};
   std::atomic<SystemError> m_system_errors{SystemError::None};
+  std::atomic<Speed> m_target_speed{0};
   std::atomic<bool> m_shared_data_ready{false};
-  std::atomic<std::uint16_t> m_target_speed{0};
+  std::atomic<bool> m_offset_accelerator{false};
 
  public:
   Controller(Logger& logger,
@@ -77,7 +80,8 @@ class Controller {
 
   auto init() noexcept -> void {
     m_logger.init();
-    m_logger.log_info("Starting Throttle Controller Initialization...");
+
+    m_logger.log_info("Initialization...");
 
     m_logic.init();
     m_accelerator.init();
@@ -90,109 +94,94 @@ class Controller {
     m_mode_indicator.init();
     m_status_indicator.init();
 
+    m_logger.log_info("Check guard...");
+
+    if (m_guard.is_active()) {
+      m_current_mode.store(Mode::Off, std::memory_order_relaxed);
+      m_system_errors.store(SystemError::GuardLock, std::memory_order_release);
+      m_logger.log_info("Guard enabled. Servo disabled");
+
+      return;
+    }
+
     m_logger.log_info("Test servo...");
 
     if (!m_servo.self_test()) {
       m_current_mode.store(Mode::Fail, std::memory_order_relaxed);
+      m_system_errors.store(SystemError::ServoMechanicalFault, std::memory_order_release);
       m_logger.log_info("Self test failed. Servo disabled");
 
       return;
     }
 
     m_current_mode.store(Mode::Normal, std::memory_order_relaxed);
+
     m_logger.log_info("Ready");
   }
 
   auto process_system_loop() noexcept -> void {
-    Mode const currentMode = m_current_mode.load(std::memory_order_relaxed);
-    SystemError const current_error = m_system_errors.load(std::memory_order_relaxed);
+    Mode const current_mode = m_current_mode.load(std::memory_order_relaxed);
+    SystemError current_errors = m_system_errors.load(std::memory_order_acquire);
 
+    m_ecu.update();
     m_mode_button.update();
     m_brake.update();
-    m_clutch.update();
     m_guard.update();
-    m_ecu.update();
+    m_clutch.update();
     m_mode_indicator.update();
+    m_status_indicator.update();
 
-    if (currentMode == Mode::Normal) {
-
+    if (current_mode == Mode::Normal) {
+      if (m_mode_button.is_long_then(500)) {
+        m_current_mode.store(Mode::Calibration, std::memory_order_relaxed);
+        m_logger.log_info("Start calibration...");
+      }
     }
 
-    // std::uint16_t const rpm = m_ecu.get_rpm();
-    // std::uint16_t const tps = m_ecu.get_tps();
-    Speed const speed = m_ecu.get_speed();
-
-    Mode current_mode = m_current_mode.load(std::memory_order_relaxed);
-
-    if (m_guard.is_active()) {
-      current_mode = Mode::Off;
-      m_current_mode.store(current_mode, std::memory_order_relaxed);
-      m_system_errors.fetch_or(static_cast<std::uint32_t>(SystemError::GuardLock), std::memory_order_relaxed);
+    if (current_mode == Mode::Calibration) {
+      if (m_mode_button.is_short_press()) {
+        m_current_mode.store(Mode::Normal, std::memory_order_relaxed);
+        m_logger.log_info("Calibration finished. Returning to Normal.");
+      }
     }
 
-    if (current_errors != SystemError::None) {
+    if (current_errors != SystemError::None && current_mode != Mode::Off) [[unlikely]] {
       m_current_mode.store(Mode::Off, std::memory_order_relaxed);
+      m_logger.log_active_errors(current_errors);
     }
 
-    if (m_clutch.is_active() || m_brake.is_active()) {
-      m_target_speed.store(0, std::memory_order_relaxed);
-    }
-
-    if (m_mode_button.is_short_press()) {
-      m_logger.log_info("Short press");
-    }
-
-    if (m_mode_button.is_long_press()) {
-      m_logger.log_info("Long press");
-
-      auto position = m_accelerator.get_position(current_errors);
-      ESP_LOGI("QWE", "%lu", position);
-    }
-
-    if (m_mode_button.is_long_press() && speed == 0) {
-      m_logger.log_info("Offset zero position");
-    }
-
-    if (m_mode_button.is_long_press() && speed > 60) {
-      m_target_speed.store(speed, std::memory_order_relaxed);
-      m_logger.log_info("Enable Cruise Control");
-    }
-
-    // if (current_errors != SystemError::None) {
-    //   if (has_error(current_errors, SystemError::ServoInitFault)) m_logger.log_error("Error ServoInitFault");
-    //   if (has_error(current_errors, SystemError::ServoCommsFault)) m_logger.log_error("Error ServoCommsFault");
-    //   if (has_error(current_errors, SystemError::ServoOvercurrent)) m_logger.log_error("Error ServoOvercurrent");
-    //   if (has_error(current_errors, SystemError::ServoOvertemp)) m_logger.log_error("Error ServoOvertemp");
-    //   if (has_error(current_errors, SystemError::AcceleratorInitFault)) m_logger.log_error("Error AcceleratorInitFault");
-    //   if (has_error(current_errors, SystemError::AcceleratorCalibrateFault)) m_logger.log_error("Error AcceleratorCalibrateFault");
-    //   if (has_error(current_errors, SystemError::AcceleratorReadFault)) m_logger.log_error("Error AcceleratorReadFault");
-    //   if (has_error(current_errors, SystemError::AcceleratorMismatch)) m_logger.log_error("Error AcceleratorMismatch");
-    //   if (has_error(current_errors, SystemError::GuardLock)) m_logger.log_error("Error GuardLock");
-    // }
-
-    m_mode_indicator.set_status(current_mode, current_errors);
+    // m_mode_indicator.set_status(m_current_mode.load(std::memory_order_relaxed), current_errors);
   }
 
   auto process_critical_loop() noexcept -> void {
     static SharedData shared_data{};
     static ServoTelemetry servo_telemetry{};
 
-    auto local_errors = static_cast<SystemError>(m_system_errors.load(std::memory_order_relaxed));
     Mode const local_mode = m_current_mode.load(std::memory_order_relaxed);
+    SystemError local_errors = m_system_errors.load(std::memory_order_relaxed);
 
-    if (m_shared_data_ready.load(std::memory_order_acquire)) {
-      shared_data = m_shared_data;
-      m_shared_data_ready.store(false, std::memory_order_relaxed);
+    if (local_mode == Mode::Calibration) {
+      // m_servo.set_position(0, local_errors);
+
+      m_accelerator.calibrate(local_errors);
+
+    } else {
+      // if (m_shared_data_ready.load(std::memory_order_acquire)) {
+      //   shared_data = m_shared_data;
+      //   m_shared_data_ready.store(false, std::memory_order_relaxed);
+      // }
+
+      Position const accelerator_position = m_accelerator.get_position(local_errors);
+
+      m_logger.log_info("Position %d", accelerator_position);
+
+      // m_servo.read_telemetry(servo_telemetry, local_errors);
+      //
+      // Position const computed_position = m_logic.calculate_servo_position(local_mode, accelerator_position, false, 0, 0);
+      //
+      // m_servo.set_position(computed_position, local_errors);
     }
 
-    std::uint16_t const accelerator_position = m_accelerator.get_position(local_errors);
-
-    m_servo.read_telemetry(servo_telemetry, local_errors);
-
-    std::uint16_t const computed_position = m_logic.calculate_servo_position(local_mode, accelerator_position, false, 0, 0);
-
-    m_servo.set_position(computed_position, local_errors);
-
-    m_system_errors.store(static_cast<std::uint32_t>(local_errors), std::memory_order_release);
+    m_system_errors.store(local_errors, std::memory_order_release);
   }
 };

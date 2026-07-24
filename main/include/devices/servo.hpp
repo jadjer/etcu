@@ -28,7 +28,7 @@ namespace devices {
 template <uart_port_t Port, gpio_num_t Tx, gpio_num_t Rx>
 class Servo {
   static std::uint16_t constexpr MinimalPosition = 0;
-  static std::uint16_t constexpr MaximalPosition = 4096;
+  static std::uint16_t constexpr MaximalPosition = 4095;
 
  public:
   auto init() noexcept -> void {
@@ -51,8 +51,8 @@ class Servo {
     uart_driver_install(Port, 256, 256, 0, nullptr, 0);
   }
 
-  auto self_test(SystemError& err) noexcept -> bool {
-
+  auto self_test() noexcept -> bool {
+    return true;
   }
 
   auto set_position(std::uint16_t const target_position, SystemError& err) noexcept -> bool {
