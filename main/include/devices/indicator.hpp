@@ -37,6 +37,10 @@ class Indicator {
     gpio_config(&config);
   }
 
+  auto update() noexcept -> void {
+
+  }
+
   auto set_status(Mode const mode, SystemError const err) noexcept -> void {
     if (err != SystemError::None) {
       gpio_set_level(Pin, (esp_timer_get_time() / 100000) % 2);  // Частое мигание (Авария)

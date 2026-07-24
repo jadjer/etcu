@@ -23,16 +23,29 @@
 
 namespace concepts {
 
+template <CoreID T>
+concept CoreConcept = (T <= 1);
+
+template <MilliSec T, MilliSec Min, MilliSec Max>
+concept RateConcept = (T >= Min && T <= Max);
+
+template <Ticks T, Ticks Min, Ticks Max>
+concept TicksConcept = (T >= Min && T <= Max);
+
 template <typename T>
-concept AcceleratorConcept = requires(T a, SystemError& err) {
+concept AcceleratorConcept = requires(T a, Position position, SystemError& err) {
   { a.init() } noexcept -> std::same_as<void>;
-  { a.get_position(err) } noexcept -> std::same_as<std::uint16_t>;
+  { a.calibrate(err) } noexcept -> std::same_as<void>;
+  { a.set_minimal_position(position) } noexcept -> std::same_as<void>;
+  { a.set_maximal_position(position) } noexcept -> std::same_as<void>;
+  { a.get_position(err) } noexcept -> std::same_as<Position>;
 };
 
 template <typename T>
 concept ButtonConcept = requires(T b) {
   { b.init() } noexcept -> std::same_as<void>;
   { b.update() } noexcept -> std::same_as<void>;
+  { b.is_active() } noexcept -> std::same_as<bool>;
   { b.is_short_press() } noexcept -> std::same_as<bool>;
   { b.is_long_press() } noexcept -> std::same_as<bool>;
 };
@@ -41,28 +54,24 @@ template <typename T>
 concept ECUConcept = requires(T e) {
   { e.init() } noexcept -> std::same_as<void>;
   { e.update() } noexcept -> std::same_as<void>;
-  { e.get_rpm() } noexcept -> std::same_as<std::uint16_t>;
-  { e.get_tps() } noexcept -> std::same_as<std::uint16_t>;
-  { e.get_speed() } noexcept -> std::same_as<std::uint16_t>;
+  { e.get_rpm() } noexcept -> std::same_as<RPM>;
+  { e.get_tps() } noexcept -> std::same_as<MilliVolt>;
+  { e.get_speed() } noexcept -> std::same_as<Speed>;
 };
 
 template <typename T>
 concept IndicatorConcept = requires(T i, Mode mode, SystemError err) {
   { i.init() } noexcept -> std::same_as<void>;
+  { i.update() } noexcept -> std::same_as<void>;
   { i.set_status(mode, err) } noexcept -> std::same_as<void>;
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, std::uint16_t const position, ServoTelemetry& telemetry, SystemError& err) {
+concept ServoConcept = requires(T s, Position const position, ServoTelemetry& telemetry, SystemError& err) {
   { s.init() } noexcept -> std::same_as<void>;
+  { s.self_test(err) } noexcept -> std::same_as<bool>;
   { s.set_position(position, err) } noexcept -> std::same_as<bool>;
   { s.read_telemetry(telemetry, err) } noexcept -> std::same_as<bool>;
-};
-
-template <typename T>
-concept SwitchConcept = requires(T s) {
-  { s.init() } noexcept -> std::same_as<void>;
-  { s.is_active() } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>

@@ -20,7 +20,7 @@
 
 #include <atomic>
 #include "concepts/concepts.hpp"
-#include "core.hpp"
+#include "logic.hpp"
 #include "types.hpp"
 
 template <concepts::LoggerConcept Logger,
@@ -28,9 +28,9 @@ template <concepts::LoggerConcept Logger,
           concepts::ServoConcept Servo,
           concepts::ECUConcept ECU,
           concepts::ButtonConcept ModeBtn,
-          concepts::SwitchConcept Brake,
-          concepts::SwitchConcept Guard,
-          concepts::SwitchConcept Clutch,
+          concepts::ButtonConcept Brake,
+          concepts::ButtonConcept Guard,
+          concepts::ButtonConcept Clutch,
           concepts::IndicatorConcept ModeInd,
           concepts::IndicatorConcept StatusInd>
 class Controller {
@@ -45,11 +45,11 @@ class Controller {
   ModeInd& m_mode_indicator;
   StatusInd& m_status_indicator;
 
-  Core m_core;
-  SharedData m_shared_data;
+  Logic m_logic;
 
+  SharedData m_shared_data;
   std::atomic<Mode> m_current_mode{Mode::Normal};
-  std::atomic<std::uint32_t> m_system_errors{static_cast<std::uint32_t>(SystemError::None)};
+  std::atomic<SystemError> m_system_errors{SystemError::None};
   std::atomic<bool> m_shared_data_ready{false};
   std::atomic<std::uint16_t> m_target_speed{0};
 
@@ -79,8 +79,7 @@ class Controller {
     m_logger.init();
     m_logger.log_info("Starting Throttle Controller Initialization...");
 
-    m_core.init();
-
+    m_logic.init();
     m_accelerator.init();
     m_servo.init();
     m_ecu.init();
@@ -91,18 +90,37 @@ class Controller {
     m_mode_indicator.init();
     m_status_indicator.init();
 
-    m_logger.log_info("Executing automatic zero and range calibration...");
-    // m_core.execute_auto_calibration();
+    m_logger.log_info("Test servo...");
+
+    if (!m_servo.self_test()) {
+      m_current_mode.store(Mode::Fail, std::memory_order_relaxed);
+      m_logger.log_info("Self test failed. Servo disabled");
+
+      return;
+    }
+
+    m_current_mode.store(Mode::Normal, std::memory_order_relaxed);
+    m_logger.log_info("Ready");
   }
 
   auto process_system_loop() noexcept -> void {
-    m_ecu.update();
-    m_mode_button.update();
+    Mode const currentMode = m_current_mode.load(std::memory_order_relaxed);
+    SystemError const current_error = m_system_errors.load(std::memory_order_relaxed);
 
-    std::uint16_t const rpm = m_ecu.get_rpm();
-    std::uint16_t const tps = m_ecu.get_tps();
-    std::uint16_t const speed = m_ecu.get_speed();
-    auto const current_errors = static_cast<SystemError>(m_system_errors.load(std::memory_order_relaxed));
+    m_mode_button.update();
+    m_brake.update();
+    m_clutch.update();
+    m_guard.update();
+    m_ecu.update();
+    m_mode_indicator.update();
+
+    if (currentMode == Mode::Normal) {
+
+    }
+
+    // std::uint16_t const rpm = m_ecu.get_rpm();
+    // std::uint16_t const tps = m_ecu.get_tps();
+    Speed const speed = m_ecu.get_speed();
 
     Mode current_mode = m_current_mode.load(std::memory_order_relaxed);
 
@@ -120,6 +138,17 @@ class Controller {
       m_target_speed.store(0, std::memory_order_relaxed);
     }
 
+    if (m_mode_button.is_short_press()) {
+      m_logger.log_info("Short press");
+    }
+
+    if (m_mode_button.is_long_press()) {
+      m_logger.log_info("Long press");
+
+      auto position = m_accelerator.get_position(current_errors);
+      ESP_LOGI("QWE", "%lu", position);
+    }
+
     if (m_mode_button.is_long_press() && speed == 0) {
       m_logger.log_info("Offset zero position");
     }
@@ -128,6 +157,18 @@ class Controller {
       m_target_speed.store(speed, std::memory_order_relaxed);
       m_logger.log_info("Enable Cruise Control");
     }
+
+    // if (current_errors != SystemError::None) {
+    //   if (has_error(current_errors, SystemError::ServoInitFault)) m_logger.log_error("Error ServoInitFault");
+    //   if (has_error(current_errors, SystemError::ServoCommsFault)) m_logger.log_error("Error ServoCommsFault");
+    //   if (has_error(current_errors, SystemError::ServoOvercurrent)) m_logger.log_error("Error ServoOvercurrent");
+    //   if (has_error(current_errors, SystemError::ServoOvertemp)) m_logger.log_error("Error ServoOvertemp");
+    //   if (has_error(current_errors, SystemError::AcceleratorInitFault)) m_logger.log_error("Error AcceleratorInitFault");
+    //   if (has_error(current_errors, SystemError::AcceleratorCalibrateFault)) m_logger.log_error("Error AcceleratorCalibrateFault");
+    //   if (has_error(current_errors, SystemError::AcceleratorReadFault)) m_logger.log_error("Error AcceleratorReadFault");
+    //   if (has_error(current_errors, SystemError::AcceleratorMismatch)) m_logger.log_error("Error AcceleratorMismatch");
+    //   if (has_error(current_errors, SystemError::GuardLock)) m_logger.log_error("Error GuardLock");
+    // }
 
     m_mode_indicator.set_status(current_mode, current_errors);
   }
@@ -148,7 +189,7 @@ class Controller {
 
     m_servo.read_telemetry(servo_telemetry, local_errors);
 
-    std::uint16_t const computed_position = m_core.calculate_servo_position(local_mode, accelerator_position, false, 0, 0);
+    std::uint16_t const computed_position = m_logic.calculate_servo_position(local_mode, accelerator_position, false, 0, 0);
 
     m_servo.set_position(computed_position, local_errors);
 

@@ -51,7 +51,9 @@ class Servo {
     uart_driver_install(Port, 256, 256, 0, nullptr, 0);
   }
 
+  auto self_test(SystemError& err) noexcept -> bool {
 
+  }
 
   auto set_position(std::uint16_t const target_position, SystemError& err) noexcept -> bool {
     auto const target_steps = static_cast<std::uint16_t>((static_cast<std::uint32_t>(target_position) * 4095) / 10000);

@@ -18,58 +18,52 @@
 
 #pragma once
 
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include "hal/adc_types.h"
+#include "types.hpp"
 
 namespace configs {
 
 struct Pins {
-  struct UART {
-    struct Logger {
-      static constexpr gpio_num_t Tx = GPIO_NUM_34;
-      static constexpr gpio_num_t Rx = GPIO_NUM_35;
-    };
-
-    struct Servo {
-      static constexpr gpio_num_t Tx = GPIO_NUM_17;
-      static constexpr gpio_num_t Rx = GPIO_NUM_18;
-    };
-
-    struct ECU {
-      static constexpr gpio_num_t Tx = GPIO_NUM_19;
-      static constexpr gpio_num_t Rx = GPIO_NUM_20;
-    };
-  };
-
-  static constexpr gpio_num_t Button = GPIO_NUM_1;
-  static constexpr gpio_num_t Clutch = GPIO_NUM_2;
-  static constexpr gpio_num_t Brake = GPIO_NUM_3;
-  static constexpr gpio_num_t Guard = GPIO_NUM_4;
-  static constexpr gpio_num_t Led = GPIO_NUM_5;
+  static constexpr GPIONum ModeButton = GPIO_NUM_0;
+  static constexpr GPIONum Clutch = GPIO_NUM_2;
+  static constexpr GPIONum Brake = GPIO_NUM_3;
+  static constexpr GPIONum Guard = GPIO_NUM_4;
+  static constexpr GPIONum ModeLed = GPIO_NUM_5;
+  static constexpr GPIONum StatusLed = GPIO_NUM_6;
 };
 
 struct UART {
-  static constexpr uart_port_t Log = UART_NUM_0;
-  static constexpr uart_port_t Servo = UART_NUM_1;
-  static constexpr uart_port_t ECU = UART_NUM_2;
+  struct Logger {
+    static constexpr UARTPort Port = UART_NUM_0;
+    static constexpr GPIONum Tx = GPIO_NUM_34;
+    static constexpr GPIONum Rx = GPIO_NUM_35;
+  };
+
+  struct Servo {
+    static constexpr UARTPort Port = UART_NUM_1;
+    static constexpr GPIONum Tx = GPIO_NUM_17;
+    static constexpr GPIONum Rx = GPIO_NUM_18;
+  };
+
+  struct ECU {
+    static constexpr UARTPort Port = UART_NUM_2;
+    static constexpr GPIONum Tx = GPIO_NUM_19;
+    static constexpr GPIONum Rx = GPIO_NUM_20;
+  };
 };
 
 struct ADC {
-  static constexpr adc_channel_t Hall1 = ADC_CHANNEL_0;
-  static constexpr adc_channel_t Hall2 = ADC_CHANNEL_1;
-};
-
-struct Safety {
-  static constexpr std::uint16_t HallMismatchThreshold = 150;
-  static constexpr std::uint32_t LongPressMs = 1500;
+  static constexpr ADCUnit Unit = ADC_UNIT_1;
+  static constexpr ADCChannel Hall1 = ADC_CHANNEL_3;
+  static constexpr ADCChannel Hall2 = ADC_CHANNEL_6;
+  static constexpr MilliVolt HallMismatchThreshold = 150;
 };
 
 struct System {
-  static constexpr std::uint8_t SystemCore = 0;
-  static constexpr std::uint8_t CriticalCore = 1;
-  static constexpr std::uint16_t SystemRate = 50;
-  static constexpr std::uint16_t CriticalRate = 50;
+  static constexpr CoreID SystemCore = 0;
+  static constexpr CoreID CriticalCore = 1;
+  static constexpr MilliSec SystemRate = 50;
+  static constexpr MilliSec CriticalRate = 50;
+  static constexpr MilliSec LongPress = 1500;
 };
 
 }  // namespace configs

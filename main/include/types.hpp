@@ -18,6 +18,24 @@
 
 #pragma once
 
+#include "driver/gpio.h"
+#include "driver/uart.h"
+#include "esp_adc/adc_oneshot.h"
+
+using CoreID = std::uint8_t;
+using Ticks = std::uint16_t;
+using MilliSec = std::uint16_t;
+using MilliVolt = std::uint16_t;
+using GPIONum = gpio_num_t;
+using UARTPort = uart_port_t;
+using ADCUnit = adc_unit_t;
+using ADCChannel = adc_channel_t;
+using Position = std::uint8_t;
+using RPM = std::uint16_t;
+using Speed = std::uint16_t;
+using Current = std::uint16_t;
+using Temperature = std::uint16_t;
+
 enum class ButtonEvent : std::uint8_t {
   None = 0,
   ShortPress,
@@ -33,7 +51,10 @@ enum class ButtonState : std::uint8_t {
 
 enum class Mode : std::uint8_t {
   Normal = 0,
+  Eco,
   Off,
+  Fail,
+  Calibration,
 };
 
 enum class SystemError : std::uint32_t {
@@ -45,7 +66,9 @@ enum class SystemError : std::uint32_t {
   ServoOvertemp = 1 << 4,
 
   AcceleratorInitFault = 1 << 10,
-  AcceleratorMismatch = 1 << 11,
+  AcceleratorCalibrateFault = 1 << 11,
+  AcceleratorReadFault = 1 << 12,
+  AcceleratorMismatch = 1 << 13,
 
   GuardLock = 1 << 30,
 };
@@ -62,13 +85,14 @@ struct SharedData {
   bool clutch_pressed{false};
   bool brake_pressed{false};
   bool guard_active{false};
-  std::uint16_t rpm{0};
-  std::uint16_t tps{0};
-  std::uint16_t speed{0};
+
+  RPM rpm{0};
+  Position tps{0};
+  Speed speed{0};
 };
 
 struct ServoTelemetry {
-  std::uint16_t position{0};
-  std::uint16_t current{0};
-  std::uint16_t temperature{0};
+  Current current{0};
+  Position position{0};
+  Temperature temperature{0};
 };

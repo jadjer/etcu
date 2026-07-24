@@ -18,87 +18,84 @@
 
 #pragma once
 
-#include <esp_timer.h>
+#include "concepts/concepts.hpp"
 #include "types.hpp"
 
 namespace devices {
 
-template <gpio_num_t Pin, bool ActiveLow = true>
+template <gpio_num_t Pin, bool Inverse = false, Ticks Debounce = 1, Ticks LongPress = 20>
+  requires concepts::TicksConcept<Debounce, 1, 10> && concepts::TicksConcept<LongPress, 10, 100>
 class Button {
-  static std::uint32_t constexpr DebounceTicks = 2;
-  static std::uint32_t constexpr LongPressTicks = 50;
-
+  Ticks m_ticks_count{0};
   ButtonState m_state{ButtonState::Idle};
-  uint32_t m_ticks_count{0};
   ButtonEvent m_current_event{ButtonEvent::None};
 
  public:
   void init() noexcept {
     gpio_config_t const config = {
-        .pin_bit_mask = (1ULL << Pin),
+        .pin_bit_mask = 1ULL << Pin,
         .mode = GPIO_MODE_INPUT,
-        .pull_up_en = ActiveLow ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
-        .pull_down_en = ActiveLow ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = Inverse ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
+        .pull_down_en = Inverse ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
     gpio_config(&config);
   }
 
-  void update() noexcept {
-    bool const is_pressed = (gpio_get_level(Pin) == (ActiveLow ? 0 : 1));
-    m_current_event = ButtonEvent::None;
-
+  auto update() noexcept -> void {
     switch (m_state) {
-      case ButtonState::Idle:
-        if (is_pressed) {
-          m_state = ButtonState::Debounce;
-          m_ticks_count = 0;
+      case ButtonState::Idle: {
+        if (bool const is_pressed = is_active(); !is_pressed) {
+          m_current_event = ButtonEvent::None;
+          return;
         }
-        break;
 
-      case ButtonState::Debounce:
-        if (is_pressed) {
-          m_ticks_count++;
-          if (m_ticks_count >= DebounceTicks) {
-            m_state = ButtonState::Pressed;
-            m_ticks_count = 0;
-          }
-        } else {
+        m_ticks_count = 0;
+
+        m_state = ButtonState::Debounce;
+      } break;
+      case ButtonState::Debounce: {
+        if (bool const is_pressed = is_active(); !is_pressed) {
           m_state = ButtonState::Idle;
+          return;
         }
-        break;
 
-      case ButtonState::Pressed:
-        if (is_pressed) {
-          m_ticks_count++;
-          // Генерируем событие LongPress сразу по истечении времени (не дожидаясь отпускания)
-          if (m_ticks_count >= LongPressTicks) {
-            m_current_event = ButtonEvent::LongPress;
-            m_state = ButtonState::WaitRelease;
-          }
-        } else {
-          // Кнопку отпустили раньше LongPress — фиксируем короткое нажатие
+        m_ticks_count++;
+
+        if (m_ticks_count >= Debounce) {
+          m_state = ButtonState::Pressed;
+        }
+      } break;
+      case ButtonState::Pressed: {
+        if (bool const is_pressed = is_active(); !is_pressed) {
+          m_state = ButtonState::Idle;
           m_current_event = ButtonEvent::ShortPress;
-          m_state = ButtonState::Idle;
+          return;
         }
-        break;
 
-      case ButtonState::WaitRelease:
-        if (!is_pressed) {
+        m_ticks_count++;
+
+        if (m_ticks_count >= LongPress) {
+          m_state = ButtonState::WaitRelease;
+          m_current_event = ButtonEvent::LongPress;
+        }
+      } break;
+      case ButtonState::WaitRelease: {
+        if (bool const is_pressed = is_active(); !is_pressed) {
           m_state = ButtonState::Idle;
         }
-        break;
+      } break;
     }
   }
 
-  // Неблокирующие методы проверки флагов для конечного автомата контроллера
-  [[nodiscard]] auto is_short_press() const noexcept -> bool {
-    return m_current_event == ButtonEvent::ShortPress;
+  [[nodiscard]] static auto is_active() noexcept -> bool {
+    int const level = gpio_get_level(Pin);
+    return Inverse ? level == 0 : level == 1;
   }
 
-  [[nodiscard]] auto is_long_press() const noexcept -> bool {
-    return m_current_event == ButtonEvent::LongPress;
-  }
+  [[nodiscard]] auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
+
+  [[nodiscard]] auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
 };
 
 }  // namespace devices

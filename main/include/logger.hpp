@@ -20,12 +20,34 @@
 
 #include <esp_log.h>
 
+#include <cstdio>
+
 class Logger {
   static constexpr auto TAG = "THROTTLE_CORE";
+  static constexpr std::size_t BufferSize = 128;
+
+  template <typename... Args>
+  void write_log(esp_log_level_t const level, const char* const format, Args&&... args) noexcept {
+    std::array<char, BufferSize> buffer{};
+    std::snprintf(buffer.data(), buffer.size(), format, std::forward<Args>(args)...);
+    esp_log_write(level, TAG, "%s\n", buffer.data());
+  }
 
  public:
   auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); }
-  auto log_info(const char* msg) noexcept -> void { ESP_LOGI(TAG, "%s", msg); }
-  auto log_warn(const char* msg) noexcept -> void { ESP_LOGW(TAG, "%s", msg); }
-  auto log_error(const char* msg) noexcept -> void { ESP_LOGE(TAG, "%s", msg); }
+
+  template <typename... Args>
+  auto log_info(const char* const format, Args&&... args) noexcept -> void {
+    write_log(ESP_LOG_INFO, format, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto log_warn(const char* const format, Args&&... args) noexcept -> void {
+    write_log(ESP_LOG_WARN, format, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  auto log_error(const char* const format, Args&&... args) noexcept -> void {
+    write_log(ESP_LOG_ERROR, format, std::forward<Args>(args)...);
+  }
 };

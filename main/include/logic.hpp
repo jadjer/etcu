@@ -19,11 +19,9 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
-#include "configs/configs.hpp"
 #include "types.hpp"
 
-class Core {
+class Logic {
  public:
   auto init() noexcept -> void {}
 

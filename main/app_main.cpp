@@ -18,7 +18,6 @@
 #include "devices/ecu.hpp"
 #include "devices/indicator.hpp"
 #include "devices/servo.hpp"
-#include "devices/switch.hpp"
 #include "logger.hpp"
 #include "system_host.hpp"
 
@@ -26,22 +25,24 @@ namespace {
 
 Logger logger;
 
-devices::Accelerator accelerator;
-devices::Servo<configs::UART::Servo, configs::Pins::UART::Servo::Tx, configs::Pins::UART::Servo::Rx> servo;
-devices::ECU<configs::UART::ECU, configs::Pins::UART::ECU::Tx, configs::Pins::UART::ECU::Rx> ecu;
-devices::Button<configs::Pins::Button> mode_button;
-devices::Switch<configs::Pins::Brake> brake_switch;
-devices::Switch<configs::Pins::Guard> guard_switch;
-devices::Switch<configs::Pins::Clutch> clutch_switch;
-devices::Indicator<configs::Pins::Led> mode_indicator;
-devices::Indicator<configs::Pins::Led> status_indicator;
+devices::Accelerator<configs::ADC::Unit, configs::ADC::Hall1, configs::ADC::Hall2, configs::ADC::HallMismatchThreshold> accelerator;
+devices::Servo<configs::UART::Servo::Port, configs::UART::Servo::Tx, configs::UART::Servo::Rx> servo;
+devices::ECU<configs::UART::ECU::Port, configs::UART::ECU::Tx, configs::UART::ECU::Rx> ecu;
+devices::Button<configs::Pins::ModeButton, true> mode_button;
+devices::Button<configs::Pins::Brake> brake_switch;
+devices::Button<configs::Pins::Guard> guard_switch;
+devices::Button<configs::Pins::Clutch> clutch_switch;
+devices::Indicator<configs::Pins::ModeLed> mode_indicator;
+devices::Indicator<configs::Pins::StatusLed> status_indicator;
 
 Controller controller{logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, clutch_switch, mode_indicator, status_indicator};
-SystemHost system_host{controller};
+
+SystemHost<decltype(controller), configs::System::SystemCore, configs::System::CriticalCore, 100, 10> system_host{controller};
 
 }  // namespace
 
 extern "C" void app_main() {
   controller.init();
+
   system_host.run();
 }

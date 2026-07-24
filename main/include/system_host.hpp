@@ -20,11 +20,23 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "configs/configs.hpp"
+#include <types.hpp>
+#include "concepts/concepts.hpp"
 
-template <concepts::ControllerConcept Controller>
+template <concepts::ControllerConcept Controller, CoreID SystemCore = 0, CoreID CriticalCore = 1, MilliSec SystemRate = 100, MilliSec CriticalRate = 10>
+  requires concepts::CoreConcept<SystemCore> && concepts::CoreConcept<CriticalCore> && concepts::RateConcept<SystemRate, 10, 1000> &&
+           concepts::RateConcept<CriticalRate, 10, 100>
 class SystemHost {
   Controller& m_controller;
+
+  [[noreturn]] static auto system_task_adapter(void* pvParameters) -> void {
+    auto* host = static_cast<SystemHost*>(pvParameters);
+
+    while (true) {
+      host->m_controller.process_system_loop();
+      vTaskDelay(pdMS_TO_TICKS(SystemRate));
+    }
+  }
 
   [[noreturn]] static auto critical_task_adapter(void* pvParameters) -> void {
     auto* host = static_cast<SystemHost*>(pvParameters);
@@ -32,16 +44,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_critical_loop();
-      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(10));
-    }
-  }
-
-  [[noreturn]] static auto system_task_adapter(void* pvParameters) -> void {
-    auto* host = static_cast<SystemHost*>(pvParameters);
-
-    while (true) {
-      host->m_controller.process_system_loop();
-      vTaskDelay(pdMS_TO_TICKS(50));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(CriticalRate));
     }
   }
 
@@ -52,7 +55,7 @@ class SystemHost {
   auto operator=(SystemHost const&) -> SystemHost& = delete;
 
   auto run() -> void {
-    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, configs::System::SystemCore);
-    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, configs::System::CriticalCore);
+    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, CriticalCore);
   }
 };
