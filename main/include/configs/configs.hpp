@@ -59,8 +59,8 @@ struct ADC {
 };
 
 struct System {
-  static constexpr CoreID SystemCore = 0;
-  static constexpr CoreID CriticalCore = 1;
+  static constexpr CoreId SystemCore = 0;
+  static constexpr CoreId CriticalCore = 1;
   static constexpr MilliSec SystemRate = 50;
   static constexpr MilliSec CriticalRate = 50;
   static constexpr MilliSec LongPress = 1500;

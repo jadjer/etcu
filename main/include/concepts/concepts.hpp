@@ -23,8 +23,11 @@
 
 namespace concepts {
 
-template <CoreID T>
-concept CoreConcept = (T <= 1);
+template <CoreId T>
+concept CoreIdConcept = (T <= 1);
+
+template <CoreRate T>
+concept CoreRateConcept = (T >= 10);
 
 template <Ticks T, Ticks Min, Ticks Max>
 concept TicksConcept = (T >= Min && T <= Max);

@@ -24,7 +24,8 @@
 #include "driver/uart.h"
 #include "esp_adc/adc_oneshot.h"
 
-using CoreID = std::uint8_t;
+using CoreRate = std::uint8_t;
+using CoreId = std::uint8_t;
 using Ticks = std::uint16_t;
 using MilliSec = std::uint16_t;
 using MilliVolt = std::uint16_t;
@@ -100,7 +101,7 @@ struct ServoTelemetry {
 };
 
 struct CalibrationData {
-  std::uint32_t struct_version = 0x00010001;
+  std::uint32_t struct_version = 0x10000001;
   MilliVolt hall_a_minimal;
   MilliVolt hall_a_maximal;
   MilliVolt hall_b_minimal;
