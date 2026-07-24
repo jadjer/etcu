@@ -24,6 +24,7 @@
 #include "logger.hpp"
 #include "logic.hpp"
 #include "types.hpp"
+#include "storage.hpp"
 
 template <concepts::LoggerConcept Logger,
           concepts::AcceleratorConcept Accelerator,
@@ -48,6 +49,7 @@ class Controller {
   StatusInd& m_status_indicator;
 
   Logic m_logic;
+  Storage m_storage;
 
   SharedData m_shared_data;
   std::atomic<Mode> m_current_mode{Mode::Off};
@@ -93,6 +95,16 @@ class Controller {
     m_clutch.init();
     m_mode_indicator.init();
     m_status_indicator.init();
+
+    m_logger.log_info("Load storage data...");
+
+     CalibrationData const calibration_data{
+      .hall_a_minimal = 12,
+      .hall_a_maximal = 555,
+      .hall_b_minimal = 45,
+      .hall_b_maximal = 123,
+    };
+    std::ignore = m_storage.save_calibration(calibration_data);
 
     m_logger.log_info("Check guard...");
 

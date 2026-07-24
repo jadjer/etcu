@@ -87,4 +87,9 @@ concept LoggerConcept = requires(T l, const char* msg) {
   { l.log_error(msg) } noexcept -> std::same_as<void>;
 };
 
+template <typename T>
+concept HasStructVersion = requires(T data) {
+  { data.struct_version } -> std::same_as<std::uint32_t&>;
+};
+
 }  // namespace concepts

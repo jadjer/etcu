@@ -98,3 +98,11 @@ struct ServoTelemetry {
   Position position{0};
   Temperature temperature{0};
 };
+
+struct CalibrationData {
+  std::uint32_t struct_version = 0x00010001;
+  MilliVolt hall_a_minimal;
+  MilliVolt hall_a_maximal;
+  MilliVolt hall_b_minimal;
+  MilliVolt hall_b_maximal;
+};
