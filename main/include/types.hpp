@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <string_view>
-
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_adc/adc_oneshot.h"
@@ -38,6 +36,7 @@ using RPM = std::uint16_t;
 using Speed = std::uint16_t;
 using Current = std::uint16_t;
 using Temperature = std::uint16_t;
+using Error = std::uint32_t;
 
 enum class ButtonEvent : std::uint8_t {
   None = 0,
@@ -54,25 +53,26 @@ enum class ButtonState : std::uint8_t {
 
 enum class Mode : std::uint8_t {
   Off = 0,
-  Fail,
   Normal,
+  Emergency,
   Calibration,
 };
 
-enum class SystemError : std::uint32_t {
+enum class SystemError : Error {
   None = 0,
-
   ServoInitFault = 1 << 0,
-  ServoCommsFault = 1 << 2,
-  ServoOvercurrent = 1 << 3,
-  ServoOvertemp = 1 << 4,
-  ServoMechanicalFault = 1 << 5,
-
-  AcceleratorInitFault = 1 << 10,
-  AcceleratorCalibrateFault = 1 << 11,
-  AcceleratorReadFault = 1 << 12,
-  AcceleratorMismatch = 1 << 13,
-
+  ServoCommsFault = 1 << 1,
+  ServoOvercurrent = 1 << 2,
+  ServoOvertemp = 1 << 3,
+  ServoMechanicalFault = 1 << 4,
+  AcceleratorInitFault = 1 << 5,
+  AcceleratorCalibrateFault = 1 << 6,
+  AcceleratorReadFault = 1 << 7,
+  AcceleratorMismatch = 1 << 8,
+  ButtonInitFault = 1 << 9,
+  ButtonReadFault = 1 << 10,
+  ECUInitFault = 1 << 11,
+  IndicatorInitFault = 1 << 12,
   GuardLock = 1 << 30,
 };
 

@@ -33,17 +33,17 @@ template <Ticks T, Ticks Min, Ticks Max>
 concept TicksConcept = (T >= Min && T <= Max);
 
 template <typename T>
-concept AcceleratorConcept = requires(T a, Position position, SystemError& err) {
-  { a.init() } noexcept -> std::same_as<void>;
-  { a.calibrate(err) } noexcept -> std::same_as<void>;
+concept AcceleratorConcept = requires(T a, Position position, Position& position_result) {
+  { a.init() } noexcept -> std::same_as<SystemError>;
+  { a.calibrate() } noexcept -> std::same_as<SystemError>;
   { a.set_minimal_position(position) } noexcept -> std::same_as<void>;
   { a.set_maximal_position(position) } noexcept -> std::same_as<void>;
-  { a.get_position(err) } noexcept -> std::same_as<Position>;
+  { a.get_position(position_result) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>
 concept ButtonConcept = requires(T b, Ticks ticks) {
-  { b.init() } noexcept -> std::same_as<void>;
+  { b.init() } noexcept -> std::same_as<SystemError>;
   { b.update() } noexcept -> std::same_as<void>;
   { b.is_active() } noexcept -> std::same_as<bool>;
   { b.is_short_press() } noexcept -> std::same_as<bool>;
@@ -53,8 +53,8 @@ concept ButtonConcept = requires(T b, Ticks ticks) {
 
 template <typename T>
 concept ECUConcept = requires(T e) {
-  { e.init() } noexcept -> std::same_as<void>;
-  { e.update() } noexcept -> std::same_as<void>;
+  { e.init() } noexcept -> std::same_as<SystemError>;
+  { e.update() } noexcept -> std::same_as<SystemError>;
   { e.get_rpm() } noexcept -> std::same_as<RPM>;
   { e.get_tps() } noexcept -> std::same_as<MilliVolt>;
   { e.get_speed() } noexcept -> std::same_as<Speed>;
@@ -62,17 +62,17 @@ concept ECUConcept = requires(T e) {
 
 template <typename T>
 concept IndicatorConcept = requires(T i, Mode mode, SystemError err) {
-  { i.init() } noexcept -> std::same_as<void>;
-  { i.update() } noexcept -> std::same_as<void>;
-  { i.set_status(mode, err) } noexcept -> std::same_as<void>;
+  { i.init() } noexcept -> std::same_as<SystemError>;
+  { i.update() } noexcept -> std::same_as<SystemError>;
+  { i.set_status(mode) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, Position const position, ServoTelemetry& telemetry, SystemError& err) {
-  { s.init() } noexcept -> std::same_as<void>;
-  { s.self_test() } noexcept -> std::same_as<bool>;
-  { s.set_position(position, err) } noexcept -> std::same_as<bool>;
-  { s.read_telemetry(telemetry, err) } noexcept -> std::same_as<bool>;
+concept ServoConcept = requires(T s, Position position, ServoTelemetry& telemetry) {
+  { s.init() } noexcept -> std::same_as<SystemError>;
+  { s.self_test() } noexcept -> std::same_as<SystemError>;
+  { s.set_position(position) } noexcept -> std::same_as<SystemError>;
+  { s.read_telemetry(telemetry) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>

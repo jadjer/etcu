@@ -31,7 +31,7 @@ class Button {
   ButtonEvent m_current_event{ButtonEvent::None};
 
  public:
-  void init() noexcept {
+  auto init() noexcept -> SystemError {
     gpio_config_t const config = {
         .pin_bit_mask = 1ULL << Pin,
         .mode = GPIO_MODE_INPUT,
@@ -39,7 +39,11 @@ class Button {
         .pull_down_en = Inverse ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    gpio_config(&config);
+    if (auto const err = gpio_config(&config); err != ESP_OK) {
+      return SystemError::ButtonInitFault;
+    }
+
+    return SystemError::None;
   }
 
   auto update() noexcept -> void {
@@ -92,7 +96,7 @@ class Button {
     }
   }
 
-  [[nodiscard]] static auto is_active() noexcept -> bool {
+  [[nodiscard]] auto is_active() noexcept -> bool {
     int const level = gpio_get_level(Pin);
     return Inverse ? level == 0 : level == 1;
   }

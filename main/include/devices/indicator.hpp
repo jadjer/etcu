@@ -26,7 +26,7 @@ namespace devices {
 template <gpio_num_t Pin>
 class Indicator {
  public:
-  auto init() noexcept -> void {
+  auto init() noexcept -> SystemError {
     gpio_config_t const config = {
         .pin_bit_mask = (1ULL << Pin),
         .mode = GPIO_MODE_OUTPUT,
@@ -34,19 +34,21 @@ class Indicator {
         .pull_down_en = GPIO_PULLDOWN_ENABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    gpio_config(&config);
-  }
-
-  auto update() noexcept -> void {
-
-  }
-
-  auto set_status(Mode const mode, SystemError const err) noexcept -> void {
-    if (err != SystemError::None) {
-      gpio_set_level(Pin, (esp_timer_get_time() / 100000) % 2);  // Частое мигание (Авария)
-    } else {
-      gpio_set_level(Pin, (esp_timer_get_time() / 1000000) % 2);  // Медленный пульс (Норма)
+    if (auto const err = gpio_config(&config); err != ESP_OK) {
+      return SystemError::IndicatorInitFault;
     }
+
+    return SystemError::None;
+  }
+
+  auto update() noexcept -> SystemError {
+    return SystemError::None;
+  }
+
+  auto set_status(Mode const  /*mode*/) noexcept -> SystemError {
+    gpio_set_level(Pin, (esp_timer_get_time() / 100000) % 2);  // Частое мигание (Авария)
+
+    return SystemError::None;
   }
 };
 

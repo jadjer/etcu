@@ -27,11 +27,11 @@ namespace devices {
 
 template <uart_port_t Port, gpio_num_t Tx, gpio_num_t Rx>
 class Servo {
-  static std::uint16_t constexpr MinimalPosition = 0;
-  static std::uint16_t constexpr MaximalPosition = 4095;
+  static Position constexpr MinimalPosition = 0;
+  static Position constexpr MaximalPosition = 100;
 
  public:
-  auto init() noexcept -> void {
+  auto init() noexcept -> SystemError {
     uart_config_t constexpr config = {
         .baud_rate = 1'000'000,
         .data_bits = UART_DATA_8_BITS,
@@ -46,16 +46,22 @@ class Servo {
                 .backup_before_sleep = false,
             },
     };
-    uart_param_config(Port, &config);
-    uart_set_pin(Port, Tx, Rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_driver_install(Port, 256, 256, 0, nullptr, 0);
+    if (auto const err = uart_param_config(Port, &config); err != ESP_OK) {
+      return SystemError::ServoInitFault;
+    }
+    if (auto const err = uart_set_pin(Port, Tx, Rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); err != ESP_OK) {
+      return SystemError::ServoInitFault;
+    }
+    if (auto const err = uart_driver_install(Port, 256, 256, 0, nullptr, 0); err != ESP_OK) {
+      return SystemError::ServoInitFault;
+    }
+
+    return SystemError::None;
   }
 
-  auto self_test() noexcept -> bool {
-    return true;
-  }
+  auto self_test() noexcept -> SystemError { return SystemError::None; }
 
-  auto set_position(std::uint16_t const target_position, SystemError& err) noexcept -> bool {
+  auto set_position(Position const target_position) noexcept -> SystemError {
     auto const target_steps = static_cast<std::uint16_t>((static_cast<std::uint32_t>(target_position) * 4095) / 10000);
 
     std::array<std::uint8_t, 7> const packet = {
@@ -64,31 +70,28 @@ class Servo {
     int const packet_size = packet.size();
 
     int const written = uart_write_bytes(Port, packet.data(), packet_size);
-
     if (written != packet_size) {
-      err = err | SystemError::ServoCommsFault;
-      return false;
+      return SystemError::ServoCommsFault;
     }
 
-    return true;
+    return SystemError::None;
   }
 
-  auto read_telemetry(ServoTelemetry& telemetry, SystemError& err) noexcept -> bool {
+  auto read_telemetry(ServoTelemetry& telemetry) noexcept -> SystemError {
     int const buffer_size = 8;
     std::array<std::uint8_t, buffer_size> buffer = {};
 
     int const len = uart_read_bytes(Port, buffer.data(), buffer_size, 2 / portTICK_PERIOD_MS);
 
     if (len <= 0) {
-      err = err | SystemError::ServoCommsFault;
-      return false;
+      return SystemError::ServoCommsFault;
     }
 
     telemetry.position = buffer[2];
     telemetry.current = buffer[3];
     telemetry.temperature = buffer[4];
 
-    return true;
+    return SystemError::None;
   }
 };
 
