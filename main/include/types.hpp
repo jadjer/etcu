@@ -54,7 +54,6 @@ enum class ButtonState : std::uint8_t {
 enum class Mode : std::uint8_t {
   Off = 0,
   Normal,
-  Emergency,
   Calibration,
 };
 
@@ -85,13 +84,8 @@ constexpr auto has_error(SystemError const mask, SystemError const err) -> bool 
 }
 
 struct SharedData {
-  bool clutch_pressed{false};
-  bool brake_pressed{false};
-  bool guard_active{false};
-
-  RPM rpm{0};
-  Position tps{0};
-  Speed speed{0};
+  Speed target_speed{0};
+  Speed current_speed{0};
 };
 
 struct ServoTelemetry {

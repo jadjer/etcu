@@ -25,19 +25,21 @@ class Logic {
  public:
   auto init() noexcept -> void {}
 
-  [[nodiscard]] auto calculate_servo_position(Mode mode, float acc_percent, bool cruise_active, float current_speed, float target_speed) noexcept -> float {
-    if (mode == Mode::Off) {
-      return 0.0f;
-    }
+  [[nodiscard]] auto calculate_servo_position(Position acc_percent, Speed current_speed, Speed target_speed) noexcept -> Position {
+    // if (mode == Mode::Off) {
+    //   return 0.0f;
+    // }
+    //
+    // float base_target = acc_percent;
+    //
+    // if (cruise_active) {
+    //   float const speed_error = target_speed - current_speed;
+    //   float const cruise_modifier = speed_error * 2.5f;
+    //   base_target = std::clamp(base_target + cruise_modifier, 0.0f, 100.0f);
+    // }
+    //
+    // return std::clamp(base_target, 0.0f, 100.0f);
 
-    float base_target = acc_percent;
-
-    if (cruise_active) {
-      float const speed_error = target_speed - current_speed;
-      float const cruise_modifier = speed_error * 2.5f;
-      base_target = std::clamp(base_target + cruise_modifier, 0.0f, 100.0f);
-    }
-
-    return std::clamp(base_target, 0.0f, 100.0f);
+    return 0;
   }
 };

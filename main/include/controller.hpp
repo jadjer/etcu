@@ -54,7 +54,7 @@ class Controller {
   SystemErrors m_system_errors;
 
   SharedData m_shared_data;
-  std::atomic<Mode> m_current_mode{Mode::Off};
+  std::atomic<Mode> m_current_mode{Mode::Normal};
   std::atomic<Speed> m_target_speed{0};
   std::atomic<bool> m_shared_data_ready{false};
   std::atomic<bool> m_offset_accelerator{false};
@@ -99,45 +99,23 @@ class Controller {
 
     m_logger.log_info("Load storage data...");
 
-    CalibrationData const calibration_data{
-        .hall_a_minimal = 12,
-        .hall_a_maximal = 555,
-        .hall_b_minimal = 45,
-        .hall_b_maximal = 123,
-    };
-    std::ignore = m_storage.save_calibration(calibration_data);
+    CalibrationData calibration_data{};
+    std::ignore = m_storage.load_calibration(calibration_data);
 
     m_logger.log_info("Check guard...");
 
     if (m_guard.is_active()) {
-      m_current_mode.store(Mode::Off, std::memory_order_relaxed);
       m_system_errors.add(SystemError::GuardLock);
-      m_logger.log_info("Guard enabled. Servo disabled");
-
-      return;
     }
 
     m_logger.log_info("Test servo...");
 
     m_system_errors.update(m_servo.self_test());
 
-    // if () {
-    //   m_current_mode.store(Mode::Off, std::memory_order_relaxed);
-    //   m_system_errors.add(SystemError::ServoMechanicalFault);
-    //   m_logger.log_info("Self test failed. Servo disabled");
-    //
-    //   return;
-    // }
-
-    m_current_mode.store(Mode::Normal, std::memory_order_relaxed);
-
-    m_logger.log_info("Ready");
+    m_logger.log_info(m_system_errors.has_any() ? "Not ready" : "Ready");
   }
 
   auto process_system_loop() noexcept -> void {
-    Mode const current_mode = m_current_mode.load(std::memory_order_relaxed);
-    SystemError current_errors = m_system_errors.get_all();
-
     m_ecu.update();
     m_mode_button.update();
     m_brake.update();
@@ -145,6 +123,14 @@ class Controller {
     m_clutch.update();
     m_mode_indicator.update();
     m_status_indicator.update();
+
+    Mode const current_mode = m_current_mode.load(std::memory_order_relaxed);
+
+    if (m_system_errors.has_any() && current_mode != Mode::Off) [[unlikely]] {
+      m_current_mode.store(Mode::Off, std::memory_order_relaxed);
+      m_logger.log_info("Has errors. Servo disabled");
+      m_logger.log_active_errors(m_system_errors.get_all());
+    }
 
     if (current_mode == Mode::Normal) {
       if (m_mode_button.is_long_then(500)) {
@@ -154,59 +140,44 @@ class Controller {
     }
 
     if (current_mode == Mode::Calibration) {
+      m_accelerator.calibrate();
+
       if (m_mode_button.is_short_press()) {
         m_current_mode.store(Mode::Normal, std::memory_order_relaxed);
         m_logger.log_info("Calibration finished. Returning to Normal.");
       }
     }
 
-    if (current_errors != SystemError::None && current_mode != Mode::Off) [[unlikely]] {
-      m_current_mode.store(Mode::Off, std::memory_order_relaxed);
-      m_logger.log_active_errors(current_errors);
-    }
-
-    m_logger.log_active_errors(current_errors);
-
-    m_system_errors.update(current_errors);
-
     // m_mode_indicator.set_status(m_current_mode.load(std::memory_order_relaxed), current_errors);
   }
 
   auto process_critical_loop() noexcept -> void {
-    static SharedData shared_data{};
-    static ServoTelemetry servo_telemetry{};
+    // static ServoTelemetry servo_telemetry{};
+
+    Speed target_speed = 0;
+    Speed current_speed = 0;
+    Position accelerator_position = 0;
 
     Mode const local_mode = m_current_mode.load(std::memory_order_relaxed);
-    SystemError local_errors = m_system_errors.get_all();
 
-    if (local_mode == Mode::Calibration) {
-      std::ignore = m_servo.set_position(0);
+    if (local_mode == Mode::Normal) {
+      static SharedData shared_data{};
 
-      SystemError const err = m_accelerator.calibrate();
+      if (m_shared_data_ready.load(std::memory_order_acquire)) {
+        shared_data = m_shared_data;
+        m_shared_data_ready.store(false, std::memory_order_relaxed);
+      }
 
-      m_system_errors.update(err);
+      target_speed = shared_data.target_speed;
+      current_speed = shared_data.current_speed;
 
-    } else {
-      // if (m_shared_data_ready.load(std::memory_order_acquire)) {
-      //   shared_data = m_shared_data;
-      //   m_shared_data_ready.store(false, std::memory_order_relaxed);
-      // }
-
-      Position accelerator_position = 0;
-
-      SystemError const err = m_accelerator.get_position(accelerator_position);
-
-      m_system_errors.update(err);
-
-      m_logger.log_info("Position %d", accelerator_position);
-
-      // m_servo.read_telemetry(servo_telemetry, local_errors);
-      //
-      // Position const computed_position = m_logic.calculate_servo_position(local_mode, accelerator_position, false, 0, 0);
-      //
-      // m_servo.set_position(computed_position, local_errors);
+      m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }
 
-    m_system_errors.update(local_errors);
+    // m_system_errors.update(m_servo.read_telemetry(servo_telemetry));
+
+    Position const computed_position = m_logic.calculate_servo_position(accelerator_position, current_speed, target_speed);
+
+    m_system_errors.update(m_servo.set_position(computed_position));
   }
 };

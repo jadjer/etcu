@@ -33,6 +33,11 @@ template <Ticks T, Ticks Min, Ticks Max>
 concept TicksConcept = (T >= Min && T <= Max);
 
 template <typename T>
+concept HasStructVersion = requires(T data) {
+  { data.struct_version } -> std::same_as<std::uint32_t&>;
+};
+
+template <typename T>
 concept AcceleratorConcept = requires(T a, Position position, Position& position_result) {
   { a.init() } noexcept -> std::same_as<SystemError>;
   { a.calibrate() } noexcept -> std::same_as<SystemError>;
@@ -88,11 +93,6 @@ concept LoggerConcept = requires(T l, const char* msg) {
   { l.log_info(msg) } noexcept -> std::same_as<void>;
   { l.log_warn(msg) } noexcept -> std::same_as<void>;
   { l.log_error(msg) } noexcept -> std::same_as<void>;
-};
-
-template <typename T>
-concept HasStructVersion = requires(T data) {
-  { data.struct_version } -> std::same_as<std::uint32_t&>;
 };
 
 }  // namespace concepts
