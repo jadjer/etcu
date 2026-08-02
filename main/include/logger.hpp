@@ -21,6 +21,7 @@
 #include <esp_log.h>
 #include <array>
 #include <cstdio>
+#include "types.hpp"
 
 class Logger {
   static constexpr auto TAG = "THROTTLE_CORE";
@@ -37,17 +38,17 @@ class Logger {
   auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); }
 
   template <typename... Args>
-  auto log_info(const char* const format, Args&&... args) noexcept -> void {
+  auto log_info(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_INFO, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  auto log_warn(const char* const format, Args&&... args) noexcept -> void {
+  auto log_warn(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_WARN, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  auto log_error(const char* const format, Args&&... args) noexcept -> void {
+  auto log_error(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_ERROR, format, std::forward<Args>(args)...);
   }
 

@@ -45,11 +45,11 @@ class Indicator {
     return SystemError::None;
   }
 
-  auto set_status(Mode const  /*mode*/) noexcept -> SystemError {
-    gpio_set_level(Pin, (esp_timer_get_time() / 100000) % 2);  // Частое мигание (Авария)
-
-    return SystemError::None;
-  }
+  // auto set_status(Mode const  /*mode*/) noexcept -> SystemError {
+  //   gpio_set_level(Pin, (esp_timer_get_time() / 100000) % 2);  // Частое мигание (Авария)
+  //
+  //   return SystemError::None;
+  // }
 };
 
 }  // namespace devices

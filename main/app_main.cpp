@@ -20,6 +20,7 @@
 #include "devices/servo.hpp"
 #include "logger.hpp"
 #include "system_host.hpp"
+#include "configs/configs.hpp"
 
 namespace {
 

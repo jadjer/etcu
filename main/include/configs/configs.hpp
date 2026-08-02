@@ -40,8 +40,8 @@ struct UART {
 
   struct Servo {
     static constexpr UARTPort Port = UART_NUM_1;
-    static constexpr GPIONum Tx = GPIO_NUM_17;
-    static constexpr GPIONum Rx = GPIO_NUM_18;
+    static constexpr GPIONum Tx = GPIO_NUM_18;
+    static constexpr GPIONum Rx = GPIO_NUM_17;
   };
 
   struct ECU {
@@ -53,8 +53,8 @@ struct UART {
 
 struct ADC {
   static constexpr ADCUnit Unit = ADC_UNIT_1;
-  static constexpr ADCChannel Hall1 = ADC_CHANNEL_3;
-  static constexpr ADCChannel Hall2 = ADC_CHANNEL_6;
+  static constexpr ADCChannel Hall1 = ADC_CHANNEL_8;
+  static constexpr ADCChannel Hall2 = ADC_CHANNEL_9;
   static constexpr MilliVolt HallMismatchThreshold = 150;
 };
 

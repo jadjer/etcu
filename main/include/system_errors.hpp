@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <atomic>
 #include "types.hpp"
 
 class SystemErrors {

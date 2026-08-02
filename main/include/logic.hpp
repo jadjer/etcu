@@ -23,9 +23,7 @@
 
 class Logic {
  public:
-  auto init() noexcept -> void {}
-
-  [[nodiscard]] auto calculate_servo_position(Position acc_percent, Speed current_speed, Speed target_speed) noexcept -> Position {
+  [[nodiscard]] auto calculate_servo_position(Position acc_offset, Position acc_position, Speed current_speed, Speed target_speed) noexcept -> Position {
     // if (mode == Mode::Off) {
     //   return 0.0f;
     // }

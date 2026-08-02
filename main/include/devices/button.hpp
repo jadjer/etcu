@@ -90,8 +90,6 @@ class Button {
         if (!is_pressed) {
           m_state = ButtonState::Idle;
         }
-
-        m_ticks_count++;
       } break;
     }
   }
@@ -104,8 +102,6 @@ class Button {
   [[nodiscard]] auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
 
   [[nodiscard]] auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
-
-  [[nodiscard]] auto is_long_then(Ticks const ticks) const noexcept -> bool { return m_ticks_count > ticks; }
 };
 
 }  // namespace devices

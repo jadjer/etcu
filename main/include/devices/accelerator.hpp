@@ -28,14 +28,14 @@ namespace devices {
 using ADCHandle = adc_oneshot_unit_handle_t;
 using ADCCalibrationHandle = adc_cali_handle_t;
 
-constexpr auto mapRange(MilliVolt const value, MilliVolt const fromMin, MilliVolt const fromMax) -> Position {
+constexpr auto voltage_to_percent(MilliVolt const value, MilliVolt const fromMin, MilliVolt const fromMax) -> Position {
   if (fromMax == fromMin)
     return 0;
 
   return (value - fromMin) * 100 / (fromMax - fromMin);
 }
 
-template <ADCUnit Unit, ADCChannel ChannelA, ADCChannel ChannelB, MilliVolt Threshold, adc_atten_t Attenuation = ADC_ATTEN_DB_2_5>
+template <ADCUnit Unit, ADCChannel ChannelA, ADCChannel ChannelB, MilliVolt Threshold, adc_atten_t Attenuation = ADC_ATTEN_DB_12>
 class Accelerator {
   static MilliVolt constexpr MinVoltage = 0;
   static MilliVolt constexpr MaxVoltage = 3100;
@@ -54,6 +54,37 @@ class Accelerator {
 
   Position m_current_min_position{MinPosition};
   Position m_current_max_position{MaxPosition};
+
+  auto get_voltages(MilliVolt &hall_a, MilliVolt &hall_b) const -> SystemError {
+    if (m_handle == nullptr) {
+      return SystemError::AcceleratorInitFault;
+    }
+
+    int voltage_a = 0, voltage_b = 0;
+
+    {
+      int hall_a_raw = 0, hall_b_raw = 0;
+
+      esp_err_t const err_raw_a = adc_oneshot_read(m_handle, ChannelA, &hall_a_raw);
+      esp_err_t const err_raw_b = adc_oneshot_read(m_handle, ChannelB, &hall_b_raw);
+
+      if (err_raw_a != ESP_OK or err_raw_b != ESP_OK) [[unlikely]] {
+        return SystemError::AcceleratorReadFault;
+      }
+
+      esp_err_t const err_voltage_a = adc_cali_raw_to_voltage(m_calibration_channel_a_handle, hall_a_raw, &voltage_a);
+      esp_err_t const err_voltage_b = adc_cali_raw_to_voltage(m_calibration_channel_b_handle, hall_b_raw, &voltage_b);
+
+      if (err_voltage_a != ESP_OK or err_voltage_b != ESP_OK) [[unlikely]] {
+        return SystemError::AcceleratorReadFault;
+      }
+    }
+
+    hall_a = static_cast<MilliVolt>(voltage_a);
+    hall_b = static_cast<MilliVolt>(voltage_b);
+
+    return SystemError::None;
+  }
 
  public:
   auto init() noexcept -> SystemError {
@@ -101,41 +132,20 @@ class Accelerator {
   }
 
   auto calibrate() noexcept -> SystemError {
-    if (m_handle == nullptr) {
-      return SystemError::AcceleratorInitFault;
+    MilliVolt voltage_a = 0, voltage_b = 0;
+
+    SystemError err = get_voltages(voltage_a, voltage_b);
+    if (err != SystemError::None) {
+      return err;
     }
 
-    int voltage_a = 0, voltage_b = 0;
+    m_calibrated_hall_a_minimal = std::clamp(voltage_a + AccelZeroOffsetMv, 0, 3300);
+    m_calibrated_hall_b_minimal = std::clamp(voltage_b + AccelZeroOffsetMv, 0, 3300);
 
-    {
-      int hall_a_raw = 0, hall_b_raw = 0;
+    m_calibrated_hall_a_maximal = std::max(m_calibrated_hall_a_maximal, voltage_a);
+    m_calibrated_hall_b_maximal = std::max(m_calibrated_hall_b_maximal, voltage_b);
 
-      esp_err_t const err_raw_a = adc_oneshot_read(m_handle, ChannelA, &hall_a_raw);
-      esp_err_t const err_raw_b = adc_oneshot_read(m_handle, ChannelB, &hall_b_raw);
-
-      if (err_raw_a != ESP_OK or err_raw_b != ESP_OK) [[unlikely]] {
-        return SystemError::AcceleratorReadFault | SystemError::AcceleratorCalibrateFault;
-      }
-
-      esp_err_t const err_voltage_a = adc_cali_raw_to_voltage(m_calibration_channel_a_handle, hall_a_raw, &voltage_a);
-      esp_err_t const err_voltage_b = adc_cali_raw_to_voltage(m_calibration_channel_b_handle, hall_b_raw, &voltage_b);
-
-      if (err_voltage_a != ESP_OK or err_voltage_b != ESP_OK) [[unlikely]] {
-        return SystemError::AcceleratorReadFault | SystemError::AcceleratorCalibrateFault;
-      }
-    }
-
-    auto const hall_a = static_cast<MilliVolt>(voltage_a);
-    auto const hall_b = static_cast<MilliVolt>(voltage_b);
-
-    m_calibrated_hall_a_minimal = std::clamp(hall_a + AccelZeroOffsetMv, 0, 3300);
-    m_calibrated_hall_b_minimal = std::clamp(hall_b + AccelZeroOffsetMv, 0, 3300);
-
-    // 3. Фиксируем максимумы (полный газ)
-    m_calibrated_hall_a_maximal = std::max(m_calibrated_hall_a_maximal, hall_a);
-    m_calibrated_hall_b_maximal = std::max(m_calibrated_hall_b_maximal, hall_b);
-
-    ESP_LOGI("ACC", "%d %d %d %d %d %d", hall_a, hall_b, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal, m_calibrated_hall_b_minimal,
+    ESP_LOGI("ACC", "%d %d %d %d %d %d", voltage_a, voltage_b, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal, m_calibrated_hall_b_minimal,
              m_calibrated_hall_b_maximal);
 
     return SystemError::None;
@@ -146,41 +156,23 @@ class Accelerator {
   auto set_maximal_position(Position const maximal_position) noexcept -> void { m_current_max_position = maximal_position; }
 
   auto get_position(Position& position) const noexcept -> SystemError {
-    if (m_handle == nullptr) {
-      return SystemError::AcceleratorInitFault;
+    MilliVolt voltage_a = 0, voltage_b = 0;
+
+    SystemError err = get_voltages(voltage_a, voltage_b);
+    if (err != SystemError::None) {
+      return err;
     }
 
-    int hall_a_raw = 0, hall_b_raw = 0;
-
-    esp_err_t const err_a = adc_oneshot_read(m_handle, ChannelA, &hall_a_raw);
-    esp_err_t const err_b = adc_oneshot_read(m_handle, ChannelB, &hall_b_raw);
-
-    if (err_a != ESP_OK or err_b != ESP_OK) [[unlikely]] {
-      return SystemError::AcceleratorReadFault;
-    }
-
-    int voltage_a = 0, voltage_b = 0;
-
-    esp_err_t const err_voltage_a = adc_cali_raw_to_voltage(m_calibration_channel_a_handle, hall_a_raw, &voltage_a);
-    esp_err_t const err_voltage_b = adc_cali_raw_to_voltage(m_calibration_channel_b_handle, hall_b_raw, &voltage_b);
-
-    if (err_voltage_a != ESP_OK or err_voltage_b != ESP_OK) [[unlikely]] {
-      return SystemError::AcceleratorReadFault | SystemError::AcceleratorCalibrateFault;
-    }
-
-    MilliVolt const hall_a = std::clamp(static_cast<MilliVolt>(voltage_a), m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal);
-    MilliVolt const hall_b = std::clamp(static_cast<MilliVolt>(voltage_b), m_calibrated_hall_b_minimal, m_calibrated_hall_b_maximal);
+    ESP_LOGI("COR", "%d %d", voltage_a, voltage_b);
 
     // MilliVolt const hall_diff = maxHall - minHall;
-
-    ESP_LOGI("ACC", "A: %d, B: %d", hall_a, hall_b);
 
     // if (std::cmp_greater(hall_diff, Threshold)) [[unlikely]] {
     //   current_errors = current_errors | SystemError::AcceleratorMismatch;
     //   return 0;
     // }
 
-    Position const currentPosition = mapRange(hall_a, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal);
+    Position const currentPosition = voltage_to_percent(voltage_a, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal);
 
     position = std::clamp(currentPosition, m_current_min_position, m_current_max_position);
 
