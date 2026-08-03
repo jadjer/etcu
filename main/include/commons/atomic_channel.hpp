@@ -28,6 +28,9 @@ class AtomicChannel {
   std::atomic<bool> m_is_ready{false};
 
  public:
+  explicit AtomicChannel() = default;
+  explicit AtomicChannel(T data) : m_data{data} {}
+
   auto send(T const data) -> bool {
     if (!m_is_ready.load(std::memory_order_relaxed)) {
       m_data = data;

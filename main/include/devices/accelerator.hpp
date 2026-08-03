@@ -20,7 +20,8 @@
 
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_oneshot.h>
-#include <utility>
+#include <algorithm>
+#include "commons/map_range.hpp"
 #include "types.hpp"
 
 namespace devices {
@@ -28,34 +29,24 @@ namespace devices {
 using ADCHandle = adc_oneshot_unit_handle_t;
 using ADCCalibrationHandle = adc_cali_handle_t;
 
-constexpr auto voltage_to_percent(MilliVolt const value, MilliVolt const fromMin, MilliVolt const fromMax) -> Position {
-  if (fromMax == fromMin)
-    return 0;
-
-  return (value - fromMin) * 100 / (fromMax - fromMin);
-}
-
-template <ADCUnit Unit, ADCChannel ChannelA, ADCChannel ChannelB, MilliVolt Threshold, adc_atten_t Attenuation = ADC_ATTEN_DB_12>
+template <ADCUnit unit, ADCChannel channelA, ADCChannel channelB, Position threshold, adc_atten_t attenuation = ADC_ATTEN_DB_12>
 class Accelerator {
-  static MilliVolt constexpr MinVoltage = 0;
-  static MilliVolt constexpr MaxVoltage = 3100;
-  static Position constexpr MinPosition = 0;
-  static Position constexpr MaxPosition = 100;
-  static MilliVolt constexpr AccelZeroOffsetMv = 100;
-
   ADCHandle m_handle{nullptr};
   ADCCalibrationHandle m_calibration_channel_a_handle{nullptr};
   ADCCalibrationHandle m_calibration_channel_b_handle{nullptr};
 
-  MilliVolt m_calibrated_hall_a_minimal{MinVoltage};
-  MilliVolt m_calibrated_hall_a_maximal{MinVoltage};
-  MilliVolt m_calibrated_hall_b_minimal{MinVoltage};
-  MilliVolt m_calibrated_hall_b_maximal{MinVoltage};
+  MilliVolt m_calibrated_hall_a_minimal{620};
+  MilliVolt m_calibrated_hall_b_minimal{220};
 
-  Position m_current_min_position{MinPosition};
-  Position m_current_max_position{MaxPosition};
+  MilliVolt m_calibrated_hall_a_maximal{1300};
+  MilliVolt m_calibrated_hall_b_maximal{450};
 
-  auto get_voltages(MilliVolt &hall_a, MilliVolt &hall_b) const -> SystemError {
+  Position m_current_min_position{0};
+  Position m_current_max_position{100};
+
+  static Position constexpr MaxChannelsMismatchPercent = 5;
+
+  auto get_voltages(MilliVolt& hall_a, MilliVolt& hall_b) const -> SystemError {
     if (m_handle == nullptr) {
       return SystemError::AcceleratorInitFault;
     }
@@ -65,8 +56,8 @@ class Accelerator {
     {
       int hall_a_raw = 0, hall_b_raw = 0;
 
-      esp_err_t const err_raw_a = adc_oneshot_read(m_handle, ChannelA, &hall_a_raw);
-      esp_err_t const err_raw_b = adc_oneshot_read(m_handle, ChannelB, &hall_b_raw);
+      esp_err_t const err_raw_a = adc_oneshot_read(m_handle, channelA, &hall_a_raw);
+      esp_err_t const err_raw_b = adc_oneshot_read(m_handle, channelB, &hall_b_raw);
 
       if (err_raw_a != ESP_OK or err_raw_b != ESP_OK) [[unlikely]] {
         return SystemError::AcceleratorReadFault;
@@ -89,7 +80,7 @@ class Accelerator {
  public:
   auto init() noexcept -> SystemError {
     adc_oneshot_unit_init_cfg_t constexpr handle_config = {
-        .unit_id = Unit,
+        .unit_id = unit,
         .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
@@ -98,20 +89,20 @@ class Accelerator {
     }
 
     adc_oneshot_chan_cfg_t constexpr channel_config = {
-        .atten = Attenuation,
+        .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    if (auto const err = adc_oneshot_config_channel(m_handle, ChannelA, &channel_config); err != ESP_OK) {
+    if (auto const err = adc_oneshot_config_channel(m_handle, channelA, &channel_config); err != ESP_OK) {
       return SystemError::AcceleratorInitFault;
     }
-    if (auto const err = adc_oneshot_config_channel(m_handle, ChannelB, &channel_config); err != ESP_OK) {
+    if (auto const err = adc_oneshot_config_channel(m_handle, channelB, &channel_config); err != ESP_OK) {
       return SystemError::AcceleratorInitFault;
     }
 
     adc_cali_curve_fitting_config_t const calibration_a_config = {
-        .unit_id = Unit,
-        .chan = ChannelA,
-        .atten = Attenuation,
+        .unit_id = unit,
+        .chan = channelA,
+        .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
     if (auto const err = adc_cali_create_scheme_curve_fitting(&calibration_a_config, &m_calibration_channel_a_handle); err != ESP_OK) {
@@ -119,9 +110,9 @@ class Accelerator {
     }
 
     adc_cali_curve_fitting_config_t const calibration_b_config = {
-        .unit_id = Unit,
-        .chan = ChannelB,
-        .atten = Attenuation,
+        .unit_id = unit,
+        .chan = channelB,
+        .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
     if (auto const err = adc_cali_create_scheme_curve_fitting(&calibration_b_config, &m_calibration_channel_b_handle); err != ESP_OK) {
@@ -139,8 +130,8 @@ class Accelerator {
       return err;
     }
 
-    m_calibrated_hall_a_minimal = std::clamp(voltage_a + AccelZeroOffsetMv, 0, 3300);
-    m_calibrated_hall_b_minimal = std::clamp(voltage_b + AccelZeroOffsetMv, 0, 3300);
+    m_calibrated_hall_a_minimal = std::clamp(voltage_a + 50, 0, 3300);
+    m_calibrated_hall_b_minimal = std::clamp(voltage_b + 50, 0, 3300);
 
     m_calibrated_hall_a_maximal = std::max(m_calibrated_hall_a_maximal, voltage_a);
     m_calibrated_hall_b_maximal = std::max(m_calibrated_hall_b_maximal, voltage_b);
@@ -155,7 +146,7 @@ class Accelerator {
 
   auto set_maximal_position(Position const maximal_position) noexcept -> void { m_current_max_position = maximal_position; }
 
-  auto get_position(Position& position) const noexcept -> SystemError {
+  auto get_position(Position& current_position) const noexcept -> SystemError {
     MilliVolt voltage_a = 0, voltage_b = 0;
 
     SystemError err = get_voltages(voltage_a, voltage_b);
@@ -163,18 +154,20 @@ class Accelerator {
       return err;
     }
 
-    ESP_LOGI("COR", "%d %d", voltage_a, voltage_b);
+    Position const pos_a = commons::map_range(voltage_a, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal, m_current_min_position, m_current_max_position);
+    Position const pos_b = commons::map_range(voltage_b, m_calibrated_hall_b_minimal, m_calibrated_hall_b_maximal, m_current_min_position, m_current_max_position);
 
-    // MilliVolt const hall_diff = maxHall - minHall;
+    if (std::abs(pos_a - pos_b) > threshold) [[unlikely]] {
+      return SystemError::AcceleratorMismatch;
+    }
 
-    // if (std::cmp_greater(hall_diff, Threshold)) [[unlikely]] {
-    //   current_errors = current_errors | SystemError::AcceleratorMismatch;
-    //   return 0;
-    // }
+    Position const deadband = std::abs(m_current_max_position - m_current_min_position) * 2 / 100;
 
-    Position const currentPosition = voltage_to_percent(voltage_a, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal);
-
-    position = std::clamp(currentPosition, m_current_min_position, m_current_max_position);
+    if (std::abs(pos_a - m_current_min_position) < deadband) {
+      current_position = m_current_min_position;
+    } else {
+      current_position = pos_a;
+    }
 
     return SystemError::None;
   }

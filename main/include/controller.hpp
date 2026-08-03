@@ -18,10 +18,9 @@
 
 #pragma once
 
-#include <atomic>
-
 #include "bluetooth/ble_manager.hpp"
 #include "commons/atomic_channel.hpp"
+#include "commons/atomic_value.hpp"
 #include "concepts/concepts.hpp"
 #include "logger.hpp"
 #include "logic.hpp"
@@ -57,9 +56,9 @@ class Controller {
   commons::AtomicChannel<ECUTelemetry> m_ecu_telemetry;
   commons::AtomicChannel<DriveTelemetry> m_driver_telemetry;
 
-  std::atomic<Speed> m_target_speed{0};
-  std::atomic<Position> m_accelerator_offset{0};
-  std::atomic<SystemState> m_system_state{SystemState::Normal};
+  commons::AtomicValue<Speed> m_target_speed{0};
+  commons::AtomicValue<Position> m_accelerator_offset{0};
+  commons::AtomicValue<SystemState> m_system_state{SystemState::Normal};
 
   Logic m_logic;
   Storage m_storage;
@@ -124,6 +123,10 @@ class Controller {
   }
 
   auto process_system_loop() noexcept -> void {
+    // =========================================================================
+    // Обновляем информацию по устройствам
+    // =========================================================================
+
     m_mode_button.update();
     m_brake.update();
     m_guard.update();
@@ -132,79 +135,72 @@ class Controller {
     m_system_errors.update(m_mode_indicator.update());
     m_system_errors.update(m_status_indicator.update());
 
-    Speed const target_speed = m_target_speed.load(std::memory_order_relaxed);
-    Position const accelerator_offset = m_accelerator_offset.load(std::memory_order_relaxed);
+    // =========================================================================
+    // Собираем данные по устройствам
+    // =========================================================================
+
+    bool const guard_active = m_guard.is_active();
+    bool const brake_active = m_brake.is_active();
+    bool const clutch_active = m_clutch.is_active();
+    Speed const target_speed = m_target_speed.get();
+    Position const accelerator_offset = m_accelerator_offset.get();
+    SystemState const system_state = m_system_state.get();
 
     Position throttle_position{0};
     Position accelerator_position{0};
     ECUTelemetry ecu_telemetry{};
     ServoTelemetry servo_telemetry{};
-    bool const guard_active = m_guard.is_active();
-    bool const brake_active = m_brake.is_active();
-    bool const clutch_active = m_clutch.is_active();
-    SystemState const system_state = m_system_state.load(std::memory_order_relaxed);
+
+    // =========================================================================
+    // Обновляем телеметрию по ECU и отправляем на исполнительное ядро
+    // =========================================================================
 
     {
       m_system_errors.update(m_ecu.get_telemetry(ecu_telemetry));
       std::ignore = m_ecu_telemetry.send(ecu_telemetry);
     }
-    {
-      DriveTelemetry telemetry;
-      bool const is_received = m_driver_telemetry.receive(telemetry);
-      if (is_received) {
-        accelerator_position = telemetry.accelerator_position;
-        throttle_position = telemetry.throttle_position;
-        servo_telemetry = telemetry.servo_telemetry;
-      }
-    }
 
-    SystemTelemetry const system_telemetry{
-        .servo_telemetry = servo_telemetry,
-        .ecu_telemetry = ecu_telemetry,
-        .accelerator_position = accelerator_position,
-        .accelerator_offset = accelerator_offset,
-        .throttle_position = throttle_position,
-        .target_speed = target_speed,
-        .guard_active = guard_active,
-        .brake_enabled = brake_active,
-        .clutch_enabled = clutch_active,
-        .system_state = system_state,
-        .system_errors = m_system_errors.get_all(),
-    };
-    m_system_errors.update(m_ble_manager.send_telemetry(system_telemetry));
+    // =========================================================================
+    // Проверяем контроль через BLE
+    // =========================================================================
 
     if (BluetoothControl control; m_ble_control.receive(control)) {
-      m_logger.log_info("BLE control. Reset %d, Sync %d", control.error_reset, control.sync_enabled);
-
-      if (control.error_reset) {
-        m_system_errors.reset();
-      }
-
       if (control.sync_enabled) {
-        m_system_state.store(SystemState::Calibration, std::memory_order_relaxed);
+        m_logger.log_info("Sync enabled");
+        m_system_state.set(SystemState::Calibration);
       }
+
+      m_accelerator_offset.set(control.accelerator_offset);
     }
+
+    // =========================================================================
+    // Отображаем ошибки
+    // =========================================================================
 
     if (m_system_errors.has_any()) [[unlikely]] {
-      // m_system_state.store(SystemState::Off, std::memory_order_relaxed);
-      // m_logger.log_info("Has errors. Servo disabled");
       m_logger.log_active_errors(m_system_errors.get_all());
     }
+
+    // =========================================================================
+    // Обрабатываем в соответствии с режимом
+    // =========================================================================
 
     switch (system_state) {
       case SystemState::Off:
         return;
-      case SystemState::Normal:
+
+      case SystemState::Normal: {
         if (m_mode_button.is_long_press()) {
-          m_accelerator_offset.store(accelerator_position, std::memory_order_relaxed);
+          m_target_speed.set(ecu_telemetry.speed);
           m_logger.log_info("Set offset as %d", accelerator_position);
         }
-        break;
+      } break;
+
       case SystemState::Calibration: {
         m_system_errors.update(m_accelerator.calibrate());
 
         if (m_mode_button.is_long_press()) {
-          m_system_state.store(SystemState::Normal, std::memory_order_relaxed);
+          m_system_state.set(SystemState::Normal);
           m_logger.log_info("Calibration finished. Returning to Normal.");
         }
       } break;
@@ -225,10 +221,38 @@ class Controller {
         }
       } break;
     }
+
+    // =========================================================================
+    // Отправка телеметрии через BLE
+    // =========================================================================
+
+    if (DriveTelemetry telemetry; m_driver_telemetry.receive(telemetry)) {
+      accelerator_position = telemetry.accelerator_position;
+      throttle_position = telemetry.throttle_position;
+      servo_telemetry = telemetry.servo_telemetry;
+
+      ESP_LOGI("ETCU", "P%d S%d T%d L%d C%d V%d", servo_telemetry.position, servo_telemetry.speed, servo_telemetry.temperature, servo_telemetry.load,
+               servo_telemetry.current, servo_telemetry.voltage);
+    }
+
+    SystemTelemetry const system_telemetry{
+        .servo_telemetry = servo_telemetry,
+        .ecu_telemetry = ecu_telemetry,
+        .accelerator_position = accelerator_position,
+        .accelerator_offset = accelerator_offset,
+        .throttle_position = throttle_position,
+        .target_speed = target_speed,
+        .guard_active = guard_active,
+        .brake_enabled = brake_active,
+        .clutch_enabled = clutch_active,
+        .system_state = system_state,
+        .system_errors = m_system_errors.get_all(),
+    };
+    m_system_errors.update(m_ble_manager.send_telemetry(system_telemetry));
   }
 
   auto process_critical_loop() noexcept -> void {
-    SystemState const system_state = m_system_state.load(std::memory_order_relaxed);
+    SystemState const system_state = m_system_state.get();
 
     Speed target_speed{0};
     Speed current_speed{0};
@@ -241,8 +265,8 @@ class Controller {
         current_speed = ecu_telemetry.speed;
       }
 
-      target_speed = m_target_speed.load(std::memory_order_relaxed);
-      accelerator_offset = m_accelerator_offset.load(std::memory_order_relaxed);
+      target_speed = m_target_speed.get();
+      accelerator_offset = m_accelerator_offset.get();
 
       m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }

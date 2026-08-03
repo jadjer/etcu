@@ -26,7 +26,7 @@ namespace {
 
 Logger logger;
 
-devices::Accelerator<configs::ADC::Unit, configs::ADC::Hall1, configs::ADC::Hall2, configs::ADC::HallMismatchThreshold> accelerator;
+devices::Accelerator<configs::ADC::Unit, configs::ADC::Hall1, configs::ADC::Hall2, configs::ADC::MismatchThreshold> accelerator;
 devices::Servo<configs::UART::Servo::Port, configs::UART::Servo::Tx, configs::UART::Servo::Rx> servo;
 devices::ECU<configs::UART::ECU::Port, configs::UART::ECU::Tx, configs::UART::ECU::Rx> ecu;
 devices::Button<configs::Pins::ModeButton, true> mode_button;

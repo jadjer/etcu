@@ -59,7 +59,7 @@ class ECU {
   }
 
   [[nodiscard]] auto get_telemetry(ECUTelemetry& telemetry) const noexcept -> SystemError {
-    telemetry.connected = false;
+    telemetry.is_connected = false;
     telemetry.rpm = 0;
     telemetry.speed = 0;
     telemetry.tps = 0;
