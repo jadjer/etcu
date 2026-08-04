@@ -33,14 +33,16 @@ template <Ticks T, Ticks Min, Ticks Max>
 concept TicksConcept = (T >= Min && T <= Max);
 
 template <typename T>
-concept HasStructVersion = requires(T data) {
-  { data.struct_version } -> std::same_as<std::uint32_t&>;
+concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
+  { data.struct_version } -> std::convertible_to<std::uint32_t>;
+  { T::StructName } -> std::convertible_to<char const*>;
 };
 
 template <typename T>
-concept AcceleratorConcept = requires(T a, Position const position, Position& position_result) {
+concept AcceleratorConcept = requires(T a, AcceleratorCalibrationData& calibration_data, Position const position, Position& position_result) {
   { a.init() } noexcept -> std::same_as<SystemError>;
-  { a.calibrate() } noexcept -> std::same_as<SystemError>;
+  { a.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
+  { a.calibrate(calibration_data) } noexcept -> std::same_as<SystemError>;
   { a.set_minimal_position(position) } noexcept -> std::same_as<void>;
   { a.set_maximal_position(position) } noexcept -> std::same_as<void>;
   { a.get_position(position_result) } noexcept -> std::same_as<SystemError>;
@@ -70,11 +72,12 @@ concept IndicatorConcept = requires(T i, SystemError err) {
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, Position const position, ServoTelemetry& telemetry) {
+concept ServoConcept = requires(T s, ServoCalibrationData& calibration_data, Position const position, ServoTelemetry& telemetry) {
   { s.init() } noexcept -> std::same_as<SystemError>;
-  { s.self_test() } noexcept -> std::same_as<SystemError>;
-  { s.set_position(position) } noexcept -> std::same_as<SystemError>;
-  { s.get_telemetry(telemetry) } noexcept -> std::same_as<SystemError>;
+  { s.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
+  { s.calibrate(calibration_data) } noexcept -> std::same_as<void>;
+  { s.set_position(position) } noexcept -> std::same_as<void>;
+  { s.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
@@ -85,7 +88,7 @@ concept ControllerConcept = requires(T c) {
 };
 
 template <typename T>
-concept LoggerConcept = requires(T l,  char const* msg, SystemError const errors) {
+concept LoggerConcept = requires(T l, char const* msg, SystemError const errors) {
   { l.init() } noexcept -> std::same_as<void>;
   { l.log_info(msg) } noexcept -> std::same_as<void>;
   { l.log_warn(msg) } noexcept -> std::same_as<void>;

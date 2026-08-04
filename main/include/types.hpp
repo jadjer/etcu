@@ -45,20 +45,20 @@ using Load = std::uint16_t;
 using Time = std::uint16_t;
 using ServoId = std::uint8_t;
 
-enum class ButtonEvent : std::uint8_t {
+enum class ButtonEvent : Byte {
   None = 0,
   ShortPress,
   LongPress,
 };
 
-enum class ButtonState : std::uint8_t {
+enum class ButtonState : Byte {
   Idle = 0,
   Debounce,
   Pressed,
   WaitRelease,
 };
 
-enum class SystemState : std::uint8_t {
+enum class SystemState : Byte {
   Off = 0,
   Normal,
   Calibration,
@@ -79,14 +79,14 @@ enum class ServoMode : Byte {
   StepMode = 0x03,
 };
 
-enum class ServoError : std::uint8_t {
-  None         = 0x00,
-  Voltage      = 0x01,
-  AngleLimit   = 0x02,
-  Overheat     = 0x04,
-  Overload     = 0x08,
-  Encoder      = 0x10,
-  Driver       = 0x20
+enum class ServoError : Byte {
+  None = 0x00,
+  Voltage = 0x01,
+  AngleLimit = 0x02,
+  Overheat = 0x04,
+  Overload = 0x08,
+  Encoder = 0x10,
+  Driver = 0x20,
 };
 
 constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
@@ -95,6 +95,7 @@ constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept ->
 
 enum class SystemError : Error {
   None = 0,
+
   GuardLock = 1 << 0,
 
   ServoInitError = 1 << 1,
@@ -142,15 +143,15 @@ enum class ServoRegister : Byte {
   // =========================================================================
   // ЗОНА EEPROM (Энергонезависимая. Запись доступна только при RegLockSign = 0)
   // =========================================================================
-  RegModelL = 0x03,               // 1 байт (R) - Модель (у ST3020 свой ID модели)
-  RegId = 0x05,                   // 1 байт - Идентификатор сервопривода (ID: 1-253)
-  RegBaudRate = 0x06,             // 1 байт - Скорость UART (0: 1Mbps, 1: 500kbps, 2: 250kbps, 3: 128kbps, 4: 115.2kbps, 5: 76.8kbps, 6: 57.6kbps, 7: 38.4kbps)
-  RegMinPositionLimit = 0x09,     // 2 байта - Минимальный предел угла (0 - 4095)
-  RegMaxPositionLimit = 0x0B,     // 2 байта - Максимальный предел угла (0 - 4095)
-  RegCwDeadband = 0x1A,           // 1 байт - Люфт/мертвая зона по часовой стрелке
-  RegCcwDeadband = 0x1B,          // 1 байт - Люфт/мертвая зона против часовой стрелки
-  RegOffset = 0x1F,               // 2 байта - Коррекция программного нуля (смещение средней точки)
-  RegMode = 0x21,                 // 1 байт - Режим работы устройства (0: Position Mode, 1: Speed/Wheel Mode, 2: PWM Mode, 3: Step Mode)
+  RegModel = 0x03,             // 1 байт (R) - Модель (у ST3020 свой ID модели)
+  RegId = 0x05,                // 1 байт - Идентификатор сервопривода (ID: 1-253)
+  RegBaudRate = 0x06,          // 1 байт - Скорость UART (0: 1Mbps, 1: 500kbps, 2: 250kbps, 3: 128kbps, 4: 115.2kbps, 5: 76.8kbps, 6: 57.6kbps, 7: 38.4kbps)
+  RegMinPositionLimit = 0x09,  // 2 байта - Минимальный предел угла (0 - 4095)
+  RegMaxPositionLimit = 0x0B,  // 2 байта - Максимальный предел угла (0 - 4095)
+  RegCwDeadband = 0x1A,        // 1 байт - Люфт/мертвая зона по часовой стрелке
+  RegCcwDeadband = 0x1B,       // 1 байт - Люфт/мертвая зона против часовой стрелки
+  RegOffset = 0x1F,            // 2 байта - Коррекция программного нуля (смещение средней точки)
+  RegMode = 0x21,              // 1 байт - Режим работы устройства (0: Position Mode, 1: Speed/Wheel Mode, 2: PWM Mode, 3: Step Mode)
 
   // =========================================================================
   // ЗОНА RAM (Оперативная. Сбрасывается в дефолт при выключении питания)
@@ -161,16 +162,16 @@ enum class ServoRegister : Byte {
   RegTargetTime = 0x2C,      // 2 байта - Время, за которое сервопривод обязан доехать до цели (в мс)
   RegTargetSpeed = 0x2E,     // 2 байта - Целевая скорость движения (шагов в секунду)
   RegTorqueLimit = 0x30,     // 2 байта - Предел крутящего момента (0 - 1023, где 1023 - 100% мощности)
-  RegLock = 0x37,        // 1 байт - Блокировка EEPROM (1: Заблокировано [Дефолт], 0: Разрешена запись)
+  RegLock = 0x37,            // 1 байт - Блокировка EEPROM (1: Заблокировано [Дефолт], 0: Разрешена запись)
 
   // Регистры обратной связи/телеметрии (Только чтение)
-  RegPresentPosition = 0x38,     // 2 байта (R) - Текущее положение магнитного энкодера (0 - 4095)
-  RegPresentSpeed = 0x3A,        // 2 байта (R) - Текущая скорость вала (шагов/сек). Специфический знак направления.
-  RegPresentLoad = 0x3C,         // 2 байта (R) - Текущая расчетная нагрузка (0 - 1023, 10-й бит задает вектор)
-  RegPresentVoltage = 0x3E,      // 1 байт (R) - Текущее напряжение питания (значение / 10 = Вольты, например 120 = 12.0V)
-  RegPresentTemp = 0x3F,         // 1 байт (R) - Текущая температура внутри корпуса (в °C)
-  RegMoveStatus = 0x42,          // 1 байт (R) - Флаг движения (1: вал еще крутится, 0: приехали в целевую точку)
-  RegPresentCurrent = 0x45,      // 2 байта (R) - Честный физический ток на шунтах (в мА, 15-й бит — направление)
+  RegPresentPosition = 0x38,  // 2 байта (R) - Текущее положение магнитного энкодера (0 - 4095)
+  RegPresentSpeed = 0x3A,     // 2 байта (R) - Текущая скорость вала (шагов/сек). Специфический знак направления.
+  RegPresentLoad = 0x3C,      // 2 байта (R) - Текущая расчетная нагрузка (0 - 1023, 10-й бит задает вектор)
+  RegPresentVoltage = 0x3E,   // 1 байт (R) - Текущее напряжение питания (значение / 10 = Вольты, например 120 = 12.0V)
+  RegPresentTemp = 0x3F,      // 1 байт (R) - Текущая температура внутри корпуса (в °C)
+  RegMoveStatus = 0x42,       // 1 байт (R) - Флаг движения (1: вал еще крутится, 0: приехали в целевую точку)
+  RegPresentCurrent = 0x45,   // 2 байта (R) - Честный физический ток на шунтах (в мА, 15-й бит — направление)
 
   // Дополнительные глубокие диагностические регистры ST3020
   RegEncoderRawPosition = 0x44,  // 2 байта (R) - Физические сырые данные энкодера без учета калибровочного Offset
@@ -207,12 +208,24 @@ struct OTAChunk {
   std::uint32_t firmware_size{0};
 };
 
-struct CalibrationData {
+struct AcceleratorCalibrationData {
   std::uint32_t struct_version = 0x10000001;
-  MilliVolt twist_a_minimal;
-  MilliVolt twist_a_maximal;
-  MilliVolt twist_b_minimal;
-  MilliVolt twist_b_maximal;
+
+  MilliVolt hall_a_minimal;
+  MilliVolt hall_a_maximal;
+  MilliVolt hall_b_minimal;
+  MilliVolt hall_b_maximal;
+
+  static auto constexpr StructName = "acc_calib";
+};
+
+struct ServoCalibrationData {
+  std::uint32_t struct_version = 0x10000001;
+
+  ServoPosition position_minimal;
+  ServoPosition position_maximal;
+
+  static auto constexpr StructName = "servo_calib";
 };
 
 struct ServoTelemetry {

@@ -55,7 +55,7 @@ struct ADC {
   static constexpr ADCUnit Unit = ADC_UNIT_1;
   static constexpr ADCChannel Hall1 = ADC_CHANNEL_0;
   static constexpr ADCChannel Hall2 = ADC_CHANNEL_1;
-  static constexpr Position MismatchThreshold = 5;
+  static constexpr Position MismatchThreshold = 10;
 };
 
 struct System {

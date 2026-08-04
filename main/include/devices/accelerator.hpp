@@ -35,16 +35,15 @@ class Accelerator {
   ADCCalibrationHandle m_calibration_channel_a_handle{nullptr};
   ADCCalibrationHandle m_calibration_channel_b_handle{nullptr};
 
-  MilliVolt m_calibrated_hall_a_minimal{620};
-  MilliVolt m_calibrated_hall_b_minimal{220};
-
-  MilliVolt m_calibrated_hall_a_maximal{1300};
-  MilliVolt m_calibrated_hall_b_maximal{450};
-
   Position m_current_min_position{0};
   Position m_current_max_position{100};
 
-  static Position constexpr MaxChannelsMismatchPercent = 5;
+  AcceleratorCalibrationData m_calibration_data{
+    .hall_a_minimal = 620,
+    .hall_a_maximal = 1320,
+    .hall_b_minimal = 220,
+    .hall_b_maximal = 460,
+  };
 
   auto get_voltages(MilliVolt& hall_a, MilliVolt& hall_b) const -> SystemError {
     if (m_handle == nullptr) {
@@ -122,7 +121,14 @@ class Accelerator {
     return SystemError::None;
   }
 
-  auto calibrate() noexcept -> SystemError {
+  auto set_calibrate(AcceleratorCalibrationData const& calibration_data) noexcept -> void {
+    m_calibration_data = calibration_data;
+  }
+
+  auto calibrate(AcceleratorCalibrationData& calibration_data) noexcept -> SystemError {
+    MilliVolt constexpr voltage_minimal = 0;
+    MilliVolt constexpr voltage_maximal = 3300;
+
     MilliVolt voltage_a = 0, voltage_b = 0;
 
     SystemError err = get_voltages(voltage_a, voltage_b);
@@ -130,14 +136,33 @@ class Accelerator {
       return err;
     }
 
-    m_calibrated_hall_a_minimal = std::clamp(voltage_a + 50, 0, 3300);
-    m_calibrated_hall_b_minimal = std::clamp(voltage_b + 50, 0, 3300);
+    // --- ИСПРАВЛЕННЫЙ БЛОК ПЕРВИЧНОЙ ИНИЦИАЛИЗАЦИИ ---
+    // Если калибровка запускается впервые (все поля по нулям),
+    // берем текущее напряжение как стартовую точку для обоих каналов.
+    if (m_calibration_data.hall_a_minimal == 0 && m_calibration_data.hall_a_maximal == 0) {
+      m_calibration_data.hall_a_minimal = voltage_a;
+      m_calibration_data.hall_a_maximal = voltage_a;
+    }
 
-    m_calibrated_hall_a_maximal = std::max(m_calibrated_hall_a_maximal, voltage_a);
-    m_calibrated_hall_b_maximal = std::max(m_calibrated_hall_b_maximal, voltage_b);
+    if (m_calibration_data.hall_b_minimal == 0 && m_calibration_data.hall_b_maximal == 0) {
+      m_calibration_data.hall_b_minimal = voltage_b;
+      m_calibration_data.hall_b_maximal = voltage_b;
+    }
 
-    ESP_LOGI("ACC", "%d %d %d %d %d %d", voltage_a, voltage_b, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal, m_calibrated_hall_b_minimal,
-             m_calibrated_hall_b_maximal);
+    // --- НАКОПЛЕНИЕ КРАЙНИХ ТОЧЕК ---
+    // Пока эта функция вызывается в цикле, переменные расширяют свой диапазон
+    m_calibration_data.hall_a_minimal = std::min(m_calibration_data.hall_a_minimal, voltage_a);
+    m_calibration_data.hall_a_maximal = std::max(m_calibration_data.hall_a_maximal, voltage_a);
+    m_calibration_data.hall_b_minimal = std::min(m_calibration_data.hall_b_minimal, voltage_b);
+    m_calibration_data.hall_b_maximal = std::max(m_calibration_data.hall_b_maximal, voltage_b);
+
+    // Защитный Clamp, чтобы сырые значения не вышли за рамки питания ADC (0 - 3.3V)
+    m_calibration_data.hall_a_minimal = std::clamp(m_calibration_data.hall_a_minimal, voltage_minimal, voltage_maximal);
+    m_calibration_data.hall_a_maximal = std::clamp(m_calibration_data.hall_a_maximal, voltage_minimal, voltage_maximal);
+    m_calibration_data.hall_b_minimal = std::clamp(m_calibration_data.hall_b_minimal, voltage_minimal, voltage_maximal);
+    m_calibration_data.hall_b_maximal = std::clamp(m_calibration_data.hall_b_maximal, voltage_minimal, voltage_maximal);
+
+    calibration_data = m_calibration_data;
 
     return SystemError::None;
   }
@@ -154,20 +179,14 @@ class Accelerator {
       return err;
     }
 
-    Position const pos_a = commons::map_range(voltage_a, m_calibrated_hall_a_minimal, m_calibrated_hall_a_maximal, m_current_min_position, m_current_max_position);
-    Position const pos_b = commons::map_range(voltage_b, m_calibrated_hall_b_minimal, m_calibrated_hall_b_maximal, m_current_min_position, m_current_max_position);
+    Position const pos_a = commons::map_range(voltage_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, m_current_min_position, m_current_max_position);
+    Position const pos_b = commons::map_range(voltage_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, m_current_min_position, m_current_max_position);
 
     if (std::abs(pos_a - pos_b) > threshold) [[unlikely]] {
       return SystemError::AcceleratorMismatch;
     }
 
-    Position const deadband = std::abs(m_current_max_position - m_current_min_position) * 2 / 100;
-
-    if (std::abs(pos_a - m_current_min_position) < deadband) {
-      current_position = m_current_min_position;
-    } else {
-      current_position = pos_a;
-    }
+    current_position = pos_a;
 
     return SystemError::None;
   }

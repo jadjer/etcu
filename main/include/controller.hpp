@@ -104,20 +104,19 @@ class Controller {
     m_system_errors.update(m_status_indicator.init());
     m_system_errors.update(m_ble_manager.init());
 
-    m_logger.log_info("Load calibration...");
-
-    CalibrationData calibration_data{};
-    std::ignore = m_storage.load_calibration(calibration_data);
+    // m_logger.log_info("Load calibration...");
+    //
+    // if (AcceleratorCalibrationData accelerator_calibration_data; m_storage.load_calibration(accelerator_calibration_data))
+    //   m_accelerator.set_calibrate(accelerator_calibration_data);
+    //
+    // if (ServoCalibrationData servo_calibration_data; m_storage.load_calibration(servo_calibration_data))
+    //   m_servo.set_calibrate(servo_calibration_data);
 
     m_logger.log_info("Check guard...");
 
     if (m_guard.is_active()) {
       m_system_errors.add(SystemError::GuardLock);
     }
-
-    m_logger.log_info("Test servo...");
-
-    m_system_errors.update(m_servo.self_test());
 
     m_logger.log_info(m_system_errors.has_any() ? "Not ready" : "Ready");
   }
@@ -166,7 +165,7 @@ class Controller {
 
     if (BluetoothControl control; m_ble_control.receive(control)) {
       if (control.sync_enabled) {
-        m_logger.log_info("Sync enabled");
+        m_logger.log_info("Start calibrate...");
         m_system_state.set(SystemState::Calibration);
       }
 
@@ -197,10 +196,22 @@ class Controller {
       } break;
 
       case SystemState::Calibration: {
-        m_system_errors.update(m_accelerator.calibrate());
+        AcceleratorCalibrationData accelerator_calibration_data;
+        m_system_errors.update(m_accelerator.calibrate(accelerator_calibration_data));
 
-        if (m_mode_button.is_long_press()) {
+        if (m_mode_button.is_short_press()) {
+          m_logger.log_info("Servo calibrate ...");
+
+          ServoCalibrationData servo_calibration_data;
+          m_servo.calibrate(servo_calibration_data);
+
+          m_logger.log_info("Save calibration...");
+
+          std::ignore = m_storage.save_calibration(accelerator_calibration_data);
+          std::ignore = m_storage.save_calibration(servo_calibration_data);
+
           m_system_state.set(SystemState::Normal);
+
           m_logger.log_info("Calibration finished. Returning to Normal.");
         }
       } break;
@@ -230,9 +241,6 @@ class Controller {
       accelerator_position = telemetry.accelerator_position;
       throttle_position = telemetry.throttle_position;
       servo_telemetry = telemetry.servo_telemetry;
-
-      ESP_LOGI("ETCU", "P%d S%d T%d L%d C%d V%d", servo_telemetry.position, servo_telemetry.speed, servo_telemetry.temperature, servo_telemetry.load,
-               servo_telemetry.current, servo_telemetry.voltage);
     }
 
     SystemTelemetry const system_telemetry{
@@ -273,8 +281,8 @@ class Controller {
 
     Position const throttle_position = m_logic.calculate_servo_position(accelerator_offset, accelerator_position, current_speed, target_speed);
 
-    m_system_errors.update(m_servo.set_position(throttle_position));
-    m_system_errors.update(m_servo.get_telemetry(servo_telemetry));
+    m_servo.set_position(throttle_position);
+    m_servo.get_telemetry(servo_telemetry);
 
     DriveTelemetry const drive_telemetry{
         .servo_telemetry = servo_telemetry,
