@@ -24,11 +24,12 @@ namespace configs {
 
 struct Pins {
   static constexpr GPIONum ModeButton = GPIO_NUM_0;
-  static constexpr GPIONum Clutch = GPIO_NUM_2;
-  static constexpr GPIONum Brake = GPIO_NUM_3;
-  static constexpr GPIONum Guard = GPIO_NUM_4;
-  static constexpr GPIONum ModeLed = GPIO_NUM_5;
-  static constexpr GPIONum StatusLed = GPIO_NUM_6;
+  static constexpr GPIONum Clutch = GPIO_NUM_13;
+  static constexpr GPIONum Brake = GPIO_NUM_14;
+  static constexpr GPIONum Guard = GPIO_NUM_15;
+  static constexpr GPIONum ModeLed = GPIO_NUM_16;
+  static constexpr GPIONum StateLed = GPIO_NUM_17;
+  static constexpr GPIONum PowerEnable = GPIO_NUM_18;
 };
 
 struct UART {
@@ -40,8 +41,8 @@ struct UART {
 
   struct Servo {
     static constexpr UARTPort Port = UART_NUM_1;
-    static constexpr GPIONum Tx = GPIO_NUM_17;
-    static constexpr GPIONum Rx = GPIO_NUM_18;
+    static constexpr GPIONum Tx = GPIO_NUM_5;
+    static constexpr GPIONum Rx = GPIO_NUM_4;
   };
 
   struct ECU {
@@ -53,9 +54,9 @@ struct UART {
 
 struct ADC {
   static constexpr ADCUnit Unit = ADC_UNIT_1;
-  static constexpr ADCChannel Hall1 = ADC_CHANNEL_3;
-  static constexpr ADCChannel Hall2 = ADC_CHANNEL_6;
-  static constexpr MilliVolt HallMismatchThreshold = 150;
+  static constexpr ADCChannel Hall1 = ADC_CHANNEL_8;
+  static constexpr ADCChannel Hall2 = ADC_CHANNEL_9;
+  static constexpr Position MismatchThreshold = 10;
 };
 
 struct System {

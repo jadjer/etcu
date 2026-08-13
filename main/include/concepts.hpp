@@ -33,46 +33,51 @@ template <Ticks T, Ticks Min, Ticks Max>
 concept TicksConcept = (T >= Min && T <= Max);
 
 template <typename T>
-concept AcceleratorConcept = requires(T a, Position position, SystemError& err) {
-  { a.init() } noexcept -> std::same_as<void>;
-  { a.calibrate(err) } noexcept -> std::same_as<void>;
-  { a.set_minimal_position(position) } noexcept -> std::same_as<void>;
-  { a.set_maximal_position(position) } noexcept -> std::same_as<void>;
-  { a.get_position(err) } noexcept -> std::same_as<Position>;
+concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
+  { data.struct_version } -> std::convertible_to<std::uint32_t>;
+  { T::StructName } -> std::convertible_to<char const*>;
 };
 
 template <typename T>
-concept ButtonConcept = requires(T b, Ticks ticks) {
-  { b.init() } noexcept -> std::same_as<void>;
+concept AcceleratorConcept = requires(T a, AcceleratorCalibrationData& calibration_data, Position const position, Position& position_result) {
+  { a.init() } noexcept -> std::same_as<SystemError>;
+  { a.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
+  { a.calibrate(calibration_data) } noexcept -> std::same_as<SystemError>;
+  { a.set_minimal_position(position) } noexcept -> std::same_as<void>;
+  { a.set_maximal_position(position) } noexcept -> std::same_as<void>;
+  { a.get_position(position_result) } noexcept -> std::same_as<SystemError>;
+};
+
+template <typename T>
+concept ButtonConcept = requires(T b) {
+  { b.init() } noexcept -> std::same_as<SystemError>;
   { b.update() } noexcept -> std::same_as<void>;
   { b.is_active() } noexcept -> std::same_as<bool>;
   { b.is_short_press() } noexcept -> std::same_as<bool>;
   { b.is_long_press() } noexcept -> std::same_as<bool>;
-  { b.is_long_then(ticks) } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
-concept ECUConcept = requires(T e) {
-  { e.init() } noexcept -> std::same_as<void>;
-  { e.update() } noexcept -> std::same_as<void>;
-  { e.get_rpm() } noexcept -> std::same_as<RPM>;
-  { e.get_tps() } noexcept -> std::same_as<MilliVolt>;
-  { e.get_speed() } noexcept -> std::same_as<Speed>;
+concept ECUConcept = requires(T e, ECUTelemetry& telemetry) {
+  { e.init() } noexcept -> std::same_as<SystemError>;
+  { e.update() } noexcept -> std::same_as<SystemError>;
+  { e.get_telemetry(telemetry) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>
-concept IndicatorConcept = requires(T i, Mode mode, SystemError err) {
-  { i.init() } noexcept -> std::same_as<void>;
-  { i.update() } noexcept -> std::same_as<void>;
-  { i.set_status(mode, err) } noexcept -> std::same_as<void>;
+concept IndicatorConcept = requires(T i, SystemError err) {
+  { i.init() } noexcept -> std::same_as<SystemError>;
+  { i.update() } noexcept -> std::same_as<SystemError>;
+  // { i.set_status(mode) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, Position const position, ServoTelemetry& telemetry, SystemError& err) {
-  { s.init() } noexcept -> std::same_as<void>;
-  { s.self_test() } noexcept -> std::same_as<bool>;
-  { s.set_position(position, err) } noexcept -> std::same_as<bool>;
-  { s.read_telemetry(telemetry, err) } noexcept -> std::same_as<bool>;
+concept ServoConcept = requires(T s, ServoCalibrationData& calibration_data, Position const position, ServoTelemetry& telemetry) {
+  { s.init() } noexcept -> std::same_as<SystemError>;
+  { s.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
+  { s.calibrate(calibration_data) } noexcept -> std::same_as<void>;
+  { s.set_position(position) } noexcept -> std::same_as<void>;
+  { s.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
@@ -83,16 +88,12 @@ concept ControllerConcept = requires(T c) {
 };
 
 template <typename T>
-concept LoggerConcept = requires(T l, const char* msg) {
+concept LoggerConcept = requires(T l, char const* msg, SystemError const errors) {
   { l.init() } noexcept -> std::same_as<void>;
   { l.log_info(msg) } noexcept -> std::same_as<void>;
   { l.log_warn(msg) } noexcept -> std::same_as<void>;
   { l.log_error(msg) } noexcept -> std::same_as<void>;
-};
-
-template <typename T>
-concept HasStructVersion = requires(T data) {
-  { data.struct_version } -> std::same_as<std::uint32_t&>;
+  { l.log_active_errors(errors) } noexcept -> std::same_as<void>;
 };
 
 }  // namespace concepts

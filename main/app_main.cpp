@@ -18,6 +18,7 @@
 #include "devices/ecu.hpp"
 #include "devices/indicator.hpp"
 #include "devices/servo.hpp"
+#include "include/configs.hpp"
 #include "logger.hpp"
 #include "system_host.hpp"
 
@@ -25,7 +26,7 @@ namespace {
 
 Logger logger;
 
-devices::Accelerator<configs::ADC::Unit, configs::ADC::Hall1, configs::ADC::Hall2, configs::ADC::HallMismatchThreshold> accelerator;
+devices::Accelerator<configs::ADC::Unit, configs::ADC::Hall1, configs::ADC::Hall2, configs::ADC::MismatchThreshold> accelerator;
 devices::Servo<configs::UART::Servo::Port, configs::UART::Servo::Tx, configs::UART::Servo::Rx> servo;
 devices::ECU<configs::UART::ECU::Port, configs::UART::ECU::Tx, configs::UART::ECU::Rx> ecu;
 devices::Button<configs::Pins::ModeButton, true> mode_button;
@@ -33,9 +34,12 @@ devices::Button<configs::Pins::Brake> brake_switch;
 devices::Button<configs::Pins::Guard> guard_switch;
 devices::Button<configs::Pins::Clutch> clutch_switch;
 devices::Indicator<configs::Pins::ModeLed> mode_indicator;
-devices::Indicator<configs::Pins::StatusLed> status_indicator;
+devices::Indicator<configs::Pins::StateLed> state_indicator;
+devices::Indicator<configs::Pins::PowerEnable> power_enable;
 
-Controller controller{logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, clutch_switch, mode_indicator, status_indicator};
+Controller controller{
+    logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, clutch_switch, mode_indicator, state_indicator, power_enable
+};
 
 SystemHost<decltype(controller), configs::System::SystemCore, configs::System::CriticalCore> system_host{controller};
 

@@ -21,7 +21,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <types.hpp>
-#include "concepts/concepts.hpp"
+#include "concepts.hpp"
 
 template <concepts::ControllerConcept Controller, CoreId SystemCore = 0, CoreId CriticalCore = 1, CoreRate Rate = 10>
   requires concepts::CoreIdConcept<SystemCore> && concepts::CoreIdConcept<CriticalCore> && concepts::CoreRateConcept<Rate>

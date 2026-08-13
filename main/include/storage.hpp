@@ -5,11 +5,10 @@
 #pragma once
 
 #include <nvs.h>
-#include "concepts/concepts.hpp"
+#include "concepts.hpp"
 
 class Storage {
-  static constexpr auto NvsNamespace = "accel_cali";
-  static constexpr auto NvsBlobKey = "cali_blob";
+  static constexpr auto NvsNamespace = "etcu";
 
  public:
   template <concepts::HasStructVersion T>
@@ -22,11 +21,11 @@ class Storage {
 
     std::size_t requiredSize = sizeof(T);
 
-    esp_err_t const err = nvs_get_blob(nvs_handle, NvsBlobKey, &data, &requiredSize);
+    esp_err_t const err = nvs_get_blob(nvs_handle, T::StructName, &data, &requiredSize);
 
     nvs_close(nvs_handle);
 
-    if (err != ESP_OK) {
+    if (err != ESP_OK || requiredSize != sizeof(T)) {
       return false;
     }
 
@@ -34,14 +33,14 @@ class Storage {
   }
 
   template <concepts::HasStructVersion T>
-  [[nodiscard]] auto save_calibration(T data) const noexcept -> bool {
+  [[nodiscard]] auto save_calibration(const T &data) const noexcept -> bool {
     nvs_handle_t nvs_handle = 0;
 
     if (nvs_open(NvsNamespace, NVS_READWRITE, &nvs_handle) != ESP_OK) {
       return false;
     }
 
-    esp_err_t err = nvs_set_blob(nvs_handle, NvsBlobKey, &data, sizeof(T));
+    esp_err_t err = nvs_set_blob(nvs_handle, T::StructName, &data, sizeof(T));
 
     if (err == ESP_OK) {
       err = nvs_commit(nvs_handle);

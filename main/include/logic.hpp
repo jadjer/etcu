@@ -18,26 +18,51 @@
 
 #pragma once
 
-#include <algorithm>
+#include "commons/map_range.hpp"
 #include "types.hpp"
 
+template <Position ThrottleExpoFactor>
+consteval auto generate_expo_lut() -> std::array<Position, 101> {
+  std::array<Position, 101> lut{};
+
+  for (std::size_t i = 0; i <= 100; ++i) {
+    auto const in = static_cast<std::uint64_t>(i);
+
+    std::uint64_t const cubic_part = (in * in * in) / 10000;
+    std::uint64_t const linear_part = in;
+
+    lut[i] = commons::map_range<Position, Position>(
+      ThrottleExpoFactor,
+      0, 100,
+      static_cast<Position>(linear_part),
+      static_cast<Position>(cubic_part)
+    );
+  }
+
+  return lut;
+}
+
 class Logic {
+  static Position constexpr ThrottleExpoFactor = 50;
+  static constexpr std::array<Position, 101> MExpoLut = generate_expo_lut<ThrottleExpoFactor>();
+
+  constexpr auto apply_throttle_expo(Position const input_percent) noexcept -> Position {
+    if (input_percent <= 0)
+      return 0;
+
+    if (input_percent >= 100)
+      return 100;
+
+    Position const cubic_part = (input_percent * input_percent * input_percent) / 10000;
+
+    return commons::map_range<Position, Position>(ThrottleExpoFactor, 0, 100, input_percent, cubic_part);
+  }
+
  public:
-  auto init() noexcept -> void {}
-
-  [[nodiscard]] auto calculate_servo_position(Mode mode, float acc_percent, bool cruise_active, float current_speed, float target_speed) noexcept -> float {
-    if (mode == Mode::Off) {
-      return 0.0f;
-    }
-
-    float base_target = acc_percent;
-
-    if (cruise_active) {
-      float const speed_error = target_speed - current_speed;
-      float const cruise_modifier = speed_error * 2.5f;
-      base_target = std::clamp(base_target + cruise_modifier, 0.0f, 100.0f);
-    }
-
-    return std::clamp(base_target, 0.0f, 100.0f);
+  [[nodiscard]] auto calculate_servo_position(Position const acc_offset,
+                                              Position const acc_position,
+                                              Speed const current_speed,
+                                              Speed const target_speed) noexcept -> Position {
+    return apply_throttle_expo(acc_position);
   }
 };

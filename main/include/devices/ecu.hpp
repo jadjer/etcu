@@ -18,16 +18,14 @@
 
 #pragma once
 
+#include <driver/uart.h>
+
 namespace devices {
 
 template <uart_port_t Port, gpio_num_t Tx, gpio_num_t Rx>
 class ECU {
-  std::uint16_t m_rpm{0};
-  std::uint16_t m_tps{0};
-  std::uint16_t m_speed{0};
-
  public:
-  auto init() noexcept -> void {
+  auto init() noexcept -> SystemError {
     uart_config_t constexpr config = {
         .baud_rate = 10'400,
         .data_bits = UART_DATA_8_BITS,
@@ -42,21 +40,34 @@ class ECU {
                 .backup_before_sleep = false,
             },
     };
-    uart_param_config(Port, &config);
-    uart_set_pin(Port, Tx, Rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_driver_install(Port, 256, 256, 0, nullptr, 0);
+
+    if (auto const err = uart_param_config(Port, &config); err != ESP_OK) {
+      return SystemError::ECUInitFault;
+    }
+
+    if (auto const err = uart_set_pin(Port, Tx, Rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); err != ESP_OK) {
+      return SystemError::ECUInitFault;
+    }
+
+    if (auto const err = uart_driver_install(Port, 256, 256, 0, nullptr, 0); err != ESP_OK) {
+      return SystemError::ECUInitFault;
+    }
+
+    return SystemError::None;
   }
-  auto update() noexcept -> void {
-    m_rpm = 0;
-    m_tps = 0;
-    m_speed = 0;
+
+  auto update() noexcept -> SystemError { return SystemError::None; }
+
+  [[nodiscard]] auto get_telemetry(ECUTelemetry& telemetry) const noexcept -> SystemError {
+    telemetry.is_connected = false;
+    telemetry.rpm = 0;
+    telemetry.speed = 0;
+    telemetry.tps = 0;
+    telemetry.started = false;
+    telemetry.clutch_enabled = false;
+
+    return SystemError::None;
   }
-
-  [[nodiscard]] auto get_rpm() const noexcept -> std::uint16_t { return m_rpm; }
-
-  [[nodiscard]] auto get_tps() const noexcept -> std::uint16_t { return m_tps; }
-
-  [[nodiscard]] auto get_speed() const noexcept -> std::uint16_t { return m_speed; }
 };
 
 }  // namespace devices
