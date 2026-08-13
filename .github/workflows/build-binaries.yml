@@ -19,7 +19,7 @@ jobs:
       - name: esp-idf build
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.3.1
+          esp_idf_version: v6.0.2
           target: esp32
           path: '.'
 
@@ -27,8 +27,8 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/CLS.bin
-          asset_name: cls-esp32-$tag.bin
+          file: build/ETCU.bin
+          asset_name: etcu-esp32-$tag.bin
           tag: ${{ github.ref }}
           overwrite: true
 
@@ -45,7 +45,7 @@ jobs:
       - name: esp-idf build
         uses: espressif/esp-idf-ci-action@v1
         with:
-          esp_idf_version: v5.3.1
+          esp_idf_version: v6.0.2
           target: esp32s3
           path: '.'
 
@@ -53,8 +53,8 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/CLS.bin
-          asset_name: cls-esp32s3-$tag.bin
+          file: build/ETCU.bin
+          asset_name: etcu-esp32s3-$tag.bin
           tag: ${{ github.ref }}
           overwrite: true
 
