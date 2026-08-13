@@ -29,7 +29,7 @@ namespace devices {
 using ADCHandle = adc_oneshot_unit_handle_t;
 using ADCCalibrationHandle = adc_cali_handle_t;
 
-template <ADCUnit unit, ADCChannel channelA, ADCChannel channelB, Position threshold, adc_atten_t attenuation = ADC_ATTEN_DB_12>
+template <ADCUnit unit, ADCChannel channelA, ADCChannel channelB, Position threshold, adc_atten_t attenuation = ADC_ATTEN_DB_6>
 class Accelerator {
   ADCHandle m_handle{nullptr};
   ADCCalibrationHandle m_calibration_channel_a_handle{nullptr};
