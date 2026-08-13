@@ -44,7 +44,7 @@ class BLEManager {
   auto init() -> SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(DEVICE_NAME)) {
+    if (!NimBLEDevice::init(constants::DEVICE_NAME)) {
       return SystemError::BluetoothInitFault;
     }
 
@@ -59,21 +59,21 @@ class BLEManager {
     m_server = NimBLEDevice::createServer();
     m_server->setCallbacks(&m_server_callback);
 
-    NimBLEService* service = m_server->createService(SERVICE_UUID);
+    NimBLEService* service = m_server->createService(constants::SERVICE_UUID);
     {
-      m_ota_characteristic = service->createCharacteristic(OTA_CHARACTERISTIC_UUID, WRITE | NOTIFY);
+      m_ota_characteristic = service->createCharacteristic(constants::OTA_CHARACTERISTIC_UUID, WRITE | NOTIFY);
       m_ota_characteristic->setCallbacks(&m_ota_callback);
     }
     {
-      m_control_characteristic = service->createCharacteristic(CONTROL_CHARACTERISTIC_UUID, WRITE);
+      m_control_characteristic = service->createCharacteristic(constants::CONTROL_CHARACTERISTIC_UUID, WRITE);
       m_control_characteristic->setCallbacks(&m_control_callback);
     }
     {
-      m_telemetry_characteristic = service->createCharacteristic(TELEMETRY_CHARACTERISTIC_UUID, READ | NOTIFY);
+      m_telemetry_characteristic = service->createCharacteristic(constants::TELEMETRY_CHARACTERISTIC_UUID, READ | NOTIFY);
     }
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();
-    advertising->setName(DEVICE_NAME);
+    advertising->setName(constants::DEVICE_NAME);
     advertising->addServiceUUID(service->getUUID());
     advertising->enableScanResponse(true);
     advertising->setMinInterval(32);  // 32 * 0.625ms = 20ms

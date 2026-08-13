@@ -5,7 +5,7 @@
 #pragma once
 
 #include <nvs.h>
-#include "concepts/concepts.hpp"
+#include "concepts.hpp"
 
 class Storage {
   static constexpr auto NvsNamespace = "etcu";

@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <driver/uart.h>
+
 namespace devices {
 
 template <uart_port_t Port, gpio_num_t Tx, gpio_num_t Rx>
@@ -54,9 +56,7 @@ class ECU {
     return SystemError::None;
   }
 
-  auto update() noexcept -> SystemError {
-    return SystemError::None;
-  }
+  auto update() noexcept -> SystemError { return SystemError::None; }
 
   [[nodiscard]] auto get_telemetry(ECUTelemetry& telemetry) const noexcept -> SystemError {
     telemetry.is_connected = false;

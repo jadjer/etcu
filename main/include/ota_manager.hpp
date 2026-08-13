@@ -5,6 +5,7 @@
 #pragma once
 
 #include <esp_ota_ops.h>
+#include "constants.hpp"
 
 namespace update {
 using OTAHandle = esp_ota_handle_t;
@@ -15,7 +16,7 @@ class OTAManager {
   OTAHandle m_update_handle{0};
   OTAPartition m_update_partition{nullptr};
 
-public:
+ public:
   OTAManager() = default;
 
   auto startUpdate(std::size_t const total_size) -> bool {
@@ -33,7 +34,7 @@ public:
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, MAX_BLE_PAYLOAD_SIZE> const data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::MAX_BLE_PAYLOAD_SIZE> const data) const -> bool {
     if (!m_is_running)
       return false;
 
@@ -58,4 +59,4 @@ public:
   [[nodiscard]] auto isActive() const -> bool { return m_is_running; }
 };
 
-} // namespace update
+}  // namespace update

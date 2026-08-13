@@ -21,13 +21,12 @@
 #include "bluetooth/ble_manager.hpp"
 #include "commons/atomic_channel.hpp"
 #include "commons/atomic_value.hpp"
-#include "concepts/concepts.hpp"
-#include "logger.hpp"
+#include "concepts.hpp"
 #include "logic.hpp"
+#include "ota_manager.hpp"
 #include "storage.hpp"
 #include "system_errors.hpp"
 #include "types.hpp"
-#include "update/ota_manager.hpp"
 
 template <concepts::LoggerConcept Logger,
           concepts::AcceleratorConcept Accelerator,
@@ -38,7 +37,8 @@ template <concepts::LoggerConcept Logger,
           concepts::ButtonConcept Guard,
           concepts::ButtonConcept Clutch,
           concepts::IndicatorConcept ModeInd,
-          concepts::IndicatorConcept StatusInd>
+          concepts::IndicatorConcept StatusInd,
+          concepts::IndicatorConcept PowerEnable>
 class Controller {
   Logger& m_logger;
   Accelerator& m_accelerator;
@@ -50,6 +50,7 @@ class Controller {
   Clutch& m_clutch;
   ModeInd& m_mode_indicator;
   StatusInd& m_status_indicator;
+  PowerEnable& m_power_enable;
 
   commons::AtomicChannel<OTAChunk> m_ota_chunk;
   commons::AtomicChannel<BluetoothControl> m_ble_control;
@@ -76,7 +77,8 @@ class Controller {
              Guard& guard,
              Clutch& clutch,
              ModeInd& mode_indicator,
-             StatusInd& status_indicator) noexcept
+             StatusInd& status_indicator,
+             PowerEnable& power_enable) noexcept
       : m_logger(logger),
         m_accelerator(accelerator),
         m_servo(servo),
@@ -86,7 +88,8 @@ class Controller {
         m_guard(guard),
         m_clutch(clutch),
         m_mode_indicator(mode_indicator),
-        m_status_indicator(status_indicator) {}
+        m_status_indicator(status_indicator),
+        m_power_enable(power_enable) {}
 
   auto init() noexcept -> void {
     m_logger.init();
@@ -103,9 +106,12 @@ class Controller {
     m_system_errors.update(m_mode_indicator.init());
     m_system_errors.update(m_status_indicator.init());
     m_system_errors.update(m_ble_manager.init());
+    m_system_errors.update(m_power_enable.init());
 
-    // m_logger.log_info("Load calibration...");
-    //
+    m_logger.log_info("Load calibration...");
+
+    // TODO Load calibrations from storage
+
     // if (AcceleratorCalibrationData accelerator_calibration_data; m_storage.load_calibration(accelerator_calibration_data))
     //   m_accelerator.set_calibrate(accelerator_calibration_data);
     //
@@ -119,6 +125,8 @@ class Controller {
     }
 
     m_logger.log_info(m_system_errors.has_any() ? "Not ready" : "Ready");
+
+    // TODO Enable servo power
   }
 
   auto process_system_loop() noexcept -> void {

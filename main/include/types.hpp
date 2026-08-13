@@ -18,10 +18,12 @@
 
 #pragma once
 
+#include <driver/gpio.h>
+#include <driver/uart.h>
+#include <esp_adc/adc_oneshot.h>
+#include <array>
+#include <type_traits>
 #include "constants.hpp"
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include "esp_adc/adc_oneshot.h"
 
 using CoreRate = std::uint8_t;
 using CoreId = std::uint8_t;
@@ -201,7 +203,7 @@ struct BluetoothControl {
 };
 
 struct OTAChunk {
-  std::array<Byte, MAX_BLE_PAYLOAD_SIZE> chunk{};
+  std::array<Byte, constants::MAX_BLE_PAYLOAD_SIZE> chunk{};
   std::uint16_t chunk_size{0};
   std::uint16_t chunk_number{0};
   std::uint16_t chunk_total{0};

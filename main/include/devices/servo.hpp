@@ -19,7 +19,7 @@
 #pragma once
 
 #include <driver/uart.h>
-
+#include <numeric>
 #include <utility>
 #include "commons/map_range.hpp"
 #include "types.hpp"
@@ -39,12 +39,7 @@ class Servo {
     std::size_t constexpr start_index = 2;
     std::size_t constexpr end_index = packetSize - 1;
 
-    std::uint32_t sum = 0;
-
-    for (std::size_t i = start_index; i < end_index; ++i) {
-      sum += bytes[i];
-    }
-
+    std::uint32_t const sum = std::accumulate(bytes.begin() + start_index, bytes.begin() + end_index, 0U);
     return static_cast<Byte>(~(sum & 0xFF));
   }
 
@@ -130,7 +125,7 @@ class Servo {
     if (auto const err = uart_driver_install(port, 4096, 4096, 0, nullptr, 0); err != ESP_OK) {
       return SystemError::ServoInitError;
     }
-    
+
     return SystemError::None;
   }
 
