@@ -35,7 +35,6 @@ template <concepts::LoggerConcept Logger,
           concepts::ButtonConcept ModeBtn,
           concepts::ButtonConcept Brake,
           concepts::ButtonConcept Guard,
-          concepts::ButtonConcept Clutch,
           concepts::IndicatorConcept ModeInd,
           concepts::IndicatorConcept StatusInd,
           concepts::IndicatorConcept PowerEnable>
@@ -47,7 +46,6 @@ class Controller {
   ModeBtn& m_mode_button;
   Brake& m_brake;
   Guard& m_guard;
-  Clutch& m_clutch;
   ModeInd& m_mode_indicator;
   StatusInd& m_status_indicator;
   PowerEnable& m_power_enable;
@@ -75,7 +73,6 @@ class Controller {
              ModeBtn& mode_button,
              Brake& brake,
              Guard& guard,
-             Clutch& clutch,
              ModeInd& mode_indicator,
              StatusInd& status_indicator,
              PowerEnable& power_enable) noexcept
@@ -86,7 +83,6 @@ class Controller {
         m_mode_button(mode_button),
         m_brake(brake),
         m_guard(guard),
-        m_clutch(clutch),
         m_mode_indicator(mode_indicator),
         m_status_indicator(status_indicator),
         m_power_enable(power_enable) {}
@@ -102,7 +98,6 @@ class Controller {
     m_system_errors.update(m_mode_button.init());
     m_system_errors.update(m_brake.init());
     m_system_errors.update(m_guard.init());
-    m_system_errors.update(m_clutch.init());
     m_system_errors.update(m_mode_indicator.init());
     m_system_errors.update(m_status_indicator.init());
     m_system_errors.update(m_ble_manager.init());
@@ -137,7 +132,6 @@ class Controller {
     m_mode_button.update();
     m_brake.update();
     m_guard.update();
-    m_clutch.update();
     m_system_errors.update(m_ecu.update());
     m_system_errors.update(m_mode_indicator.update());
     m_system_errors.update(m_status_indicator.update());
@@ -148,7 +142,6 @@ class Controller {
 
     bool const guard_active = m_guard.is_active();
     bool const brake_active = m_brake.is_active();
-    bool const clutch_active = m_clutch.is_active();
     Speed const target_speed = m_target_speed.get();
     Position const accelerator_offset = m_accelerator_offset.get();
     SystemState const system_state = m_system_state.get();
@@ -260,7 +253,6 @@ class Controller {
         .target_speed = target_speed,
         .guard_active = guard_active,
         .brake_enabled = brake_active,
-        .clutch_enabled = clutch_active,
         .system_state = system_state,
         .system_errors = m_system_errors.get_all(),
     };
