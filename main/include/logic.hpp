@@ -63,6 +63,7 @@ class Logic {
                                               Position const acc_position,
                                               Speed const current_speed,
                                               Speed const target_speed) noexcept -> Position {
-    return apply_throttle_expo(acc_position);
+    // return apply_throttle_expo(acc_position);
+    return acc_position;
   }
 };
