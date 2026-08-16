@@ -23,29 +23,43 @@
 #include <esp_adc/adc_oneshot.h>
 #include <array>
 #include <type_traits>
+#include "commons/bounded_value.hpp"
 #include "constants.hpp"
+
+struct PositionTag {};
+struct CoreRateTag {};
+struct CoreIdTag {};
+struct MilliVoltTag {};
+struct VoltTag {};
+struct ServoPositionTag {};
+struct RPMTag {};
+struct SpeedTag {};
+struct CurrentTag {};
+struct TemperatureTag {};
+struct MilliSecTag {};
 
 using CoreRate = std::uint8_t;
 using CoreId = std::uint8_t;
 using Ticks = std::uint16_t;
-using MilliSec = std::uint16_t;
-using Voltage = std::uint16_t;
-using MilliVolt = std::uint16_t;
 using GPIONum = gpio_num_t;
 using UARTPort = uart_port_t;
 using ADCUnit = adc_unit_t;
 using ADCChannel = adc_channel_t;
-using Position = std::uint8_t;
-using ServoPosition = std::uint16_t;
-using RPM = std::uint16_t;
-using Speed = std::uint16_t;
-using Current = std::uint16_t;
-using Temperature = std::uint16_t;
 using Error = std::uint32_t;
 using Byte = std::uint8_t;
 using Load = std::uint16_t;
 using Time = std::uint16_t;
 using ServoId = std::uint8_t;
+
+using Voltage = commons::BoundedValue<std::uint8_t, 0, 100, VoltTag>;
+using MilliVolt = commons::BoundedValue<std::uint16_t, 0, 3100, MilliVoltTag>;
+using Position = commons::BoundedValue<std::uint8_t, 0, 100, PositionTag>;
+using ServoPosition = commons::BoundedValue<std::uint16_t, 0, 4100, ServoPositionTag>;
+using RPM = commons::BoundedValue<std::uint16_t, 0, 9000, RPMTag>;
+using Speed = commons::BoundedValue<std::uint16_t, 0, 300, SpeedTag>;
+using Current = commons::BoundedValue<std::uint16_t, 0, 3000, CurrentTag>;
+using Temperature = commons::BoundedValue<std::uint16_t, 0, 150, TemperatureTag>;
+using MilliSec = commons::BoundedValue<std::uint16_t, 0, 1000, MilliSecTag>;
 
 enum class ButtonEvent : Byte {
   None = 0,
@@ -134,7 +148,7 @@ enum class SystemError : Error {
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const err) -> bool {
-  return (static_cast<Error>(err)) != 0;
+  return static_cast<Error>(err) != 0;
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const mask, SystemError const err) -> bool {
@@ -213,10 +227,10 @@ struct OTAChunk {
 struct AcceleratorCalibrationData {
   std::uint32_t struct_version = 0x10000001;
 
-  MilliVolt hall_a_minimal;
-  MilliVolt hall_a_maximal;
-  MilliVolt hall_b_minimal;
-  MilliVolt hall_b_maximal;
+  MilliVolt hall_a_minimal{0};
+  MilliVolt hall_a_maximal{0};
+  MilliVolt hall_b_minimal{0};
+  MilliVolt hall_b_maximal{0};
 
   static auto constexpr StructName = "acc_calib";
 };
@@ -224,8 +238,8 @@ struct AcceleratorCalibrationData {
 struct ServoCalibrationData {
   std::uint32_t struct_version = 0x10000001;
 
-  ServoPosition position_minimal;
-  ServoPosition position_maximal;
+  ServoPosition position_minimal{0};
+  ServoPosition position_maximal{0};
 
   static auto constexpr StructName = "servo_calib";
 };

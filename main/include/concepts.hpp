@@ -24,13 +24,13 @@
 namespace concepts {
 
 template <CoreId T>
-concept CoreIdConcept = (T <= 1);
+concept CoreIdConcept = T <= 1;
 
 template <CoreRate T>
-concept CoreRateConcept = (T >= 10);
+concept CoreRateConcept = T >= 10;
 
 template <Ticks T, Ticks Min, Ticks Max>
-concept TicksConcept = (T >= Min && T <= Max);
+concept TicksConcept = T >= Min && T <= Max;
 
 template <typename T>
 concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
@@ -39,7 +39,12 @@ concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
 };
 
 template <typename T>
-concept AcceleratorConcept = requires(T a, AcceleratorCalibrationData& calibration_data, Position const position, Position& position_result) {
+concept IsBounded = requires(T v) {
+  { v.get() } -> std::integral;
+};
+
+template <typename T>
+concept AcceleratorConcept = requires(T a, AcceleratorCalibrationData calibration_data, Position const position, Position position_result) {
   { a.init() } noexcept -> std::same_as<SystemError>;
   { a.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
   { a.calibrate(calibration_data) } noexcept -> std::same_as<SystemError>;
@@ -58,7 +63,7 @@ concept ButtonConcept = requires(T b) {
 };
 
 template <typename T>
-concept ECUConcept = requires(T e, ECUTelemetry& telemetry) {
+concept ECUConcept = requires(T e, ECUTelemetry telemetry) {
   { e.init() } noexcept -> std::same_as<SystemError>;
   { e.update() } noexcept -> std::same_as<SystemError>;
   { e.get_telemetry(telemetry) } noexcept -> std::same_as<SystemError>;
@@ -72,7 +77,7 @@ concept IndicatorConcept = requires(T i, SystemError err) {
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, ServoCalibrationData& calibration_data, Position const position, ServoTelemetry& telemetry) {
+concept ServoConcept = requires(T s, ServoCalibrationData calibration_data, Position const position, ServoTelemetry telemetry) {
   { s.init() } noexcept -> std::same_as<SystemError>;
   { s.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
   { s.calibrate(calibration_data) } noexcept -> std::same_as<void>;

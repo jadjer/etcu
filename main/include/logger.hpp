@@ -35,7 +35,7 @@ class Logger {
   }
 
  public:
-  auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); }
+  auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); } // NOLINT
 
   template <typename... Args>
   auto log_info(char const* const format, Args&&... args) noexcept -> void {
@@ -104,8 +104,8 @@ class Logger {
     log_error("------------------------------");
   }
 
-  auto check_and_log_errors(ServoError const error) noexcept -> void {
-    if (error == ServoError::None) return; // Ошибок нет, выходим
+  auto check_and_log_errors(ServoError const error) noexcept -> void { // NOLINT
+    if (error == ServoError::None) return;
 
     if (error & ServoError::Voltage)    ESP_LOGE("SERVO", "  -> Ошибка питания! Проверьте вольтаж линии.");
     if (error & ServoError::AngleLimit) ESP_LOGE("SERVO", "  -> Выход за программные лимиты углов.");

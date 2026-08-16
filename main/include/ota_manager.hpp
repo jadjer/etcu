@@ -48,11 +48,11 @@ class OTAManager {
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::MAX_BLE_PAYLOAD_SIZE> const data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
     if (!m_is_running)
       return false;
 
-    return (esp_ota_write(m_update_handle, data.data(), data.size()) == ESP_OK);
+    return esp_ota_write(m_update_handle, data.data(), data.size()) == ESP_OK;
   }
 
   auto endUpdate() -> void {

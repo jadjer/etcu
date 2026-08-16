@@ -220,8 +220,7 @@ class Controller {
       case SystemState::Update: {
         OTAChunk chunk;
 
-        bool const is_received = m_ota_chunk.receive(chunk);
-        if (is_received) {
+        if (bool const is_received = m_ota_chunk.receive(chunk)) {
           // if (!m_ota_manager.isActive())
           //   m_ota_manager.startUpdate();
           //

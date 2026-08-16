@@ -23,8 +23,8 @@
 #include <types.hpp>
 #include "concepts.hpp"
 
-template <concepts::ControllerConcept Controller, CoreId SystemCore = 0, CoreId CriticalCore = 1, CoreRate Rate = 10>
-  requires concepts::CoreIdConcept<SystemCore> && concepts::CoreIdConcept<CriticalCore> && concepts::CoreRateConcept<Rate>
+template <concepts::ControllerConcept Controller, CoreId systemCore = 0, CoreId criticalCore = 1, CoreRate rate = 10>
+  requires concepts::CoreIdConcept<systemCore> && concepts::CoreIdConcept<criticalCore> && concepts::CoreRateConcept<rate>
 class SystemHost {
   Controller& m_controller;
 
@@ -33,7 +33,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_system_loop();
-      vTaskDelay(pdMS_TO_TICKS(Rate));
+      vTaskDelay(pdMS_TO_TICKS(rate));
     }
   }
 
@@ -43,7 +43,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_critical_loop();
-      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(Rate));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(rate));
     }
   }
 
@@ -54,7 +54,7 @@ class SystemHost {
   auto operator=(SystemHost const&) -> SystemHost& = delete;
 
   auto run() -> void {
-    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, SystemCore);
-    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, CriticalCore);
+    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, systemCore);
+    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, criticalCore);
   }
 };

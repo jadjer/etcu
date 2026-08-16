@@ -26,9 +26,9 @@ namespace devices {
 template <gpio_num_t Pin>
 class Indicator {
  public:
-  auto init() noexcept -> SystemError {
+  auto init() noexcept -> SystemError { // NOLINT
     gpio_config_t const config = {
-        .pin_bit_mask = (1ULL << Pin),
+        .pin_bit_mask = 1ULL << Pin,
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_ENABLE,
@@ -41,7 +41,7 @@ class Indicator {
     return SystemError::None;
   }
 
-  auto update() noexcept -> SystemError {
+  auto update() noexcept -> SystemError { // NOLINT
     return SystemError::None;
   }
 

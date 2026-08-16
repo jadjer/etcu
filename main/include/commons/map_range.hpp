@@ -19,23 +19,27 @@
 #pragma once
 
 #include <algorithm>
+#include "concepts.hpp"
 
 namespace commons {
 
-template <typename T, typename S>
-  requires std::is_arithmetic_v<T> && std::is_arithmetic_v<S>
-constexpr auto map_range(T const value, T const fromMin, T const fromMax, S const toMin, S const toMax) -> S {
-  if (fromMax <= fromMin) [[unlikely]] {
+template <concepts::IsBounded In, concepts::IsBounded Out>
+constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out const toMin, Out const toMax) -> Out {
+  auto const raw_value = static_cast<int64_t>(value.get());
+  auto const raw_fromMin = static_cast<int64_t>(fromMin.get());
+  auto const raw_fromMax = static_cast<int64_t>(fromMax.get());
+  auto const raw_toMin = static_cast<int64_t>(toMin.get());
+  auto const raw_toMax = static_cast<int64_t>(toMax.get());
+
+  if (raw_fromMax <= raw_fromMin) [[unlikely]]
     return toMin;
-  }
 
-  T const clamped_value = std::clamp(value, fromMin, fromMax);
+  int64_t const clamped_value = std::clamp(raw_value, raw_fromMin, raw_fromMax);
+  int64_t const from_span = raw_fromMax - raw_fromMin;
+  int64_t const to_span = raw_toMax - raw_toMin;
+  int64_t const scaled_value = raw_toMin + (clamped_value - raw_fromMin) * to_span / from_span;
 
-  auto const from_span = fromMax - fromMin;
-  auto const to_span = toMax - toMin;
-  auto const scaled_value = toMin + ((clamped_value - fromMin) * to_span / from_span);
-
-  return static_cast<S>(scaled_value);
+  return Out(scaled_value);
 }
 
-} // namespace commons
+}  // namespace commons

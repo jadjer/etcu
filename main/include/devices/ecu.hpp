@@ -25,7 +25,7 @@ namespace devices {
 template <uart_port_t Port, gpio_num_t Tx, gpio_num_t Rx>
 class ECU {
  public:
-  auto init() noexcept -> SystemError {
+  auto init() noexcept -> SystemError { // NOLINT
     uart_config_t constexpr config = {
         .baud_rate = 10'400,
         .data_bits = UART_DATA_8_BITS,
@@ -56,9 +56,9 @@ class ECU {
     return SystemError::None;
   }
 
-  auto update() noexcept -> SystemError { return SystemError::None; }
+  auto update() noexcept -> SystemError { return SystemError::None; } // NOLINT
 
-  [[nodiscard]] auto get_telemetry(ECUTelemetry& telemetry) const noexcept -> SystemError {
+  [[nodiscard]] auto get_telemetry(ECUTelemetry& telemetry) const noexcept -> SystemError { // NOLINT
     telemetry.is_connected = false;
     telemetry.rpm = 0;
     telemetry.speed = 0;

@@ -21,22 +21,17 @@
 #include "commons/map_range.hpp"
 #include "types.hpp"
 
-template <Position ThrottleExpoFactor>
+template <Position throttleExpoFactor>
 consteval auto generate_expo_lut() -> std::array<Position, 101> {
   std::array<Position, 101> lut{};
 
   for (std::size_t i = 0; i <= 100; ++i) {
-    auto const in = static_cast<std::uint64_t>(i);
+    Position const in{i};
 
-    std::uint64_t const cubic_part = (in * in * in) / 10000;
-    std::uint64_t const linear_part = in;
+    int64_t const cubic_raw = (in * in * in.get()) / 10000;
+    Position const cubic_part{cubic_raw};
 
-    lut[i] = commons::map_range<Position, Position>(
-      ThrottleExpoFactor,
-      0, 100,
-      static_cast<Position>(linear_part),
-      static_cast<Position>(cubic_part)
-    );
+    lut[i] = commons::map_range(throttleExpoFactor, Position{0}, Position{100}, in, cubic_part);
   }
 
   return lut;
@@ -46,7 +41,7 @@ class Logic {
   static Position constexpr ThrottleExpoFactor = 50;
   static constexpr std::array<Position, 101> MExpoLut = generate_expo_lut<ThrottleExpoFactor>();
 
-  constexpr auto apply_throttle_expo(Position const input_percent) noexcept -> Position {
+  constexpr auto apply_throttle_expo(Position const input_percent) noexcept -> Position {  // NOLINT
     if (input_percent <= 0)
       return 0;
 
@@ -63,7 +58,6 @@ class Logic {
                                               Position const acc_position,
                                               Speed const current_speed,
                                               Speed const target_speed) noexcept -> Position {
-    // return apply_throttle_expo(acc_position);
-    return acc_position;
+    return apply_throttle_expo(acc_position);
   }
 };

@@ -62,6 +62,6 @@ class Storage {
 
     nvs_close(nvs_handle);
 
-    return (err == ESP_OK);
+    return err == ESP_OK;
   }
 };

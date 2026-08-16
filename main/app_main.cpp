@@ -40,12 +40,11 @@ Controller controller{
     logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, mode_indicator, state_indicator, power_enable
 };
 
-SystemHost<decltype(controller), configs::System::SystemCore, configs::System::CriticalCore> system_host{controller};
+SystemHost system_host{controller};
 
 }  // namespace
 
 extern "C" void app_main() {
   controller.init();
-
   system_host.run();
 }

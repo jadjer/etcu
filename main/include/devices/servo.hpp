@@ -51,7 +51,7 @@ class Servo {
     packet[0] = 0xFF;
     packet[1] = 0xFF;
     packet[2] = servoId;
-    packet[3] = (paramSize + 2);
+    packet[3] = paramSize + 2;
     packet[4] = +instruction;
 
     if constexpr (paramSize > 0) {
@@ -75,9 +75,7 @@ class Servo {
 
     std::array<Byte, packetSize> response;
 
-    int const read_bytes = uart_read_bytes(port, response.data(), packetSize, pdMS_TO_TICKS(30));
-
-    if (std::cmp_less(read_bytes, packetSize)) {
+    if (int const read_bytes = uart_read_bytes(port, response.data(), packetSize, pdMS_TO_TICKS(30)); std::cmp_less(read_bytes, packetSize)) {
       return false;
     }
 
@@ -101,7 +99,7 @@ class Servo {
   }
 
  public:
-  auto init() noexcept -> SystemError {
+  auto init() noexcept -> SystemError { // NOLINT
     uart_config_t constexpr config = {
         .baud_rate = 1'000'000,
         .data_bits = UART_DATA_8_BITS,
@@ -158,10 +156,12 @@ class Servo {
     ServoPosition const servo_position =
         commons::map_range(target_position, minimalPosition, maximalPosition, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
-    std::array<Byte, 7> params;
+    auto const servo_position_value = servo_position.get();
+
+    std::array<Byte, 7> params{};
     params[0] = +ServoRegister::RegTargetPosition;
-    params[1] = servo_position & 0xFF;
-    params[2] = (servo_position >> 8) & 0xFF;
+    params[1] = servo_position_value & 0xFF;
+    params[2] = (servo_position_value >> 8) & 0xFF;
     params[3] = 0 & 0xFF;
     params[4] = (0 >> 8) & 0xFF;
     params[5] = 0 & 0xFF;
@@ -176,16 +176,15 @@ class Servo {
     std::array<Byte, 2> constexpr params{+ServoRegister::RegPresentPosition, 15};
     send_packet(ServoInstruction::InstRead, params);
 
-    std::array<Byte, 15> payload;
-    if (receive_packet(payload)) {
+    if (std::array<Byte, 15> payload{}; receive_packet(payload)) {
       telemetry.is_connected = true;
-      telemetry.position = static_cast<ServoPosition>(((payload[1] << 8) | payload[0]) & 0x7FFF);
-      telemetry.speed = static_cast<Speed>(((payload[3] << 8) | payload[2]) & 0x7FFF);
+      telemetry.position = ((payload[1] << 8) | payload[0]) & 0x7FFF;
+      telemetry.speed = ((payload[3] << 8) | payload[2]) & 0x7FFF;
       telemetry.load = static_cast<Load>(((payload[5] << 8) | payload[4]) & 0x03FF);
-      telemetry.voltage = static_cast<Voltage>(payload[6]);
-      telemetry.temperature = static_cast<Temperature>(payload[7]);
+      telemetry.voltage = payload[6];
+      telemetry.temperature = payload[7];
       telemetry.is_moved = payload[10];
-      telemetry.current = static_cast<Current>(((payload[14] << 8) | payload[13]) & 0x7FFF);
+      telemetry.current = ((payload[14] << 8) | payload[13]) & 0x7FFF;
 
       return true;
     }
@@ -202,7 +201,7 @@ class Servo {
   }
 
   auto set_speed(std::int16_t const speed) noexcept -> void {
-    auto const abs_speed = static_cast<Speed>(std::abs(speed));
+    auto const abs_speed = static_cast<int16_t>(std::abs(speed));
 
     std::uint16_t reg_value = abs_speed;
 
@@ -224,9 +223,8 @@ class Servo {
     std::array<Byte, 2> constexpr params{+ServoRegister::RegPresentCurrent, 2};
     send_packet(ServoInstruction::InstRead, params);
 
-    std::array<Byte, 2> payload;
-    if (receive_packet(payload)) {
-      current = static_cast<Current>(((payload[1] << 8) | payload[0]) & 0x7FFF);
+    if (std::array<Byte, 2> payload{}; receive_packet(payload)) {
+      current = ((payload[1] << 8) | payload[0]) & 0x7FFF;
 
       return true;
     }
@@ -238,10 +236,8 @@ class Servo {
     std::array<Byte, 2> constexpr params{+ServoRegister::RegPresentPosition, 2};
     send_packet(ServoInstruction::InstRead, params);
 
-    std::array<Byte, 2> payload;
-
-    if (receive_packet(payload)) {
-      position = static_cast<ServoPosition>(payload[0] | (payload[1] << 8));
+    if (std::array<Byte, 2> payload{}; receive_packet(payload)) {
+      position = payload[0] | (payload[1] << 8);
 
       return true;
     }
@@ -260,7 +256,6 @@ class Servo {
       return false;
     }
 
-    std::uint8_t constexpr confirmCounts = 10;  // 6 совпадений по 50мс = 300 мс полной остановки
     std::uint8_t stall_counter = 0;
 
     // Порог движения: если проехал меньше 2 тиков за 50 мс — считаем, что уперся
@@ -275,12 +270,11 @@ class Servo {
       }
 
       // Вычисляем пройденное расстояние за 50 мс
-      ServoPosition const delta = std::abs(current_position - last_position);
 
-      if (delta < min_movement_threshold) {
+      if (ServoPosition const delta = std::abs(current_position - last_position); delta < min_movement_threshold) {
         stall_counter++;
 
-        if (stall_counter >= confirmCounts) {
+        if (std::uint8_t constexpr confirm_counts = 10; stall_counter >= confirm_counts) {
           set_speed(0);  // Настоящий физический упор найден!
           position = current_position;
           return true;
