@@ -22,6 +22,7 @@
 #include "constants.hpp"
 
 namespace update {
+
 using OTAHandle = esp_ota_handle_t;
 using OTAPartition = esp_partition_t const*;
 
@@ -48,7 +49,7 @@ class OTAManager {
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::system::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
     if (!m_is_running)
       return false;
 

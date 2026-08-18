@@ -23,56 +23,49 @@
 #include <esp_adc/adc_oneshot.h>
 #include <array>
 #include <type_traits>
-#include "commons/bounded_value.hpp"
-#include "constants.hpp"
+#include "common/bounded_value.hpp"
 
-struct PositionTag {};
-struct CoreRateTag {};
-struct CoreIdTag {};
-struct MilliVoltTag {};
-struct VoltTag {};
-struct ServoPositionTag {};
-struct RPMTag {};
-struct SpeedTag {};
-struct CurrentTag {};
-struct TemperatureTag {};
-struct MilliSecTag {};
+namespace type {
 
+namespace tag {
+
+struct Position {};
+struct CoreRate {};
+struct CoreId {};
+struct MilliVolt {};
+struct Volt {};
+struct ServoPosition {};
+struct RPM {};
+struct Speed {};
+struct Current {};
+struct Temperature {};
+struct MilliSec {};
+
+}  // namespace tag
+
+using ADCChannel = adc_channel_t;
+using UARTPort = uart_port_t;
+using ADCUnit = adc_unit_t;
+using GPIONum = gpio_num_t;
 using CoreRate = std::uint8_t;
 using CoreId = std::uint8_t;
 using Ticks = std::uint16_t;
-using GPIONum = gpio_num_t;
-using UARTPort = uart_port_t;
-using ADCUnit = adc_unit_t;
-using ADCChannel = adc_channel_t;
 using Error = std::uint32_t;
 using Byte = std::uint8_t;
 using Load = std::uint16_t;
 using Time = std::uint16_t;
 using ServoId = std::uint8_t;
+using Size = std::size_t;
 
-using Voltage = commons::BoundedValue<std::uint8_t, 0, 100, VoltTag>;
-using MilliVolt = commons::BoundedValue<std::uint16_t, 0, 3100, MilliVoltTag>;
-using Position = commons::BoundedValue<std::uint8_t, 0, 100, PositionTag>;
-using ServoPosition = commons::BoundedValue<std::uint16_t, 0, 4100, ServoPositionTag>;
-using RPM = commons::BoundedValue<std::uint16_t, 0, 9000, RPMTag>;
-using Speed = commons::BoundedValue<std::uint16_t, 0, 300, SpeedTag>;
-using Current = commons::BoundedValue<std::uint16_t, 0, 3000, CurrentTag>;
-using Temperature = commons::BoundedValue<std::uint16_t, 0, 150, TemperatureTag>;
-using MilliSec = commons::BoundedValue<std::uint16_t, 0, 1000, MilliSecTag>;
-
-enum class ButtonEvent : Byte {
-  None = 0,
-  ShortPress,
-  LongPress,
-};
-
-enum class ButtonState : Byte {
-  Idle = 0,
-  Debounce,
-  Pressed,
-  WaitRelease,
-};
+using Voltage = commons::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
+using MilliVolt = commons::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;
+using Position = commons::BoundedValue<std::uint8_t, 0, 100, tag::Position>;
+using ServoPosition = commons::BoundedValue<std::uint16_t, 0, 4100, tag::ServoPosition>;
+using RPM = commons::BoundedValue<std::uint16_t, 0, 9000, tag::RPM>;
+using Speed = commons::BoundedValue<std::uint16_t, 0, 300, tag::Speed>;
+using Current = commons::BoundedValue<std::uint16_t, 0, 3000, tag::Current>;
+using Temperature = commons::BoundedValue<std::uint16_t, 0, 150, tag::Temperature>;
+using MilliSec = commons::BoundedValue<std::uint16_t, 0, 1000, tag::MilliSec>;
 
 enum class SystemState : Byte {
   Off = 0,
@@ -217,12 +210,20 @@ struct BluetoothControl {
 };
 
 struct OTAChunk {
-  std::array<Byte, constants::MAX_BLE_PAYLOAD_SIZE> chunk{};
+  std::array<Byte, 10> chunk{};
   std::uint16_t chunk_size{0};
   std::uint16_t chunk_number{0};
   std::uint16_t chunk_total{0};
   std::uint32_t firmware_size{0};
 };
+
+// struct OTAChunk {
+//   std::array<Byte, constants::MAX_BLE_PAYLOAD_SIZE> chunk{};
+//   std::uint16_t chunk_size{0};
+//   std::uint16_t chunk_number{0};
+//   std::uint16_t chunk_total{0};
+//   std::uint32_t firmware_size{0};
+// };
 
 struct AcceleratorCalibrationData {
   std::uint32_t struct_version = 0x10000001;
@@ -285,3 +286,5 @@ struct SystemTelemetry {
   SystemState system_state{SystemState::Off};
   SystemError system_errors{SystemError::None};
 };
+
+}  // namespace type

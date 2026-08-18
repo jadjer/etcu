@@ -19,9 +19,9 @@
 #pragma once
 
 #include <NimBLECharacteristic.h>
-#include "commons/atomic_channel.hpp"
+#include "common/atomic_channel.hpp"
 
-namespace bluetooth::callbacks {
+namespace bluetooth::callback {
 
 template <typename DataType>
 class CharacteristicCallback : public NimBLECharacteristicCallbacks {

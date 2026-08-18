@@ -18,31 +18,29 @@
 
 #pragma once
 
-#include <esp_timer.h>
-#include "types.hpp"
+#include "concepts.hpp"
+#include "type.hpp"
 
-namespace devices {
+namespace device {
 
-template <gpio_num_t Pin>
+template <class Driver>
+  requires concepts::GPIO<Driver>
+
 class Indicator {
- public:
-  auto init() noexcept -> SystemError { // NOLINT
-    gpio_config_t const config = {
-        .pin_bit_mask = 1ULL << Pin,
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_ENABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    if (auto const err = gpio_config(&config); err != ESP_OK) {
-      return SystemError::IndicatorInitFault;
-    }
+  Driver& m_driver;
 
-    return SystemError::None;
+ public:
+  explicit Indicator(Driver& driver) : m_driver(driver) {}
+
+  auto init() noexcept -> type::SystemError {
+    if (!m_driver.init())
+      return type::SystemError::IndicatorInitFault;
+
+    return type::SystemError::None;
   }
 
-  auto update() noexcept -> SystemError { // NOLINT
-    return SystemError::None;
+  auto update() noexcept -> type::SystemError {  // NOLINT
+    return type::SystemError::None;
   }
 
   // auto set_status(Mode const  /*mode*/) noexcept -> SystemError {
@@ -52,4 +50,4 @@ class Indicator {
   // }
 };
 
-}  // namespace devices
+}  // namespace device

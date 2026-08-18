@@ -21,7 +21,7 @@
 #include <NimBLEServer.h>
 #include <atomic>
 
-namespace bluetooth::callbacks {
+namespace bluetooth::callback {
 
 class ServerCallback : public NimBLEServerCallbacks {
   std::atomic<bool> m_connected{false};

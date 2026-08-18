@@ -13,32 +13,40 @@
 // limitations under the License.
 
 #include "controller.hpp"
-#include "devices/accelerator.hpp"
-#include "devices/button.hpp"
-#include "devices/ecu.hpp"
-#include "devices/indicator.hpp"
-#include "devices/servo.hpp"
-#include "include/configs.hpp"
-#include "logger.hpp"
+#include "device/accelerator.hpp"
+#include "device/button.hpp"
+#include "device/indicator.hpp"
+#include "device/servo.hpp"
+#include "include/config.hpp"
+#include "include/device/ecu/ecu.hpp"
 #include "system_host.hpp"
 
 namespace {
 
-Logger logger;
+config::driver::ADCChannelA adc_channel_a_driver;
+config::driver::ADCChannelB adc_channel_b_driver;
+config::device::Accelerator accelerator{adc_channel_a_driver, adc_channel_b_driver};
 
-devices::Accelerator<configs::ADC::Unit, configs::ADC::Hall1, configs::ADC::Hall2, configs::ADC::MismatchThreshold> accelerator;
-devices::Servo<configs::UART::Servo::Port, configs::UART::Servo::Tx, configs::UART::Servo::Rx> servo;
-devices::ECU<configs::UART::ECU::Port, configs::UART::ECU::Tx, configs::UART::ECU::Rx> ecu;
-devices::Button<configs::Pins::ModeButton, true> mode_button;
-devices::Button<configs::Pins::Brake> brake_switch;
-devices::Button<configs::Pins::Guard> guard_switch;
-devices::Indicator<configs::Pins::ModeLed> mode_indicator;
-devices::Indicator<configs::Pins::StateLed> state_indicator;
-devices::Indicator<configs::Pins::PowerEnable> power_enable;
+config::driver::UARTServo uart_servo_driver;
+config::driver::PowerEnable power_enable;
+config::device::Servo servo{uart_servo_driver, power_enable};
 
-Controller controller{
-    logger, accelerator, servo, ecu, mode_button, brake_switch, guard_switch, mode_indicator, state_indicator, power_enable
-};
+config::driver::UARTEcu uart_ecu_driver;
+config::device::ECU ecu{uart_ecu_driver};
+
+config::driver::ButtonMode button_mode_driver;
+config::device::ButtonMode mode_button{button_mode_driver};
+
+config::driver::LedMode led_mode_driver;
+config::device::LedMode mode_indicator{led_mode_driver};
+
+config::driver::SwitchBrake switch_brake_driver;
+config::device::Brake brake_switch{switch_brake_driver};
+
+config::driver::SwitchGuard switch_guard_driver;
+config::device::Guard guard_switch{switch_guard_driver};
+
+Controller controller{accelerator, servo, ecu, mode_button, mode_indicator, brake_switch, guard_switch};
 
 SystemHost system_host{controller};
 
