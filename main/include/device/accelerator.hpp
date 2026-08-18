@@ -114,6 +114,8 @@ class Accelerator {
         commons::map_range(voltage_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, m_current_min_position, m_current_max_position);
 
     if (pos_a - pos_b > threshold) [[unlikely]] {
+      current_position = 0;
+
       return type::SystemError::AcceleratorMismatch;
     }
 
