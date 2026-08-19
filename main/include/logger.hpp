@@ -21,7 +21,7 @@
 #include <esp_log.h>
 #include <array>
 #include <cstdio>
-#include "types.hpp"
+#include "type.hpp"
 
 class Logger {
   static constexpr auto TAG = "THROTTLE_CORE";
@@ -35,7 +35,7 @@ class Logger {
   }
 
  public:
-  auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); }
+  auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); } // NOLINT
 
   template <typename... Args>
   auto log_info(char const* const format, Args&&... args) noexcept -> void {
@@ -52,66 +52,66 @@ class Logger {
     write_log(ESP_LOG_ERROR, format, std::forward<Args>(args)...);
   }
 
-  auto log_active_errors(SystemError const errors) noexcept -> void {
-    if (errors == SystemError::None) {
+  auto log_active_errors(type::SystemError const errors) noexcept -> void {
+    if (errors == type::SystemError::None) {
       log_info("System status: No Errors");
       return;
     }
 
     log_error("--- Active Hardware Faults ---");
 
-    if (has_error(errors, SystemError::ServoInitError))
+    if (has_error(errors, type::SystemError::ServoInitError))
       log_error(" - ServoInitError");
-    if (has_error(errors, SystemError::ServoCommsError))
+    if (has_error(errors, type::SystemError::ServoCommsError))
       log_error(" - ServoCommsError");
-    if (has_error(errors, SystemError::ServoProtocolError))
+    if (has_error(errors, type::SystemError::ServoProtocolError))
       log_error(" - ServoProtocolError");
-    if (has_error(errors, SystemError::ServoCheckSumError))
+    if (has_error(errors, type::SystemError::ServoCheckSumError))
       log_error(" - ServoCheckSumError");
-    if (has_error(errors, SystemError::ServoReadError))
+    if (has_error(errors, type::SystemError::ServoReadError))
       log_error(" - ServoReadError");
-    if (has_error(errors, SystemError::ServoWriteError))
+    if (has_error(errors, type::SystemError::ServoWriteError))
       log_error(" - ServoWriteError");
-    if (has_error(errors, SystemError::ServoModeError))
+    if (has_error(errors, type::SystemError::ServoModeError))
       log_error(" - ServoModeError");
-    if (has_error(errors, SystemError::ServoSpeedError))
+    if (has_error(errors, type::SystemError::ServoSpeedError))
       log_error(" - ServoSpeedError");
-    if (has_error(errors, SystemError::ServoPositionError))
+    if (has_error(errors, type::SystemError::ServoPositionError))
       log_error(" - ServoPositionError");
-    if (has_error(errors, SystemError::ServoCurrentError))
+    if (has_error(errors, type::SystemError::ServoCurrentError))
       log_error(" - ServoCurrentError");
-    if (has_error(errors, SystemError::ServoTorqueError))
+    if (has_error(errors, type::SystemError::ServoTorqueError))
       log_error(" - ServoTorqueError");
-    if (has_error(errors, SystemError::ServoOvercurrent))
+    if (has_error(errors, type::SystemError::ServoOvercurrent))
       log_error(" - ServoOvercurrent");
-    if (has_error(errors, SystemError::ServoOvertemp))
+    if (has_error(errors, type::SystemError::ServoOvertemp))
       log_error(" - ServoOvertemp");
-    if (has_error(errors, SystemError::ServoCalibrateError))
+    if (has_error(errors, type::SystemError::ServoCalibrateError))
       log_error(" - ServoCalibrateError");
 
-    if (has_error(errors, SystemError::AcceleratorInitFault))
+    if (has_error(errors, type::SystemError::AcceleratorInitFault))
       log_error(" - AcceleratorInitFault");
-    if (has_error(errors, SystemError::AcceleratorCalibrateFault))
+    if (has_error(errors, type::SystemError::AcceleratorCalibrateFault))
       log_error(" - AcceleratorCalibrateFault");
-    if (has_error(errors, SystemError::AcceleratorReadFault))
+    if (has_error(errors, type::SystemError::AcceleratorReadFault))
       log_error(" - AcceleratorReadFault");
-    if (has_error(errors, SystemError::AcceleratorMismatch))
+    if (has_error(errors, type::SystemError::AcceleratorMismatch))
       log_error(" - AcceleratorMismatch");
 
-    if (has_error(errors, SystemError::GuardLock))
+    if (has_error(errors, type::SystemError::GuardLock))
       log_error(" - GuardLock");
 
     log_error("------------------------------");
   }
 
-  auto check_and_log_errors(ServoError const error) noexcept -> void {
-    if (error == ServoError::None) return; // Ошибок нет, выходим
+  auto check_and_log_errors(type::ServoError const error) noexcept -> void { // NOLINT
+    if (error == type::ServoError::None) return;
 
-    if (error & ServoError::Voltage)    ESP_LOGE("SERVO", "  -> Ошибка питания! Проверьте вольтаж линии.");
-    if (error & ServoError::AngleLimit) ESP_LOGE("SERVO", "  -> Выход за программные лимиты углов.");
-    if (error & ServoError::Overheat)   ESP_LOGE("SERVO", "  -> ПЕРЕГРЕВ! Дайте приводу остыть.");
-    if (error & ServoError::Overload)   ESP_LOGE("SERVO", "  -> ПЕРЕГРУЗКА ТОКА (Overload)! Защита отключила мотор.");
-    if (error & ServoError::Encoder)    ESP_LOGE("SERVO", "  -> Ошибка энкодера! Сбой датчика позиции.");
-    if (error & ServoError::Driver)     ESP_LOGE("SERVO", "  -> Сбой драйвера! Короткое замыкание или перегрузка ключей.");
+    if (error & type::ServoError::Voltage)    ESP_LOGE("SERVO", "  -> Ошибка питания! Проверьте вольтаж линии.");
+    if (error & type::ServoError::AngleLimit) ESP_LOGE("SERVO", "  -> Выход за программные лимиты углов.");
+    if (error & type::ServoError::Overheat)   ESP_LOGE("SERVO", "  -> ПЕРЕГРЕВ! Дайте приводу остыть.");
+    if (error & type::ServoError::Overload)   ESP_LOGE("SERVO", "  -> ПЕРЕГРУЗКА ТОКА (Overload)! Защита отключила мотор.");
+    if (error & type::ServoError::Encoder)    ESP_LOGE("SERVO", "  -> Ошибка энкодера! Сбой датчика позиции.");
+    if (error & type::ServoError::Driver)     ESP_LOGE("SERVO", "  -> Сбой драйвера! Короткое замыкание или перегрузка ключей.");
   }
 };

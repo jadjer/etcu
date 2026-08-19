@@ -19,31 +19,41 @@
 #pragma once
 
 #include "concepts.hpp"
-#include "types.hpp"
+#include "type.hpp"
 
-namespace devices {
+namespace device {
 
-template <gpio_num_t Pin, bool Inverse = false, Ticks Debounce = 1, Ticks LongPress = 20>
-  requires concepts::TicksConcept<Debounce, 1, 10> && concepts::TicksConcept<LongPress, 10, 100>
+enum class ButtonEvent : type::Byte {
+  None = 0,
+  ShortPress,
+  LongPress,
+};
+
+enum class ButtonState : type::Byte {
+  Idle = 0,
+  Debounce,
+  Pressed,
+  WaitRelease,
+};
+
+template <class Driver, type::Ticks debounce = 1, type::Ticks longPress = 20>
+  requires concepts::GPIO<Driver> && concepts::Ticks<debounce, 1, 10> && concepts::Ticks<longPress, 10, 100>
+
 class Button {
-  Ticks m_ticks_count{0};
+  Driver& m_driver;
+
+  type::Ticks m_ticks_count{0};
   ButtonState m_state{ButtonState::Idle};
   ButtonEvent m_current_event{ButtonEvent::None};
 
  public:
-  auto init() noexcept -> SystemError {
-    gpio_config_t const config = {
-        .pin_bit_mask = 1ULL << Pin,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = Inverse ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
-        .pull_down_en = Inverse ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    if (auto const err = gpio_config(&config); err != ESP_OK) {
-      return SystemError::ButtonInitFault;
-    }
+  explicit Button(Driver& driver) noexcept : m_driver{driver} {}
 
-    return SystemError::None;
+  auto init() noexcept -> type::SystemError {
+    if (!m_driver.init())
+      return type::SystemError::ButtonInitFault;
+
+    return type::SystemError::None;
   }
 
   auto update() noexcept -> void {
@@ -68,7 +78,7 @@ class Button {
 
         m_ticks_count++;
 
-        if (m_ticks_count >= Debounce) {
+        if (m_ticks_count >= debounce) {
           m_state = ButtonState::Pressed;
         }
       } break;
@@ -81,7 +91,7 @@ class Button {
 
         m_ticks_count++;
 
-        if (m_ticks_count >= LongPress) {
+        if (m_ticks_count >= longPress) {
           m_state = ButtonState::WaitRelease;
           m_current_event = ButtonEvent::LongPress;
         }
@@ -94,14 +104,11 @@ class Button {
     }
   }
 
-  [[nodiscard]] auto is_active() noexcept -> bool {
-    int const level = gpio_get_level(Pin);
-    return Inverse ? level == 0 : level == 1;
-  }
+  [[nodiscard]] auto is_active() noexcept -> bool { return m_driver.get_level(); }
 
   [[nodiscard]] auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
 
   [[nodiscard]] auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
 };
 
-}  // namespace devices
+}  // namespace device

@@ -1,3 +1,17 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //
 // Created by jadjer on 27.07.26.
 //
@@ -8,6 +22,7 @@
 #include "constants.hpp"
 
 namespace update {
+
 using OTAHandle = esp_ota_handle_t;
 using OTAPartition = esp_partition_t const*;
 
@@ -34,11 +49,11 @@ class OTAManager {
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::MAX_BLE_PAYLOAD_SIZE> const data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
     if (!m_is_running)
       return false;
 
-    return (esp_ota_write(m_update_handle, data.data(), data.size()) == ESP_OK);
+    return esp_ota_write(m_update_handle, data.data(), data.size()) == ESP_OK;
   }
 
   auto endUpdate() -> void {

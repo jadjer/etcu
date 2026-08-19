@@ -19,18 +19,18 @@
 #pragma once
 
 #include <concepts>
-#include "types.hpp"
+#include "type.hpp"
 
 namespace concepts {
 
-template <CoreId T>
-concept CoreIdConcept = (T <= 1);
+template <type::CoreId T>
+concept CoreId = T <= 1;
 
-template <CoreRate T>
-concept CoreRateConcept = (T >= 10);
+template <type::CoreRate T>
+concept CoreRate = T >= 10;
 
-template <Ticks T, Ticks Min, Ticks Max>
-concept TicksConcept = (T >= Min && T <= Max);
+template <type::Ticks T, type::Ticks Min, type::Ticks Max>
+concept Ticks = T >= Min && T <= Max;
 
 template <typename T>
 concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
@@ -39,61 +39,84 @@ concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
 };
 
 template <typename T>
-concept AcceleratorConcept = requires(T a, AcceleratorCalibrationData& calibration_data, Position const position, Position& position_result) {
-  { a.init() } noexcept -> std::same_as<SystemError>;
-  { a.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
-  { a.calibrate(calibration_data) } noexcept -> std::same_as<SystemError>;
-  { a.set_minimal_position(position) } noexcept -> std::same_as<void>;
-  { a.set_maximal_position(position) } noexcept -> std::same_as<void>;
-  { a.get_position(position_result) } noexcept -> std::same_as<SystemError>;
+concept IsBounded = requires(T v) {
+  { v.get() } -> std::integral;
 };
 
 template <typename T>
-concept ButtonConcept = requires(T b) {
-  { b.init() } noexcept -> std::same_as<SystemError>;
-  { b.update() } noexcept -> std::same_as<void>;
-  { b.is_active() } noexcept -> std::same_as<bool>;
-  { b.is_short_press() } noexcept -> std::same_as<bool>;
-  { b.is_long_press() } noexcept -> std::same_as<bool>;
+concept Accelerator = requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const position, type::Position position_result) {
+  { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
+  { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
+  { accelerator.calibrate(calibration_data) } noexcept -> std::same_as<type::SystemError>;
+  { accelerator.set_minimal_position(position) } noexcept -> std::same_as<void>;
+  { accelerator.set_maximal_position(position) } noexcept -> std::same_as<void>;
+  { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
 };
 
 template <typename T>
-concept ECUConcept = requires(T e, ECUTelemetry& telemetry) {
-  { e.init() } noexcept -> std::same_as<SystemError>;
-  { e.update() } noexcept -> std::same_as<SystemError>;
-  { e.get_telemetry(telemetry) } noexcept -> std::same_as<SystemError>;
+concept Button = requires(T button) {
+  { button.init() } noexcept -> std::same_as<type::SystemError>;
+  { button.update() } noexcept -> std::same_as<void>;
+  { button.is_active() } noexcept -> std::same_as<bool>;
+  { button.is_short_press() } noexcept -> std::same_as<bool>;
+  { button.is_long_press() } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
-concept IndicatorConcept = requires(T i, SystemError err) {
-  { i.init() } noexcept -> std::same_as<SystemError>;
-  { i.update() } noexcept -> std::same_as<SystemError>;
+concept Switch = requires(T s) {
+  { s.init() } noexcept -> std::same_as<type::SystemError>;
+  { s.is_active() } noexcept -> std::same_as<bool>;
+};
+
+template <typename T>
+concept ECU = requires(T ecu, type::ECUTelemetry telemetry) {
+  { ecu.init() } noexcept -> std::same_as<type::SystemError>;
+  { ecu.update() } noexcept -> std::same_as<type::SystemError>;
+  { ecu.get_telemetry(telemetry) } noexcept -> std::same_as<type::SystemError>;
+};
+
+template <typename T>
+concept Indicator = requires(T indicator, type::SystemError err) {
+  { indicator.init() } noexcept -> std::same_as<type::SystemError>;
+  { indicator.update() } noexcept -> std::same_as<type::SystemError>;
   // { i.set_status(mode) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>
-concept ServoConcept = requires(T s, ServoCalibrationData& calibration_data, Position const position, ServoTelemetry& telemetry) {
-  { s.init() } noexcept -> std::same_as<SystemError>;
-  { s.set_calibrate(calibration_data) } noexcept -> std::same_as<void>;
-  { s.calibrate(calibration_data) } noexcept -> std::same_as<void>;
-  { s.set_position(position) } noexcept -> std::same_as<void>;
-  { s.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
+concept Servo = requires(T servo, type::ServoCalibrationData calibration_data, type::Position const position, type::ServoTelemetry telemetry) {
+  { servo.init() } noexcept -> std::same_as<type::SystemError>;
+  { servo.set_position(position) } noexcept -> std::same_as<void>;
+  { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
-concept ControllerConcept = requires(T c) {
-  { c.init() } noexcept -> std::same_as<void>;
-  { c.process_system_loop() } noexcept -> std::same_as<void>;
-  { c.process_critical_loop() } noexcept -> std::same_as<void>;
+concept Controller = requires(T controller) {
+  { controller.init() } noexcept -> std::same_as<void>;
+  { controller.process_system_loop() } noexcept -> std::same_as<void>;
+  { controller.process_critical_loop() } noexcept -> std::same_as<void>;
 };
 
 template <typename T>
-concept LoggerConcept = requires(T l, char const* msg, SystemError const errors) {
-  { l.init() } noexcept -> std::same_as<void>;
-  { l.log_info(msg) } noexcept -> std::same_as<void>;
-  { l.log_warn(msg) } noexcept -> std::same_as<void>;
-  { l.log_error(msg) } noexcept -> std::same_as<void>;
-  { l.log_active_errors(errors) } noexcept -> std::same_as<void>;
+concept GPIO = requires(T gpio, bool const level) {
+  { gpio.init() } noexcept -> std::same_as<bool>;
+  { gpio.get_level() } noexcept -> std::same_as<bool>;
+  { gpio.set_level(level) } noexcept -> std::same_as<bool>;
+  { gpio.enable() } noexcept -> std::same_as<bool>;
+  { gpio.disable() } noexcept -> std::same_as<bool>;
+};
+
+template <typename T>
+concept UART = requires(T uart, std::array<type::Byte, 10> buffer, type::Time timeout) {
+  { uart.init() } noexcept -> std::same_as<bool>;
+  { uart.flush() } noexcept -> std::same_as<bool>;
+  { uart.write(buffer) } noexcept -> std::same_as<bool>;
+  { uart.read(buffer, timeout) } noexcept -> std::same_as<int>;
+};
+
+template <typename T, typename V>
+concept ADC = requires(T adc, V& voltage) {
+  { adc.init() } noexcept -> std::same_as<bool>;
+  { adc.get_voltage(voltage) } noexcept -> std::same_as<bool>;
 };
 
 }  // namespace concepts

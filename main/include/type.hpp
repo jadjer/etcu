@@ -22,43 +22,50 @@
 #include <driver/uart.h>
 #include <esp_adc/adc_oneshot.h>
 #include <array>
-#include <type_traits>
-#include "constants.hpp"
+#include <cstdint>
+#include "common/bounded_value.hpp"
 
+namespace type {
+
+namespace tag {
+
+struct Position {};
+struct CoreRate {};
+struct CoreId {};
+struct MilliVolt {};
+struct Volt {};
+struct ServoPosition {};
+struct RPM {};
+struct Speed {};
+struct Current {};
+struct Temperature {};
+struct MilliSec {};
+
+}  // namespace tag
+
+using ADCChannel = adc_channel_t;
+using UARTPort = uart_port_t;
+using ADCUnit = adc_unit_t;
+using GPIONum = gpio_num_t;
 using CoreRate = std::uint8_t;
 using CoreId = std::uint8_t;
 using Ticks = std::uint16_t;
-using MilliSec = std::uint16_t;
-using Voltage = std::uint16_t;
-using MilliVolt = std::uint16_t;
-using GPIONum = gpio_num_t;
-using UARTPort = uart_port_t;
-using ADCUnit = adc_unit_t;
-using ADCChannel = adc_channel_t;
-using Position = std::uint8_t;
-using ServoPosition = std::uint16_t;
-using RPM = std::uint16_t;
-using Speed = std::uint16_t;
-using Current = std::uint16_t;
-using Temperature = std::uint16_t;
 using Error = std::uint32_t;
 using Byte = std::uint8_t;
 using Load = std::uint16_t;
 using Time = std::uint16_t;
 using ServoId = std::uint8_t;
+using Size = std::size_t;
 
-enum class ButtonEvent : Byte {
-  None = 0,
-  ShortPress,
-  LongPress,
-};
-
-enum class ButtonState : Byte {
-  Idle = 0,
-  Debounce,
-  Pressed,
-  WaitRelease,
-};
+using Voltage = common::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
+using MilliVolt = common::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;
+using Position = common::BoundedValue<std::uint8_t, 0, 100, tag::Position>;
+using ServoPosition = common::BoundedValue<std::uint16_t, 0, 4100, tag::ServoPosition>;
+using RPM = common::BoundedValue<std::uint16_t, 0, 9000, tag::RPM>;
+using Speed = common::BoundedValue<std::uint16_t, 0, 300, tag::Speed>;
+using Current = common::BoundedValue<std::uint16_t, 0, 3000, tag::Current>;
+using Temperature = common::BoundedValue<std::uint16_t, 0, 150, tag::Temperature>;
+using MilliSec = common::BoundedValue<std::uint16_t, 0, 1000, tag::MilliSec>;
 
 enum class SystemState : Byte {
   Off = 0,
@@ -91,7 +98,7 @@ enum class ServoError : Byte {
   Driver = 0x20,
 };
 
-constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
+[[nodiscard]] constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
   return (static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs)) != 0;
 }
 
@@ -114,19 +121,20 @@ enum class SystemError : Error {
   ServoOvercurrent = 1 << 12,
   ServoOvertemp = 1 << 13,
   ServoCalibrateError = 1 << 14,
+  ServoPowerFail = 1 << 15,
 
-  AcceleratorInitFault = 1 << 15,
-  AcceleratorCalibrateFault = 1 << 16,
-  AcceleratorReadFault = 1 << 17,
-  AcceleratorMismatch = 1 << 18,
-  ButtonInitFault = 1 << 19,
-  ButtonReadFault = 1 << 20,
-  ECUInitFault = 1 << 21,
-  IndicatorInitFault = 1 << 22,
-  BluetoothInitFault = 1 << 23,
-  BluetoothSetPowerFault = 1 << 24,
-  BluetoothSetMTUFault = 1 << 25,
-  BluetoothConnectedFault = 1 << 26,
+  AcceleratorInitFault = 1 << 16,
+  AcceleratorCalibrateFault = 1 << 17,
+  AcceleratorReadFault = 1 << 18,
+  AcceleratorMismatch = 1 << 19,
+  ButtonInitFault = 1 << 20,
+  ButtonReadFault = 1 << 21,
+  ECUInitFault = 1 << 22,
+  IndicatorInitFault = 1 << 23,
+  BluetoothInitFault = 1 << 24,
+  BluetoothSetPowerFault = 1 << 25,
+  BluetoothSetMTUFault = 1 << 26,
+  BluetoothConnectedFault = 1 << 27,
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {
@@ -134,7 +142,7 @@ enum class SystemError : Error {
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const err) -> bool {
-  return (static_cast<Error>(err)) != 0;
+  return static_cast<Error>(err) != 0;
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const mask, SystemError const err) -> bool {
@@ -202,21 +210,30 @@ struct BluetoothControl {
   Position accelerator_offset{0};
 };
 
+template<Size packageSize>
 struct OTAChunk {
-  std::array<Byte, constants::MAX_BLE_PAYLOAD_SIZE> chunk{};
+  std::array<Byte, packageSize> chunk{};
   std::uint16_t chunk_size{0};
   std::uint16_t chunk_number{0};
   std::uint16_t chunk_total{0};
   std::uint32_t firmware_size{0};
 };
 
+// struct OTAChunk {
+//   std::array<Byte, constants::MAX_BLE_PAYLOAD_SIZE> chunk{};
+//   std::uint16_t chunk_size{0};
+//   std::uint16_t chunk_number{0};
+//   std::uint16_t chunk_total{0};
+//   std::uint32_t firmware_size{0};
+// };
+
 struct AcceleratorCalibrationData {
   std::uint32_t struct_version = 0x10000001;
 
-  MilliVolt hall_a_minimal;
-  MilliVolt hall_a_maximal;
-  MilliVolt hall_b_minimal;
-  MilliVolt hall_b_maximal;
+  MilliVolt hall_a_minimal{0};
+  MilliVolt hall_a_maximal{0};
+  MilliVolt hall_b_minimal{0};
+  MilliVolt hall_b_maximal{0};
 
   static auto constexpr StructName = "acc_calib";
 };
@@ -224,8 +241,8 @@ struct AcceleratorCalibrationData {
 struct ServoCalibrationData {
   std::uint32_t struct_version = 0x10000001;
 
-  ServoPosition position_minimal;
-  ServoPosition position_maximal;
+  ServoPosition position_minimal{0};
+  ServoPosition position_maximal{0};
 
   static auto constexpr StructName = "servo_calib";
 };
@@ -271,3 +288,5 @@ struct SystemTelemetry {
   SystemState system_state{SystemState::Off};
   SystemError system_errors{SystemError::None};
 };
+
+}  // namespace type
