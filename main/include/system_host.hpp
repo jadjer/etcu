@@ -23,8 +23,8 @@
 #include "concepts.hpp"
 #include "type.hpp"
 
-template <concepts::Controller Controller, type::CoreId systemCore = 0, type::CoreId criticalCore = 1, type::CoreRate rate = 10>
-  requires concepts::CoreId<systemCore> && concepts::CoreId<criticalCore> && concepts::CoreRate<rate>
+template <class Controller, type::CoreId systemCore = 0, type::CoreId criticalCore = 1, type::CoreRate rate = 10>
+  requires concepts::Controller<Controller> && concepts::CoreId<systemCore> && concepts::CoreId<criticalCore> && concepts::CoreRate<rate>
 
 class SystemHost {
   Controller& m_controller;
@@ -50,9 +50,6 @@ class SystemHost {
 
  public:
   explicit SystemHost(Controller& controller) noexcept : m_controller(controller) {}
-
-  SystemHost(SystemHost const&) = delete;
-  auto operator=(SystemHost const&) -> SystemHost& = delete;
 
   auto run() -> void {
     xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, systemCore);

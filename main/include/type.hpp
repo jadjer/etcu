@@ -22,7 +22,7 @@
 #include <driver/uart.h>
 #include <esp_adc/adc_oneshot.h>
 #include <array>
-#include <type_traits>
+#include <cstdint>
 #include "common/bounded_value.hpp"
 
 namespace type {
@@ -57,15 +57,15 @@ using Time = std::uint16_t;
 using ServoId = std::uint8_t;
 using Size = std::size_t;
 
-using Voltage = commons::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
-using MilliVolt = commons::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;
-using Position = commons::BoundedValue<std::uint8_t, 0, 100, tag::Position>;
-using ServoPosition = commons::BoundedValue<std::uint16_t, 0, 4100, tag::ServoPosition>;
-using RPM = commons::BoundedValue<std::uint16_t, 0, 9000, tag::RPM>;
-using Speed = commons::BoundedValue<std::uint16_t, 0, 300, tag::Speed>;
-using Current = commons::BoundedValue<std::uint16_t, 0, 3000, tag::Current>;
-using Temperature = commons::BoundedValue<std::uint16_t, 0, 150, tag::Temperature>;
-using MilliSec = commons::BoundedValue<std::uint16_t, 0, 1000, tag::MilliSec>;
+using Voltage = common::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
+using MilliVolt = common::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;
+using Position = common::BoundedValue<std::uint8_t, 0, 100, tag::Position>;
+using ServoPosition = common::BoundedValue<std::uint16_t, 0, 4100, tag::ServoPosition>;
+using RPM = common::BoundedValue<std::uint16_t, 0, 9000, tag::RPM>;
+using Speed = common::BoundedValue<std::uint16_t, 0, 300, tag::Speed>;
+using Current = common::BoundedValue<std::uint16_t, 0, 3000, tag::Current>;
+using Temperature = common::BoundedValue<std::uint16_t, 0, 150, tag::Temperature>;
+using MilliSec = common::BoundedValue<std::uint16_t, 0, 1000, tag::MilliSec>;
 
 enum class SystemState : Byte {
   Off = 0,
@@ -98,7 +98,7 @@ enum class ServoError : Byte {
   Driver = 0x20,
 };
 
-constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
+[[nodiscard]] constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
   return (static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs)) != 0;
 }
 
@@ -121,19 +121,20 @@ enum class SystemError : Error {
   ServoOvercurrent = 1 << 12,
   ServoOvertemp = 1 << 13,
   ServoCalibrateError = 1 << 14,
+  ServoPowerFail = 1 << 15,
 
-  AcceleratorInitFault = 1 << 15,
-  AcceleratorCalibrateFault = 1 << 16,
-  AcceleratorReadFault = 1 << 17,
-  AcceleratorMismatch = 1 << 18,
-  ButtonInitFault = 1 << 19,
-  ButtonReadFault = 1 << 20,
-  ECUInitFault = 1 << 21,
-  IndicatorInitFault = 1 << 22,
-  BluetoothInitFault = 1 << 23,
-  BluetoothSetPowerFault = 1 << 24,
-  BluetoothSetMTUFault = 1 << 25,
-  BluetoothConnectedFault = 1 << 26,
+  AcceleratorInitFault = 1 << 16,
+  AcceleratorCalibrateFault = 1 << 17,
+  AcceleratorReadFault = 1 << 18,
+  AcceleratorMismatch = 1 << 19,
+  ButtonInitFault = 1 << 20,
+  ButtonReadFault = 1 << 21,
+  ECUInitFault = 1 << 22,
+  IndicatorInitFault = 1 << 23,
+  BluetoothInitFault = 1 << 24,
+  BluetoothSetPowerFault = 1 << 25,
+  BluetoothSetMTUFault = 1 << 26,
+  BluetoothConnectedFault = 1 << 27,
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {
@@ -209,8 +210,9 @@ struct BluetoothControl {
   Position accelerator_offset{0};
 };
 
+template<Size packageSize>
 struct OTAChunk {
-  std::array<Byte, 10> chunk{};
+  std::array<Byte, packageSize> chunk{};
   std::uint16_t chunk_size{0};
   std::uint16_t chunk_number{0};
   std::uint16_t chunk_total{0};

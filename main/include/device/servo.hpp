@@ -29,13 +29,13 @@ template <class Driver, class PowerEnable, type::ServoId const servoId = 1>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable>
 
 class Servo {
-  type::ServoCalibrationData const m_calibration_data{
-      .position_minimal = 600,
-      .position_maximal = 1250,
+  static type::ServoCalibrationData constexpr m_calibration_data{
+      .position_minimal = type::ServoPosition{600},
+      .position_maximal = type::ServoPosition{1250},
   };
 
-  Driver& m_uart_driver;
-  PowerEnable& m_power_enable;
+  Driver& m_driver_uart;
+  PowerEnable& m_driver_power;
 
   template <type::Size packetSize>
     requires(packetSize >= 6)
@@ -66,8 +66,8 @@ class Servo {
 
     packet[5 + paramSize] = calculate_checksum_for_packet(packet);
 
-    std::ignore = m_uart_driver.flush();
-    std::ignore = m_uart_driver.write(packet);
+    std::ignore = m_driver_uart.flush();
+    std::ignore = m_driver_uart.write(packet);
   }
 
   template <std::size_t paramSize>
@@ -79,7 +79,7 @@ class Servo {
 
     std::array<type::Byte, packetSize> response;
 
-    if (int const read_bytes = m_uart_driver.read(response, 30); std::cmp_less(read_bytes, packetSize)) {
+    if (int const read_bytes = m_driver_uart.read(response, 30); std::cmp_less(read_bytes, packetSize)) {
       return false;
     }
 
@@ -103,23 +103,27 @@ class Servo {
   }
 
  public:
-  explicit Servo(Driver& uart_driver, PowerEnable& power_enable) noexcept : m_uart_driver(uart_driver), m_power_enable(power_enable) {}
+  explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
 
   auto init() noexcept -> type::SystemError {
-    if (!m_power_enable.init())
+    if (!m_driver_uart.init())
       return type::SystemError::ServoInitError;
-    if (!m_uart_driver.init())
+
+    if (!m_driver_power.init())
       return type::SystemError::ServoInitError;
+
+    if (!m_driver_power.enable())
+      return type::SystemError::ServoPowerFail;
 
     return type::SystemError::None;
   }
 
   auto set_position(type::Position const target_position) noexcept -> void {
-    type::Position constexpr minimalPosition = 0;
-    type::Position constexpr maximalPosition = 100;
+    type::Position constexpr minimalPosition{0};
+    type::Position constexpr maximalPosition{100};
 
     type::ServoPosition const servo_position =
-        commons::map_range(target_position, minimalPosition, maximalPosition, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
+        common::map_range(target_position, minimalPosition, maximalPosition, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
     auto const servo_position_value = servo_position.get();
 
@@ -143,13 +147,13 @@ class Servo {
 
     if (std::array<type::Byte, 15> payload{}; receive_packet(payload)) {
       telemetry.is_connected = true;
-      telemetry.position = ((payload[1] << 8) | payload[0]) & 0x7FFF;
-      telemetry.speed = ((payload[3] << 8) | payload[2]) & 0x7FFF;
+      telemetry.position = type::ServoPosition{((payload[1] << 8) | payload[0]) & 0x7FFF};
+      telemetry.speed = type::Speed{((payload[3] << 8) | payload[2]) & 0x7FFF};
       telemetry.load = static_cast<type::Load>(((payload[5] << 8) | payload[4]) & 0x03FF);
-      telemetry.voltage = payload[6];
-      telemetry.temperature = payload[7];
+      telemetry.voltage = type::Voltage{payload[6]};
+      telemetry.temperature = type::Temperature{payload[7]};
       telemetry.is_moved = payload[10];
-      telemetry.current = ((payload[14] << 8) | payload[13]) & 0x7FFF;
+      telemetry.current = type::Current{((payload[14] << 8) | payload[13]) & 0x7FFF};
 
       return true;
     }
@@ -189,7 +193,7 @@ class Servo {
     send_packet(type::ServoInstruction::InstRead, params);
 
     if (std::array<type::Byte, 2> payload{}; receive_packet(payload)) {
-      current = ((payload[1] << 8) | payload[0]) & 0x7FFF;
+      current = type::Current{((payload[1] << 8) | payload[0]) & 0x7FFF};
 
       return true;
     }
@@ -202,7 +206,7 @@ class Servo {
     send_packet(type::ServoInstruction::InstRead, params);
 
     if (std::array<type::Byte, 2> payload{}; receive_packet(payload)) {
-      position = payload[0] | (payload[1] << 8);
+      position = type::ServoPosition{payload[0] | (payload[1] << 8)};
 
       return true;
     }

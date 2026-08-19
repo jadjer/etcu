@@ -34,11 +34,11 @@ class BLEManager {
   NimBLECharacteristic* m_telemetry_characteristic{nullptr};
 
   callback::ServerCallback m_server_callback;
-  callback::CharacteristicCallback<type::OTAChunk> m_ota_callback;
+  callback::CharacteristicCallback<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>> m_ota_callback;
   callback::CharacteristicCallback<type::BluetoothControl> m_control_callback;
 
  public:
-  explicit BLEManager(commons::AtomicChannel<type::OTAChunk>& ota_chunk, commons::AtomicChannel<type::BluetoothControl>& control)
+  explicit BLEManager(common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>>& ota_chunk, common::AtomicChannel<type::BluetoothControl>& control)
       : m_ota_callback(ota_chunk), m_control_callback(control) {}
 
   auto init() -> type::SystemError {

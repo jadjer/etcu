@@ -12,13 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "config.hpp"
 #include "controller.hpp"
-#include "device/accelerator.hpp"
-#include "device/button.hpp"
-#include "device/indicator.hpp"
-#include "device/servo.hpp"
-#include "include/config.hpp"
-#include "include/device/ecu/ecu.hpp"
 #include "system_host.hpp"
 
 namespace {
@@ -54,5 +49,6 @@ SystemHost system_host{controller};
 
 extern "C" void app_main() {
   controller.init();
+
   system_host.run();
 }

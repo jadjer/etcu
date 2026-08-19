@@ -40,9 +40,9 @@ class ECU {
 
   [[nodiscard]] auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
     telemetry.is_connected = false;
-    telemetry.rpm = 0;
-    telemetry.speed = 0;
-    telemetry.tps = 0;
+    telemetry.rpm = type::RPM{0};
+    telemetry.speed = type::Speed{0};
+    telemetry.tps = type::Position{0};
     telemetry.started = false;
     telemetry.clutch_enabled = false;
 

@@ -29,6 +29,7 @@
 #include "device/button.hpp"
 #include "device/ecu/ecu.hpp"
 #include "device/indicator.hpp"
+#include "device/servo.hpp"
 #include "device/switch.hpp"
 
 namespace config {
@@ -37,13 +38,12 @@ namespace driver {
 using ADCChannelA = ::driver::ADC<constants::adc::UNIT, constants::adc::CHANNEL_A>;
 using ADCChannelB = ::driver::ADC<constants::adc::UNIT, constants::adc::CHANNEL_B>;
 using UARTServo = ::driver::UART<constants::uart::servo::PORT, constants::uart::servo::TX, constants::uart::servo::RX>;
+using PowerEnable = ::driver::GPIO<constants::pin::POWER_ENABLE, GPIO_MODE_OUTPUT>;
 using UARTEcu = ::driver::UART<constants::uart::ecu::PORT, constants::uart::ecu::TX, constants::uart::ecu::RX>;
 using ButtonMode = ::driver::GPIO<constants::pin::BUTTON_MODE, GPIO_MODE_INPUT, true>;
 using LedMode = ::driver::GPIO<constants::pin::LED_MODE, GPIO_MODE_OUTPUT>;
-using LedState = ::driver::GPIO<constants::pin::LED_STATE, GPIO_MODE_OUTPUT>;
 using SwitchBrake = ::driver::GPIO<constants::pin::SWITCH_BRAKE, GPIO_MODE_INPUT>;
 using SwitchGuard = ::driver::GPIO<constants::pin::SWITCH_GUARD, GPIO_MODE_INPUT>;
-using PowerEnable = ::driver::GPIO<constants::pin::POWER_ENABLE, GPIO_MODE_OUTPUT>;
 }  // namespace driver
 
 namespace device {
@@ -52,7 +52,6 @@ using Servo = ::device::Servo<driver::UARTServo, driver::PowerEnable>;
 using ECU = ::device::ECU<driver::UARTEcu>;
 using ButtonMode = ::device::Button<driver::ButtonMode>;
 using LedMode = ::device::Indicator<driver::LedMode>;
-using LedState = ::device::Indicator<driver::LedState>;
 using Brake = ::device::Switch<driver::SwitchBrake>;
 using Guard = ::device::Switch<driver::SwitchGuard>;
 

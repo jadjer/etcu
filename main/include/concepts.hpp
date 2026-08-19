@@ -97,19 +97,12 @@ concept Controller = requires(T controller) {
 };
 
 template <typename T>
-concept Logger = requires(T logger, char const* msg, type::SystemError const errors) {
-  { logger.init() } noexcept -> std::same_as<void>;
-  { logger.log_info(msg) } noexcept -> std::same_as<void>;
-  { logger.log_warn(msg) } noexcept -> std::same_as<void>;
-  { logger.log_error(msg) } noexcept -> std::same_as<void>;
-  { logger.log_active_errors(errors) } noexcept -> std::same_as<void>;
-};
-
-template <typename T>
 concept GPIO = requires(T gpio, bool const level) {
   { gpio.init() } noexcept -> std::same_as<bool>;
   { gpio.get_level() } noexcept -> std::same_as<bool>;
   { gpio.set_level(level) } noexcept -> std::same_as<bool>;
+  { gpio.enable() } noexcept -> std::same_as<bool>;
+  { gpio.disable() } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>

@@ -22,8 +22,8 @@
 #include "common/atomic_channel.hpp"
 #include "common/atomic_value.hpp"
 #include "concepts.hpp"
+#include "controller_logic.hpp"
 #include "logger.hpp"
-#include "logic.hpp"
 #include "ota_manager.hpp"
 #include "storage.hpp"
 #include "system_errors.hpp"
@@ -42,6 +42,15 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
+  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>> m_ota_chunk;
+  common::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry;
+  common::AtomicChannel<type::BluetoothControl> m_ble_control;
+  common::AtomicChannel<type::DriveTelemetry> m_driver_telemetry;
+
+  common::AtomicValue<type::Speed> m_target_speed{type::Speed{0}};
+  common::AtomicValue<type::Position> m_accelerator_offset{type::Position{0}};
+  common::AtomicValue<type::SystemState> m_system_state{type::SystemState::Normal};
+
   Logic m_logic;
   Logger m_logger;
   Storage m_storage;
@@ -49,17 +58,8 @@ class Controller {
   update::OTAManager m_ota_manager;
   bluetooth::BLEManager m_ble_manager{m_ota_chunk, m_ble_control};
 
-  commons::AtomicChannel<type::OTAChunk> m_ota_chunk;
-  commons::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry;
-  commons::AtomicChannel<type::BluetoothControl> m_ble_control;
-  commons::AtomicChannel<type::DriveTelemetry> m_driver_telemetry;
-
-  commons::AtomicValue<type::Speed> m_target_speed{0};
-  commons::AtomicValue<type::Position> m_accelerator_offset{0};
-  commons::AtomicValue<type::SystemState> m_system_state{type::SystemState::Normal};
-
  public:
-  Controller(Accelerator& accelerator, Servo& servo, ECU& ecu, ModeButton& mode_button, ModeIndicator& mode_indicator, Brake& brake, Guard& guard) noexcept
+  explicit Controller(Accelerator& accelerator, Servo& servo, ECU& ecu, ModeButton& mode_button, ModeIndicator& mode_indicator, Brake& brake, Guard& guard) noexcept
       : m_ecu(ecu), m_servo(servo), m_brake(brake), m_guard(guard), m_mode_button(mode_button), m_accelerator(accelerator), m_mode_indicator(mode_indicator) {}
 
   auto init() noexcept -> void {
@@ -67,14 +67,14 @@ class Controller {
 
     m_logger.log_info("Initialization...");
 
-    m_system_errors.update(m_accelerator.init());
-    m_system_errors.update(m_servo.init());
     m_system_errors.update(m_ecu.init());
-    m_system_errors.update(m_mode_button.init());
-    m_system_errors.update(m_mode_indicator.init());
-    m_system_errors.update(m_ble_manager.init());
+    m_system_errors.update(m_servo.init());
     m_system_errors.update(m_brake.init());
     m_system_errors.update(m_guard.init());
+    m_system_errors.update(m_mode_button.init());
+    m_system_errors.update(m_accelerator.init());
+    m_system_errors.update(m_ble_manager.init());
+    m_system_errors.update(m_mode_indicator.init());
 
     m_logger.log_info("Load calibration...");
 
@@ -188,7 +188,7 @@ class Controller {
       } break;
 
       case type::SystemState::Update: {
-        type::OTAChunk chunk;
+        type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> chunk;
 
         if (bool const is_received = m_ota_chunk.receive(chunk)) {
           // if (!m_ota_manager.isActive())

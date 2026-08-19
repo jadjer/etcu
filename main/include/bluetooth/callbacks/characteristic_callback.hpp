@@ -25,15 +25,15 @@ namespace bluetooth::callback {
 
 template <typename DataType>
 class CharacteristicCallback : public NimBLECharacteristicCallbacks {
-  commons::AtomicChannel<DataType>& m_channel;
+  common::AtomicChannel<DataType>& m_channel;
 
  public:
-  explicit CharacteristicCallback(commons::AtomicChannel<DataType>& channel) : m_channel(channel) {}
+  explicit CharacteristicCallback(common::AtomicChannel<DataType>& channel) : m_channel(channel) {}
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& /*conn_info*/) -> void override {
     DataType const chunk = characteristic->getValue<DataType>();
 
-    m_channel.send(chunk);
+    std::ignore = m_channel.send(chunk);
   }
 };
 

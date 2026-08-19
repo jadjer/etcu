@@ -20,18 +20,18 @@
 
 #include <atomic>
 
-namespace commons {
+namespace common {
 
-template <typename T>
+template <class T>
 class AtomicValue {
   std::atomic<T> m_data;
 
  public:
-  explicit AtomicValue(T data) : m_data{data} {}
+  constexpr explicit AtomicValue(T data) noexcept : m_data{data} {}
 
-  auto set(T const data) -> void { m_data.store(data, std::memory_order_relaxed); }
+  constexpr auto set(T const data) noexcept -> void { m_data.store(data, std::memory_order_relaxed); }
 
-  auto get() -> T { return m_data.load(std::memory_order_relaxed); }
+  [[nodiscard]] constexpr auto get() noexcept -> T { return m_data.load(std::memory_order_relaxed); }
 };
 
 }  // namespace commons

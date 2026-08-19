@@ -35,6 +35,16 @@ class GPIO {
   [[nodiscard]] auto set_level(bool const level) const noexcept -> bool {  // NOLINT
     return gpio_set_level(pin, level) == ESP_OK;
   }
+
+  [[nodiscard]] auto enable() const noexcept -> bool {
+    auto const level = inverse ? 0 : 1;
+    return set_level(level);
+  }
+
+  [[nodiscard]] auto disable() const noexcept -> bool {
+    auto const level = inverse ? 1 : 0;
+    return set_level(level);
+  }
 };
 
 }  // namespace driver

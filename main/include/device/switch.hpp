@@ -17,7 +17,10 @@ class Switch {
  public:
   explicit Switch(Driver& driver) : m_driver{driver} {}
 
-  [[nodiscard]] auto init() noexcept -> type::SystemError {  // NOLINT
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
+    if (!m_driver.init())
+      return type::SystemError::ButtonInitFault;
+
     return type::SystemError::None;
   }
 

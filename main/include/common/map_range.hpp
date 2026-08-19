@@ -21,25 +21,32 @@
 #include <algorithm>
 #include "concepts.hpp"
 
-namespace commons {
+namespace common {
 
-template <concepts::IsBounded In, concepts::IsBounded Out>
+template <class In, class Out>
+  requires concepts::IsBounded<In> && concepts::IsBounded<Out>
+
 constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out const toMin, Out const toMax) -> Out {
-  auto const raw_value = static_cast<int64_t>(value.get());
-  auto const raw_fromMin = static_cast<int64_t>(fromMin.get());
-  auto const raw_fromMax = static_cast<int64_t>(fromMax.get());
-  auto const raw_toMin = static_cast<int64_t>(toMin.get());
-  auto const raw_toMax = static_cast<int64_t>(toMax.get());
-
-  if (raw_fromMax <= raw_fromMin) [[unlikely]]
+  if (fromMax <= fromMin) [[unlikely]]
     return toMin;
 
-  int64_t const clamped_value = std::clamp(raw_value, raw_fromMin, raw_fromMax);
-  int64_t const from_span = raw_fromMax - raw_fromMin;
-  int64_t const to_span = raw_toMax - raw_toMin;
-  int64_t const scaled_value = raw_toMin + (clamped_value - raw_fromMin) * to_span / from_span;
+  if (toMax <= toMin) [[unlikely]]
+    return toMin;
 
-  return Out(scaled_value);
+  In const clamped_value = std::clamp(value, fromMin, fromMax);
+
+  int64_t const v_raw = clamped_value.get();
+  int64_t const f_min = fromMin.get();
+  int64_t const f_max = fromMax.get();
+  int64_t const t_min = toMin.get();
+  int64_t const t_max = toMax.get();
+
+  int64_t const from_span = f_max - f_min;
+  int64_t const to_span = t_max - t_min;
+
+  int64_t const scaled_raw = t_min + ((v_raw - f_min) * to_span + from_span / 2) / from_span;
+
+  return Out{scaled_raw};
 }
 
-}  // namespace commons
+}  // namespace common

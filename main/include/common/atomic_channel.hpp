@@ -20,18 +20,18 @@
 
 #include <atomic>
 
-namespace commons {
+namespace common {
 
-template <typename T>
+template <class T>
 class AtomicChannel {
   T m_data;
   std::atomic<bool> m_is_ready{false};
 
  public:
-  explicit AtomicChannel() = default;
-  explicit AtomicChannel(T data) : m_data{data} {}
+  constexpr explicit AtomicChannel() noexcept = default;
+  constexpr explicit AtomicChannel(T data) noexcept : m_data{data} {}
 
-  auto send(T const data) -> bool {
+  [[nodiscard]] constexpr auto send(T const data) -> bool {
     if (!m_is_ready.load(std::memory_order_relaxed)) {
       m_data = data;
       m_is_ready.store(true, std::memory_order_release);
@@ -40,7 +40,7 @@ class AtomicChannel {
     return false;
   }
 
-  auto receive(T& out_data) -> bool {
+  [[nodiscard]] constexpr auto receive(T& out_data) -> bool {
     if (m_is_ready.load(std::memory_order_acquire)) {
       out_data = m_data;
       m_is_ready.store(false, std::memory_order_relaxed);
