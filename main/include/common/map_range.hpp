@@ -23,30 +23,29 @@
 
 namespace common {
 
-template <class In, class Out>
+template <typename In, typename Out>
   requires concepts::IsBounded<In> && concepts::IsBounded<Out>
-
 constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out const toMin, Out const toMax) -> Out {
-  if (fromMax <= fromMin) [[unlikely]]
+  if (fromMax < fromMin) [[unlikely]]
     return toMin;
 
-  if (toMax <= toMin) [[unlikely]]
+  if (toMax < toMin) [[unlikely]]
     return toMin;
 
-  In const clamped_value = std::clamp(value, fromMin, fromMax);
+  In const clamped = std::clamp(value, fromMin, fromMax);
 
-  int64_t const v_raw = clamped_value.get();
-  int64_t const f_min = fromMin.get();
-  int64_t const f_max = fromMax.get();
-  int64_t const t_min = toMin.get();
-  int64_t const t_max = toMax.get();
+  std::int64_t const v_raw = clamped.value;
+  std::int64_t const f_min = fromMin.value;
+  std::int64_t const f_max = fromMax.value;
+  std::int64_t const t_min = toMin.value;
+  std::int64_t const t_max = toMax.value;
 
-  int64_t const from_span = f_max - f_min;
-  int64_t const to_span = t_max - t_min;
+  std::int64_t const from_span = f_max - f_min;
+  std::int64_t const to_span = t_max - t_min;
 
-  int64_t const scaled_raw = t_min + ((v_raw - f_min) * to_span + from_span / 2) / from_span;
+  std::int64_t const scaled_raw = t_min + ((v_raw - f_min) * to_span + (from_span / 2)) / from_span;
 
-  return Out{scaled_raw};
+  return scaled_raw;
 }
 
 }  // namespace common

@@ -28,31 +28,31 @@ class Logger {
   static constexpr std::size_t BufferSize = 128;
 
   template <typename... Args>
-  void write_log(esp_log_level_t const level, const char* const format, Args&&... args) noexcept {
+  constexpr void write_log(esp_log_level_t const level, const char* const format, Args&&... args) noexcept {
     std::array<char, BufferSize> buffer{};
     std::snprintf(buffer.data(), buffer.size(), format, std::forward<Args>(args)...);
     esp_log_write(level, TAG, "%s\n", buffer.data());
   }
 
  public:
-  auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); } // NOLINT
+  constexpr auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); } // NOLINT
 
   template <typename... Args>
-  auto log_info(char const* const format, Args&&... args) noexcept -> void {
+  constexpr auto log_info(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_INFO, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  auto log_warn(char const* const format, Args&&... args) noexcept -> void {
+  constexpr auto log_warn(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_WARN, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  auto log_error(char const* const format, Args&&... args) noexcept -> void {
+  constexpr auto log_error(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_ERROR, format, std::forward<Args>(args)...);
   }
 
-  auto log_active_errors(type::SystemError const errors) noexcept -> void {
+  constexpr auto log_active_errors(type::SystemError const errors) noexcept -> void {
     if (errors == type::SystemError::None) {
       log_info("System status: No Errors");
       return;
@@ -104,7 +104,7 @@ class Logger {
     log_error("------------------------------");
   }
 
-  auto check_and_log_errors(type::ServoError const error) noexcept -> void { // NOLINT
+  constexpr auto check_and_log_errors(type::ServoError const error) noexcept -> void { // NOLINT
     if (error == type::ServoError::None) return;
 
     if (error & type::ServoError::Voltage)    ESP_LOGE("SERVO", "  -> Ошибка питания! Проверьте вольтаж линии.");

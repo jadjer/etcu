@@ -38,10 +38,11 @@ class BLEManager {
   callback::CharacteristicCallback<type::BluetoothControl> m_control_callback;
 
  public:
-  explicit BLEManager(common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>>& ota_chunk, common::AtomicChannel<type::BluetoothControl>& control)
+  constexpr explicit BLEManager(common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>>& ota_chunk,
+                                common::AtomicChannel<type::BluetoothControl>& control)
       : m_ota_callback(ota_chunk), m_control_callback(control) {}
 
-  auto init() -> type::SystemError {
+  [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
     if (!NimBLEDevice::init(constants::bluetooth::DEVICE_NAME)) {
@@ -83,9 +84,9 @@ class BLEManager {
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto isConnected() const -> bool { return m_server_callback.isConnected(); }
+  [[nodiscard]] constexpr auto isConnected() const -> bool { return m_server_callback.isConnected(); }
 
-  [[nodiscard]] auto send_telemetry(type::SystemTelemetry const& data) const -> type::SystemError {
+  [[nodiscard]] constexpr auto send_telemetry(type::SystemTelemetry const& data) const -> type::SystemError {
     if (!isConnected())
       return type::SystemError::BluetoothConnectedFault;
 
@@ -99,7 +100,7 @@ class BLEManager {
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto send_ota_notify(type::OTAStatus const status) const -> type::SystemError {
+  [[nodiscard]] constexpr auto send_ota_notify(type::OTAStatus const status) const -> type::SystemError {
     if (!isConnected())
       return type::SystemError::BluetoothConnectedFault;
 

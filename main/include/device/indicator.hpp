@@ -30,16 +30,16 @@ class Indicator {
   Driver& m_driver;
 
  public:
-  explicit Indicator(Driver& driver) : m_driver(driver) {}
+  constexpr explicit Indicator(Driver& driver) : m_driver(driver) {}
 
-  auto init() noexcept -> type::SystemError {
+  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
     if (!m_driver.init())
       return type::SystemError::IndicatorInitFault;
 
     return type::SystemError::None;
   }
 
-  auto update() noexcept -> type::SystemError {  // NOLINT
+  [[nodiscard]] constexpr auto update() noexcept -> type::SystemError {  // NOLINT
     return type::SystemError::None;
   }
 

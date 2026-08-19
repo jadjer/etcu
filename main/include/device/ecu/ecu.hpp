@@ -22,23 +22,23 @@
 
 namespace device {
 
-template <typename Driver>
+template <class Driver>
   requires concepts::UART<Driver>
 
 class ECU {
   Driver& m_driver;
 
  public:
-  explicit ECU(Driver& driver) noexcept : m_driver{driver} {}
+  constexpr explicit ECU(Driver& driver) noexcept : m_driver{driver} {}
 
-  auto init() noexcept -> type::SystemError {
+  constexpr auto init() noexcept -> type::SystemError {
     std::ignore = m_driver.init();
     return type::SystemError::None;
   }
 
-  auto update() noexcept -> type::SystemError { return type::SystemError::None; }  // NOLINT
+  constexpr auto update() noexcept -> type::SystemError { return type::SystemError::None; }  // NOLINT
 
-  [[nodiscard]] auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
+  [[nodiscard]] constexpr auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
     telemetry.is_connected = false;
     telemetry.rpm = type::RPM{0};
     telemetry.speed = type::Speed{0};

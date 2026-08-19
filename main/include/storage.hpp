@@ -22,12 +22,10 @@
 #include "concepts.hpp"
 #include "constants.hpp"
 
-class Storage {
- public:
-
+struct Storage {
   template <class T>
     requires concepts::HasStructVersion<T>
-  [[nodiscard]] auto load_calibration(T& data) const noexcept -> bool {
+  [[nodiscard]] constexpr auto load_calibration(T& data) const noexcept -> bool {
     nvs_handle_t nvs_handle = 0;
 
     if (nvs_open(constants::system::NVS_NAMESPACE, NVS_READONLY, &nvs_handle) != ESP_OK)
@@ -47,7 +45,7 @@ class Storage {
 
   template <class T>
     requires concepts::HasStructVersion<T>
-  [[nodiscard]] auto save_calibration(const T& data) const noexcept -> bool {
+  [[nodiscard]] constexpr auto save_calibration(const T& data) const noexcept -> bool {
     nvs_handle_t nvs_handle = 0;
 
     if (nvs_open(constants::system::NVS_NAMESPACE, NVS_READWRITE, &nvs_handle) != ESP_OK)

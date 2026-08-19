@@ -39,8 +39,8 @@ concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
 };
 
 template <typename T>
-concept IsBounded = requires(T v) {
-  { v.get() } -> std::integral;
+concept IsBounded = requires(T const& bounded) {
+  { bounded.value } -> std::same_as<std::int32_t const&>;
 };
 
 template <typename T>

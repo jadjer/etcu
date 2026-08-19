@@ -27,6 +27,7 @@ class AtomicValue {
   std::atomic<T> m_data;
 
  public:
+  constexpr explicit AtomicValue() noexcept = default;
   constexpr explicit AtomicValue(T data) noexcept : m_data{data} {}
 
   constexpr auto set(T const data) noexcept -> void { m_data.store(data, std::memory_order_relaxed); }

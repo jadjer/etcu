@@ -26,12 +26,12 @@ template <type::Position throttleExpoFactor>
 consteval auto generate_expo_lut() -> std::array<type::Position, 101> {
   std::array<type::Position, 101> lut;
 
-  for (std::size_t i = 0; i <= 100; ++i) {
+  for (std::uint8_t i = 0; i <= 100; ++i) {
     type::Position constexpr positionMinimal{0};
     type::Position constexpr positionMaximal{100};
 
     type::Position const in{i};
-    type::Position const quadratic_part{(in * in + 50) / 100};
+    type::Position const quadratic_part{(in.value * in.value + 50) / 100};
 
     lut[i] = common::map_range(throttleExpoFactor, positionMinimal, positionMaximal, in, quadratic_part);
   }
@@ -43,12 +43,12 @@ class Logic {
   static std::array<type::Position, 101> constexpr MExpoLut{generate_expo_lut<constants::system::THROTTLE_EXPO_FACTOR>()};
 
  public:
-  constexpr Logic() noexcept = default;
+  constexpr explicit Logic() noexcept = default;
 
-  [[nodiscard]] auto calculate_servo_position(type::Position const acc_offset,  // NOLINT
-                                              type::Position const acc_position,
-                                              type::Speed const current_speed,
-                                              type::Speed const target_speed) const noexcept -> type::Position {
-    return MExpoLut[acc_position.get()];
+  [[nodiscard]] constexpr auto calculate_servo_position(type::Position const acc_offset,  // NOLINT
+                                                        type::Position const acc_position,
+                                                        type::Speed const current_speed,
+                                                        type::Speed const target_speed) const noexcept -> type::Position {
+    return MExpoLut[acc_position.value];
   }
 };

@@ -18,8 +18,8 @@
 
 namespace {
 
-config::driver::ADC1 adc1_driver;
-config::device::Accelerator accelerator{adc1_driver};
+config::driver::ADC adc_driver;
+config::device::Accelerator accelerator{adc_driver};
 
 config::driver::UARTServo uart_servo_driver;
 config::driver::PowerEnable power_enable_driver;

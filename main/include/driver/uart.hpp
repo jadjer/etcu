@@ -26,9 +26,8 @@ namespace driver {
 using UARTConfig = uart_config_t;
 
 template <type::UARTPort port, type::GPIONum txPin, type::GPIONum rxPin, type::Size baudRate = 1'000'000, type::Size bufferSize = 4096>
-class UART {
- public:
-  [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
+struct  UART {
+  [[nodiscard]] constexpr auto init() const noexcept -> bool {  // NOLINT
     UARTConfig constexpr config = {
         .baud_rate = baudRate,
         .data_bits = UART_DATA_8_BITS,
@@ -56,18 +55,18 @@ class UART {
     return true;
   }
 
-  [[nodiscard]] auto flush() const noexcept -> bool {  // NOLINT
+  [[nodiscard]] constexpr auto flush() const noexcept -> bool {  // NOLINT
     return uart_flush_input(port) == ESP_OK;
   }
 
   template <type::Size packageSize>
-  [[nodiscard]] auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
+  [[nodiscard]] constexpr auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
     auto const write_bytes = uart_write_bytes(port, data.data(), data.size());
     return write_bytes == data.size();
   }
 
   template <type::Size packageSize>
-  [[nodiscard]] auto read(std::array<type::Byte, packageSize>& data, type::Time const timeout) const noexcept -> int {  // NOLINT
+  [[nodiscard]] constexpr auto read(std::array<type::Byte, packageSize>& data, type::Time const timeout) const noexcept -> int {  // NOLINT
     return uart_read_bytes(port, data.data(), data.size(), pdMS_TO_TICKS(timeout));
   }
 };

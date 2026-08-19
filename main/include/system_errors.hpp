@@ -27,27 +27,27 @@ class SystemErrors {
   std::atomic<type::Error> m_errors_mask;
 
  public:
-  constexpr SystemErrors() noexcept : m_errors_mask(0) {}
+  constexpr explicit  SystemErrors() noexcept : m_errors_mask(0) {}
 
-  auto add(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_or(to_underlying(err), std::memory_order_relaxed); }
-  auto update(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_and(~to_underlying(err), std::memory_order_relaxed); }
-  auto reset() noexcept -> void { m_errors_mask.store(0, std::memory_order_relaxed); }
+  constexpr auto add(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_or(to_underlying(err), std::memory_order_relaxed); }
+  constexpr auto update(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_and(~to_underlying(err), std::memory_order_relaxed); }
+  constexpr auto reset() noexcept -> void { m_errors_mask.store(0, std::memory_order_relaxed); }
 
-  [[nodiscard]] auto has(type::SystemError const err) const noexcept -> bool {
+  [[nodiscard]] constexpr auto has(type::SystemError const err) const noexcept -> bool {
     auto const error_mask = m_errors_mask.load(std::memory_order_relaxed);
     auto const errors = static_cast<type::SystemError>(error_mask);
 
     return has_error(errors, err);
   }
 
-  [[nodiscard]] auto has_any() const noexcept -> bool {
+  [[nodiscard]] constexpr auto has_any() const noexcept -> bool {
     auto const error_mask = m_errors_mask.load(std::memory_order_relaxed);
     auto const errors = static_cast<type::SystemError>(error_mask);
 
     return has_error(errors);
   }
 
-  [[nodiscard]] auto get_all() const noexcept -> type::SystemError {
+  [[nodiscard]] constexpr auto get_all() const noexcept -> type::SystemError {
     auto const error_mask = m_errors_mask.load(std::memory_order_relaxed);
     auto const errors = static_cast<type::SystemError>(error_mask);
 

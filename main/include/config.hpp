@@ -35,7 +35,7 @@
 namespace config {
 
 namespace driver {
-using ADC1 = ::driver::ADC<constants::adc::UNIT>;
+using ADC = ::driver::ADC<constants::adc::UNIT>;
 using UARTServo = ::driver::UART<constants::uart::servo::PORT, constants::uart::servo::TX, constants::uart::servo::RX>;
 using PowerEnable = ::driver::GPIO<constants::pin::POWER_ENABLE, GPIO_MODE_OUTPUT>;
 using UARTEcu = ::driver::UART<constants::uart::ecu::PORT, constants::uart::ecu::TX, constants::uart::ecu::RX>;
@@ -46,7 +46,7 @@ using SwitchGuard = ::driver::GPIO<constants::pin::SWITCH_GUARD, GPIO_MODE_INPUT
 }  // namespace driver
 
 namespace device {
-using Accelerator = ::device::Accelerator<driver::ADC1, constants::adc::CHANNEL_A, constants::adc::CHANNEL_B, constants::system::MISMATCH_THRESHOLD>;
+using Accelerator = ::device::Accelerator<driver::ADC, constants::adc::CHANNEL_A, constants::adc::CHANNEL_B, constants::system::MISMATCH_THRESHOLD>;
 using Servo = ::device::Servo<driver::UARTServo, driver::PowerEnable>;
 using ECU = ::device::ECU<driver::UARTEcu>;
 using ButtonMode = ::device::Button<driver::ButtonMode>;

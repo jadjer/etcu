@@ -29,7 +29,7 @@ template <class Driver, class PowerEnable, type::ServoId const servoId = 1>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable>
 
 class Servo {
-  static type::ServoCalibrationData constexpr m_calibration_data{
+  type::ServoCalibrationData const m_calibration_data{
       .position_minimal = type::ServoPosition{600},
       .position_maximal = type::ServoPosition{1250},
   };
@@ -39,7 +39,7 @@ class Servo {
 
   template <type::Size packetSize>
     requires(packetSize >= 6)
-  [[nodiscard]] auto calculate_checksum_for_packet(std::array<type::Byte, packetSize> const bytes) const noexcept -> type::Byte {
+  [[nodiscard]]constexpr  auto calculate_checksum_for_packet(std::array<type::Byte, packetSize> const bytes) const noexcept -> type::Byte {
     std::size_t constexpr start_index = 2;
     std::size_t constexpr end_index = packetSize - 1;
 
@@ -48,7 +48,7 @@ class Servo {
   }
 
   template <std::size_t paramSize>
-  auto send_packet(type::ServoInstruction const instruction, std::array<type::Byte, paramSize> const& parameters) const noexcept -> void {
+  constexpr auto send_packet(type::ServoInstruction const instruction, std::array<type::Byte, paramSize> const& parameters) const noexcept -> void {
     std::size_t constexpr packet_size = paramSize + 6;
     std::array<type::Byte, packet_size> packet;
 
@@ -71,7 +71,7 @@ class Servo {
   }
 
   template <std::size_t paramSize>
-  auto receive_packet(std::array<type::Byte, paramSize>& payload) noexcept -> bool {
+  [[nodiscard]] constexpr auto receive_packet(std::array<type::Byte, paramSize>& payload) noexcept -> bool {
     if (servoId == 0xFE)
       return false;
 
@@ -103,9 +103,9 @@ class Servo {
   }
 
  public:
-  explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
+  constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
 
-  auto init() noexcept -> type::SystemError {
+  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
     if (!m_driver_uart.init())
       return type::SystemError::ServoInitError;
 
@@ -118,19 +118,17 @@ class Servo {
     return type::SystemError::None;
   }
 
-  auto set_position(type::Position const target_position) noexcept -> void {
+  constexpr auto set_position(type::Position const target_position) noexcept -> void {
     type::Position constexpr minimalPosition{0};
     type::Position constexpr maximalPosition{100};
 
     type::ServoPosition const servo_position =
         common::map_range(target_position, minimalPosition, maximalPosition, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
-    auto const servo_position_value = servo_position.get();
-
     std::array<type::Byte, 7> params{};
     params[0] = +type::ServoRegister::RegTargetPosition;
-    params[1] = servo_position_value & 0xFF;
-    params[2] = (servo_position_value >> 8) & 0xFF;
+    params[1] = servo_position.value & 0xFF;
+    params[2] = (servo_position.value >> 8) & 0xFF;
     params[3] = 0 & 0xFF;
     params[4] = (0 >> 8) & 0xFF;
     params[5] = 0 & 0xFF;
@@ -138,10 +136,10 @@ class Servo {
     send_packet(type::ServoInstruction::InstWrite, params);
 
     std::array<type::Byte, 0> payload;
-    receive_packet(payload);
+    std::ignore = receive_packet(payload);
   }
 
-  auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
+  [[nodiscard]] constexpr auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
     std::array<type::Byte, 2> constexpr params{+type::ServoRegister::RegPresentPosition, 15};
     send_packet(type::ServoInstruction::InstRead, params);
 
@@ -161,15 +159,15 @@ class Servo {
     return false;
   }
 
-  auto set_mode(type::ServoMode const mode) noexcept -> void {
+  constexpr auto set_mode(type::ServoMode const mode) noexcept -> void {
     std::array const params{+type::ServoRegister::RegMode, +mode};
     send_packet(type::ServoInstruction::InstWrite, params);
 
     std::array<type::Byte, 0> payload;
-    receive_packet(payload);
+    std::ignore = receive_packet(payload);
   }
 
-  auto set_speed(std::int16_t const speed) noexcept -> void {
+  constexpr auto set_speed(std::int16_t const speed) noexcept -> void {
     auto const abs_speed = static_cast<int16_t>(std::abs(speed));
 
     std::uint16_t reg_value = abs_speed;
@@ -185,10 +183,10 @@ class Servo {
     send_packet(type::ServoInstruction::InstWrite, params);
 
     std::array<type::Byte, 0> payload;
-    receive_packet(payload);
+    std::ignore = receive_packet(payload);
   }
 
-  auto read_current(type::Current& current) noexcept -> bool {
+  [[nodiscard]] constexpr auto read_current(type::Current& current) noexcept -> bool {
     std::array<type::Byte, 2> constexpr params{+type::ServoRegister::RegPresentCurrent, 2};
     send_packet(type::ServoInstruction::InstRead, params);
 
@@ -201,7 +199,7 @@ class Servo {
     return false;
   }
 
-  auto read_position(type::ServoPosition& position) noexcept -> bool {
+  [[nodiscard]] constexpr auto read_position(type::ServoPosition& position) noexcept -> bool {
     std::array<type::Byte, 2> constexpr params{+type::ServoRegister::RegPresentPosition, 2};
     send_packet(type::ServoInstruction::InstRead, params);
 

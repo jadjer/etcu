@@ -47,16 +47,16 @@ class Button {
   ButtonEvent m_current_event{ButtonEvent::None};
 
  public:
-  explicit Button(Driver& driver) noexcept : m_driver{driver} {}
+  constexpr explicit Button(Driver& driver) noexcept : m_driver{driver} {}
 
-  auto init() noexcept -> type::SystemError {
+  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
     if (!m_driver.init())
       return type::SystemError::ButtonInitFault;
 
     return type::SystemError::None;
   }
 
-  auto update() noexcept -> void {
+  constexpr auto update() noexcept -> void {
     bool const is_pressed = is_active();
 
     switch (m_state) {
@@ -104,11 +104,11 @@ class Button {
     }
   }
 
-  [[nodiscard]] auto is_active() noexcept -> bool { return m_driver.get_level(); }
+  [[nodiscard]] constexpr auto is_active() noexcept -> bool { return m_driver.get_level(); }
 
-  [[nodiscard]] auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
+  [[nodiscard]] constexpr auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
 
-  [[nodiscard]] auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
+  [[nodiscard]] constexpr auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
 };
 
 }  // namespace device

@@ -41,7 +41,7 @@ class ADC {
  public:
   constexpr ADC() noexcept = default;
 
-  auto init() noexcept -> bool {
+  [[nodiscard]] constexpr auto init() noexcept -> bool {
     if (m_handle != nullptr) [[unlikely]]
       return true;
 
@@ -55,7 +55,7 @@ class ADC {
   }
 
   template <type::ADCChannelId channelId>
-  auto configure_channel() noexcept -> bool {
+  [[nodiscard]] constexpr auto configure_channel() noexcept -> bool {
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
@@ -72,32 +72,32 @@ class ADC {
         .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channelId]) != ESP_OK)
+    auto const channel_index = static_cast<std::size_t>(channelId);
+    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK)
       return false;
 
     return true;
   }
 
   template <type::ADCChannelId channelId, typename T>
-  auto get_voltage(T& value) const noexcept -> bool {
+  [[nodiscard]] constexpr auto get_voltage(T& value) const noexcept -> bool {
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
-    auto const calibration_handle = m_calibration_handles[channelId];
+    auto const channel_index = static_cast<std::size_t>(channelId);
+    auto const calibration_handle = m_calibration_handles[channel_index];
     if (calibration_handle == nullptr) [[unlikely]]
+      return false;
+
+    int raw_value = 0;
+
+    if (adc_oneshot_read(m_handle, channelId, &raw_value) != ESP_OK) [[unlikely]]
       return false;
 
     int voltage = 0;
 
-    {
-      int adc_raw = 0;
-
-      if (adc_oneshot_read(m_handle, channelId, &adc_raw) != ESP_OK) [[unlikely]]
-        return false;
-
-      if (adc_cali_raw_to_voltage(calibration_handle, adc_raw, &voltage) != ESP_OK) [[unlikely]] {
-        return false;
-      }
+    if (adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage) != ESP_OK) [[unlikely]] {
+      return false;
     }
 
     value = static_cast<T>(voltage);
