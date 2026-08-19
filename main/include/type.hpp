@@ -30,8 +30,6 @@ namespace type {
 namespace tag {
 
 struct Position {};
-struct CoreRate {};
-struct CoreId {};
 struct MilliVolt {};
 struct Volt {};
 struct ServoPosition {};
@@ -43,27 +41,27 @@ struct MilliSec {};
 
 }  // namespace tag
 
-using ADCChannel = adc_channel_t;
+using ADCChannelId = adc_channel_t;
 using UARTPort = uart_port_t;
-using ADCUnit = adc_unit_t;
+using ADCUnitId = adc_unit_t;
 using GPIONum = gpio_num_t;
 using CoreRate = std::uint8_t;
-using CoreId = std::uint8_t;
 using Ticks = std::uint16_t;
 using Error = std::uint32_t;
 using Byte = std::uint8_t;
 using Load = std::uint16_t;
 using Time = std::uint16_t;
-using ServoId = std::uint8_t;
 using Size = std::size_t;
+using ServoId = std::uint8_t;
+using CoreId = std::uint8_t;
 
 using Voltage = common::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
 using MilliVolt = common::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;
 using Position = common::BoundedValue<std::uint8_t, 0, 100, tag::Position>;
 using ServoPosition = common::BoundedValue<std::uint16_t, 0, 4100, tag::ServoPosition>;
 using RPM = common::BoundedValue<std::uint16_t, 0, 9000, tag::RPM>;
-using Speed = common::BoundedValue<std::uint16_t, 0, 300, tag::Speed>;
-using Current = common::BoundedValue<std::uint16_t, 0, 3000, tag::Current>;
+using Speed = common::BoundedValue<std::uint16_t, 0, 200, tag::Speed>;
+using Current = common::BoundedValue<std::uint16_t, 0, 2500, tag::Current>;
 using Temperature = common::BoundedValue<std::uint16_t, 0, 150, tag::Temperature>;
 using MilliSec = common::BoundedValue<std::uint16_t, 0, 1000, tag::MilliSec>;
 
@@ -210,7 +208,7 @@ struct BluetoothControl {
   Position accelerator_offset{0};
 };
 
-template<Size packageSize>
+template <Size packageSize>
 struct OTAChunk {
   std::array<Byte, packageSize> chunk{};
   std::uint16_t chunk_size{0};

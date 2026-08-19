@@ -28,47 +28,63 @@ namespace driver {
 using ADCHandle = adc_oneshot_unit_handle_t;
 using ADCAttenuation = adc_atten_t;
 using ADCCalibrationHandle = adc_cali_handle_t;
+using ADCCalibrationHandles = std::array<ADCCalibrationHandle, 11>;
 using ADCHandleConfig = adc_oneshot_unit_init_cfg_t;
 using ADCChannelConfig = adc_oneshot_chan_cfg_t;
 using ADCCalibrationConfig = adc_cali_curve_fitting_config_t;
 
-template <type::ADCUnit unit, type::ADCChannel channel, ADCAttenuation attenuation = ADC_ATTEN_DB_6>
+template <type::ADCUnitId unitId, ADCAttenuation attenuation = ADC_ATTEN_DB_6>
 class ADC {
   ADCHandle m_handle{nullptr};
-  ADCCalibrationHandle m_calibration_channel_handle{nullptr};
+  ADCCalibrationHandles m_calibration_handles{};
 
  public:
+  constexpr ADC() noexcept = default;
+
   auto init() noexcept -> bool {
+    if (m_handle != nullptr) [[unlikely]]
+      return true;
+
     ADCHandleConfig constexpr handle_config = {
-        .unit_id = unit,
+        .unit_id = unitId,
         .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
-    if (auto const err = adc_oneshot_new_unit(&handle_config, &m_handle); err != ESP_OK)
+
+    return adc_oneshot_new_unit(&handle_config, &m_handle) == ESP_OK;
+  }
+
+  template <type::ADCChannelId channelId>
+  auto configure_channel() noexcept -> bool {
+    if (m_handle == nullptr) [[unlikely]]
       return false;
 
     ADCChannelConfig constexpr channel_config = {
         .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    if (auto const err = adc_oneshot_config_channel(m_handle, channel, &channel_config); err != ESP_OK)
+    if (adc_oneshot_config_channel(m_handle, channelId, &channel_config) != ESP_OK)
       return false;
 
-    ADCCalibrationConfig const calibration_a_config = {
-        .unit_id = unit,
-        .chan = channel,
+    ADCCalibrationConfig constexpr calibration_config = {
+        .unit_id = unitId,
+        .chan = channelId,
         .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    if (auto const err = adc_cali_create_scheme_curve_fitting(&calibration_a_config, &m_calibration_channel_handle); err != ESP_OK)
+    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channelId]) != ESP_OK)
       return false;
 
     return true;
   }
 
-  template <typename T>
+  template <type::ADCChannelId channelId, typename T>
   auto get_voltage(T& value) const noexcept -> bool {
-    if (m_handle == nullptr)
+    if (m_handle == nullptr) [[unlikely]]
+      return false;
+
+    auto const calibration_handle = m_calibration_handles[channelId];
+    if (calibration_handle == nullptr) [[unlikely]]
       return false;
 
     int voltage = 0;
@@ -76,11 +92,12 @@ class ADC {
     {
       int adc_raw = 0;
 
-      if (esp_err_t const err = adc_oneshot_read(m_handle, channel, &adc_raw); err != ESP_OK) [[unlikely]]
+      if (adc_oneshot_read(m_handle, channelId, &adc_raw) != ESP_OK) [[unlikely]]
         return false;
 
-      if (esp_err_t const err = adc_cali_raw_to_voltage(m_calibration_channel_handle, adc_raw, &voltage); err != ESP_OK) [[unlikely]]
+      if (adc_cali_raw_to_voltage(calibration_handle, adc_raw, &voltage) != ESP_OK) [[unlikely]] {
         return false;
+      }
     }
 
     value = static_cast<T>(voltage);

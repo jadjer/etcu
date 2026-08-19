@@ -25,12 +25,11 @@
 
 namespace device {
 
-template <typename DriverChannelA, typename DriverChannelB, type::Position threshold>
-  requires concepts::ADC<DriverChannelA, type::MilliVolt> && concepts::ADC<DriverChannelB, type::MilliVolt>
+template <class Driver, type::ADCChannelId hallA, type::ADCChannelId hallB, type::Position threshold>
+  requires concepts::ADC<Driver, type::MilliVolt>
 
 class Accelerator {
-  DriverChannelA& m_driver_channel_a;
-  DriverChannelB& m_driver_channel_b;
+  Driver& m_driver_adc;
 
   type::Position m_current_min_position{0};
   type::Position m_current_max_position{100};
@@ -43,14 +42,16 @@ class Accelerator {
   };
 
  public:
-  explicit Accelerator(DriverChannelA& driver_channel_a, DriverChannelB& driver_channel_b) noexcept
-      : m_driver_channel_a(driver_channel_a), m_driver_channel_b(driver_channel_b) {}
+  explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
 
   auto init() noexcept -> type::SystemError {
-    if (!m_driver_channel_a.init())
+    if (!m_driver_adc.init())
       return type::SystemError::AcceleratorInitFault;
 
-    if (!m_driver_channel_b.init())
+    if (!m_driver_adc.template configure_channel<hallA>())
+      return type::SystemError::AcceleratorInitFault;
+
+    if (!m_driver_adc.template configure_channel<hallB>())
       return type::SystemError::AcceleratorInitFault;
 
     return type::SystemError::None;
@@ -62,10 +63,10 @@ class Accelerator {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_channel_a.get_voltage(voltage_a))
+    if (!m_driver_adc.template get_voltage<hallA>(voltage_a))
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_channel_b.get_voltage(voltage_b))
+    if (!m_driver_adc.template get_voltage<hallB>(voltage_b))
       return type::SystemError::AcceleratorReadFault;
 
     int64_t const v_a = voltage_a.get();
@@ -94,10 +95,10 @@ class Accelerator {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_channel_a.get_voltage(voltage_a))
+    if (!m_driver_adc.template get_voltage<hallA>(voltage_a))
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_channel_b.get_voltage(voltage_b))
+    if (!m_driver_adc.template get_voltage<hallB>(voltage_b))
       return type::SystemError::AcceleratorReadFault;
 
     // Масштабируем вольтаж в проценты положения педали [0..100%]
@@ -105,6 +106,8 @@ class Accelerator {
         common::map_range(voltage_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, m_current_min_position, m_current_max_position);
     type::Position const pos_b =
         common::map_range(voltage_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, m_current_min_position, m_current_max_position);
+
+    ESP_LOGI("ACC", "%d %d %d %d", voltage_a, voltage_b, pos_a, pos_b);
 
     // ИСПРАВЛЕНИЕ: Вычисляем разность по модулю в чистом int64_t.
     // Это полностью защищает от усечения отрицательных чисел в clamp-конструкторе.

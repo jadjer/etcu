@@ -67,7 +67,7 @@ class Servo {
     packet[5 + paramSize] = calculate_checksum_for_packet(packet);
 
     std::ignore = m_driver_uart.flush();
-    std::ignore = m_driver_uart.write(packet);
+    std::ignore = m_driver_uart.template write<packet_size>(packet);
   }
 
   template <std::size_t paramSize>
@@ -79,7 +79,7 @@ class Servo {
 
     std::array<type::Byte, packetSize> response;
 
-    if (int const read_bytes = m_driver_uart.read(response, 30); std::cmp_less(read_bytes, packetSize)) {
+    if (int const read_bytes = m_driver_uart.template read<packetSize>(response, 30); std::cmp_less(read_bytes, packetSize)) {
       return false;
     }
 

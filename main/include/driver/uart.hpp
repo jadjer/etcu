@@ -61,9 +61,9 @@ class UART {
   }
 
   template <type::Size packageSize>
-  [[nodiscard]] auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {
+  [[nodiscard]] auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
     auto const write_bytes = uart_write_bytes(port, data.data(), data.size());
-    return write_bytes == data.size() ? true : false;
+    return write_bytes == data.size();
   }
 
   template <type::Size packageSize>

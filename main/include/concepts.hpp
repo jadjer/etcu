@@ -44,14 +44,15 @@ concept IsBounded = requires(T v) {
 };
 
 template <typename T>
-concept Accelerator = requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const position, type::Position position_result) {
-  { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
-  { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
-  { accelerator.calibrate(calibration_data) } noexcept -> std::same_as<type::SystemError>;
-  { accelerator.set_minimal_position(position) } noexcept -> std::same_as<void>;
-  { accelerator.set_maximal_position(position) } noexcept -> std::same_as<void>;
-  { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
-};
+concept Accelerator =
+    requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const& position, type::Position& position_result) {
+      { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
+      { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
+      { accelerator.calibrate(calibration_data) } noexcept -> std::same_as<type::SystemError>;
+      { accelerator.set_minimal_position(position) } noexcept -> std::same_as<void>;
+      { accelerator.set_maximal_position(position) } noexcept -> std::same_as<void>;
+      { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
+    };
 
 template <typename T>
 concept Button = requires(T button) {
@@ -76,14 +77,13 @@ concept ECU = requires(T ecu, type::ECUTelemetry telemetry) {
 };
 
 template <typename T>
-concept Indicator = requires(T indicator, type::SystemError err) {
+concept Indicator = requires(T indicator) {
   { indicator.init() } noexcept -> std::same_as<type::SystemError>;
   { indicator.update() } noexcept -> std::same_as<type::SystemError>;
-  // { i.set_status(mode) } noexcept -> std::same_as<SystemError>;
 };
 
 template <typename T>
-concept Servo = requires(T servo, type::ServoCalibrationData calibration_data, type::Position const position, type::ServoTelemetry telemetry) {
+concept Servo = requires(T servo, type::Position const& position, type::ServoTelemetry& telemetry) {
   { servo.init() } noexcept -> std::same_as<type::SystemError>;
   { servo.set_position(position) } noexcept -> std::same_as<void>;
   { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
@@ -109,14 +109,15 @@ template <typename T>
 concept UART = requires(T uart, std::array<type::Byte, 10> buffer, type::Time timeout) {
   { uart.init() } noexcept -> std::same_as<bool>;
   { uart.flush() } noexcept -> std::same_as<bool>;
-  { uart.write(buffer) } noexcept -> std::same_as<bool>;
-  { uart.read(buffer, timeout) } noexcept -> std::same_as<int>;
+  { uart.template write<10>(buffer) } noexcept -> std::same_as<bool>;
+  { uart.template read<10>(buffer, timeout) } noexcept -> std::same_as<int>;
 };
 
 template <typename T, typename V>
 concept ADC = requires(T adc, V& voltage) {
   { adc.init() } noexcept -> std::same_as<bool>;
-  { adc.get_voltage(voltage) } noexcept -> std::same_as<bool>;
+  { adc.template configure_channel<type::ADCChannelId::ADC_CHANNEL_0>() } noexcept -> std::same_as<bool>;
+  { adc.template get_voltage<type::ADCChannelId::ADC_CHANNEL_0>(voltage) } noexcept -> std::same_as<bool>;
 };
 
 }  // namespace concepts

@@ -18,13 +18,12 @@
 
 namespace {
 
-config::driver::ADCChannelA adc_channel_a_driver;
-config::driver::ADCChannelB adc_channel_b_driver;
-config::device::Accelerator accelerator{adc_channel_a_driver, adc_channel_b_driver};
+config::driver::ADC1 adc1_driver;
+config::device::Accelerator accelerator{adc1_driver};
 
 config::driver::UARTServo uart_servo_driver;
-config::driver::PowerEnable power_enable;
-config::device::Servo servo{uart_servo_driver, power_enable};
+config::driver::PowerEnable power_enable_driver;
+config::device::Servo servo{uart_servo_driver, power_enable_driver};
 
 config::driver::UARTEcu uart_ecu_driver;
 config::device::ECU ecu{uart_ecu_driver};

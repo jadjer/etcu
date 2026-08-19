@@ -53,9 +53,9 @@ inline constexpr type::GPIONum RX = GPIO_NUM_20;
 }  // namespace uart
 
 namespace adc {
-inline constexpr type::ADCUnit UNIT = ADC_UNIT_1;
-inline constexpr type::ADCChannel CHANNEL_A = ADC_CHANNEL_8;
-inline constexpr type::ADCChannel CHANNEL_B = ADC_CHANNEL_9;
+inline constexpr type::ADCUnitId UNIT = ADC_UNIT_1;
+inline constexpr type::ADCChannelId CHANNEL_A = ADC_CHANNEL_8;
+inline constexpr type::ADCChannelId CHANNEL_B = ADC_CHANNEL_9;
 }  // namespace adc
 
 namespace system {
