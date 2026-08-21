@@ -26,7 +26,8 @@ config::driver::PowerEnable power_enable_driver;
 config::device::Servo servo{uart_servo_driver, power_enable_driver};
 
 config::driver::UARTEcu uart_ecu_driver;
-config::device::ECU ecu{uart_ecu_driver};
+config::driver::ECUWakeUp ecu_wake_up_driver;
+config::device::ECU ecu{uart_ecu_driver, ecu_wake_up_driver};
 
 config::driver::ButtonMode button_mode_driver;
 config::device::ButtonMode mode_button{button_mode_driver};

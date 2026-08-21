@@ -31,14 +31,14 @@ template <class Driver, type::ADCChannelId hallA, type::ADCChannelId hallB, type
 class Accelerator {
   Driver& m_driver_adc;
 
-  type::Position m_current_min_position{0};
-  type::Position m_current_max_position{100};
+  type::Position m_current_min_position{type::Position::min_value};
+  type::Position m_current_max_position{type::Position::max_value};
 
   type::AcceleratorCalibrationData m_calibration_data{
       .hall_a_minimal = type::MilliVolt{650},
       .hall_a_maximal = type::MilliVolt{1350},
-      .hall_b_minimal = type::MilliVolt{360},
-      .hall_b_maximal = type::MilliVolt{620},
+      .hall_b_minimal = type::MilliVolt{320},
+      .hall_b_maximal = type::MilliVolt{690},
   };
 
  public:

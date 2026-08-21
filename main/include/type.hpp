@@ -54,10 +54,11 @@ using Time = std::uint16_t;
 using Size = std::size_t;
 using ServoId = std::uint8_t;
 using CoreId = std::uint8_t;
+using String = char const*;
 
 using Voltage = common::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
 using MilliVolt = common::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;
-using Position = common::BoundedValue<std::uint8_t, 0, 100, tag::Position>;
+using Position = common::BoundedValue<std::uint16_t, 0, 1000, tag::Position>;
 using ServoPosition = common::BoundedValue<std::uint16_t, 0, 4100, tag::ServoPosition>;
 using RPM = common::BoundedValue<std::uint16_t, 0, 9000, tag::RPM>;
 using Speed = common::BoundedValue<std::uint16_t, 0, 200, tag::Speed>;

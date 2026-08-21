@@ -21,11 +21,12 @@
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
 #include <esp_adc/adc_oneshot.h>
-#include "type.hpp"
 
 namespace driver {
 
+using ADCUnitId = adc_unit_t;
 using ADCHandle = adc_oneshot_unit_handle_t;
+using ADCChannelId = adc_channel_t;
 using ADCAttenuation = adc_atten_t;
 using ADCCalibrationHandle = adc_cali_handle_t;
 using ADCCalibrationHandles = std::array<ADCCalibrationHandle, 11>;
@@ -33,7 +34,7 @@ using ADCHandleConfig = adc_oneshot_unit_init_cfg_t;
 using ADCChannelConfig = adc_oneshot_chan_cfg_t;
 using ADCCalibrationConfig = adc_cali_curve_fitting_config_t;
 
-template <type::ADCUnitId unitId, ADCAttenuation attenuation = ADC_ATTEN_DB_6>
+template <ADCUnitId unitId, ADCAttenuation attenuation = ADC_ATTEN_DB_6>
 class ADC {
   ADCHandle m_handle{nullptr};
   ADCCalibrationHandles m_calibration_handles{};
@@ -54,7 +55,7 @@ class ADC {
     return adc_oneshot_new_unit(&handle_config, &m_handle) == ESP_OK;
   }
 
-  template <type::ADCChannelId channelId>
+  template <ADCChannelId channelId>
   [[nodiscard]] constexpr auto configure_channel() noexcept -> bool {
     if (m_handle == nullptr) [[unlikely]]
       return false;
@@ -79,7 +80,7 @@ class ADC {
     return true;
   }
 
-  template <type::ADCChannelId channelId, typename T>
+  template <ADCChannelId channelId, typename T>
   [[nodiscard]] constexpr auto get_voltage(T& value) const noexcept -> bool {
     if (m_handle == nullptr) [[unlikely]]
       return false;

@@ -4,13 +4,16 @@
 
 #pragma once
 
+#include <driver/gpio.h>
+
 namespace driver {
 
+using GPIONum = gpio_num_t;
 using GPIOMode = gpio_mode_t;
 using GPIOConfig = gpio_config_t;
 
-template <type::GPIONum pin, GPIOMode mode, bool inverse = false>
-struct  GPIO {
+template <GPIONum pin, GPIOMode mode, bool inverse = false>
+struct GPIO {
   [[nodiscard]] constexpr auto init() const noexcept -> bool {  // NOLINT
     GPIOConfig const config = {
         .pin_bit_mask = 1ULL << pin,

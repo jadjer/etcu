@@ -19,14 +19,16 @@
 #pragma once
 
 #include <driver/uart.h>
-#include "type.hpp"
 
 namespace driver {
 
+using Size = std::size_t;
+using GPIONum = gpio_num_t;
+using UARTPort = uart_port_t;
 using UARTConfig = uart_config_t;
 
-template <type::UARTPort port, type::GPIONum txPin, type::GPIONum rxPin, type::Size baudRate = 1'000'000, type::Size bufferSize = 4096>
-struct  UART {
+template <UARTPort port, GPIONum txPin, GPIONum rxPin, Size baudRate, Size bufferSize = 4096>
+struct UART {
   [[nodiscard]] constexpr auto init() const noexcept -> bool {  // NOLINT
     UARTConfig constexpr config = {
         .baud_rate = baudRate,

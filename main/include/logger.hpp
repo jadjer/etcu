@@ -20,7 +20,6 @@
 
 #include <esp_log.h>
 #include <array>
-#include <cstdio>
 #include "type.hpp"
 
 class Logger {

@@ -248,7 +248,7 @@ class Controller {
       m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }
 
-    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_offset, accelerator_position, current_speed, target_speed);
+    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_position, accelerator_offset, current_speed, target_speed);
 
     m_servo.set_position(throttle_position);
     std::ignore = m_servo.get_telemetry(servo_telemetry);

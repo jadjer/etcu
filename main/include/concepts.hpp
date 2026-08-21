@@ -39,8 +39,12 @@ concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
 };
 
 template <typename T>
-concept IsBounded = requires(T const& bounded) {
-  { bounded.value } -> std::same_as<std::int32_t const&>;
+concept IsBounded = requires(T instance) {
+  requires std::constructible_from<T, std::int32_t>;
+  { T::min_value } -> std::convertible_to<std::int32_t>;
+  { T::max_value } -> std::convertible_to<std::int32_t>;
+  { instance.value } -> std::same_as<std::int32_t&>;
+  { instance = std::declval<std::int32_t>() } -> std::same_as<T&>;
 };
 
 template <typename T>

@@ -19,26 +19,35 @@
 #pragma once
 
 #include "concepts.hpp"
+#include "type.hpp"
 
 namespace device {
 
-template <class Driver>
-  requires concepts::UART<Driver>
+template <class DriverUart, class DriverGPIO>
+  requires concepts::UART<DriverUart> && concepts::GPIO<DriverGPIO>
 
 class ECU {
-  Driver& m_driver;
+  DriverUart& m_driver_uart;
+  DriverGPIO& m_driver_gpio;
 
  public:
-  constexpr explicit ECU(Driver& driver) noexcept : m_driver{driver} {}
+  constexpr explicit ECU(DriverUart& driver_uart, DriverGPIO& driver_gpio) noexcept : m_driver_uart{driver_uart}, m_driver_gpio{driver_gpio} {}
 
   constexpr auto init() noexcept -> type::SystemError {
-    std::ignore = m_driver.init();
+    if (!m_driver_uart.init())
+      return type::SystemError::ECUInitFault;
+
+    if (!m_driver_gpio.init())
+      return type::SystemError::ECUInitFault;
+
     return type::SystemError::None;
   }
 
   constexpr auto update() noexcept -> type::SystemError { return type::SystemError::None; }  // NOLINT
 
   [[nodiscard]] constexpr auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
+    std::ignore = m_driver_gpio.enable();
+
     telemetry.is_connected = false;
     telemetry.rpm = type::RPM{0};
     telemetry.speed = type::Speed{0};

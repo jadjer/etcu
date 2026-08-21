@@ -23,9 +23,13 @@
 namespace common {
 
 template <typename T, T minVal, T maxVal, typename Tag>
-  requires std::is_arithmetic_v<T> && std::convertible_to<T, std::int32_t> && (minVal < maxVal)
+  requires std::is_arithmetic_v<T> && std::convertible_to<T, std::int32_t> && (minVal <= maxVal)
 
 struct BoundedValue {
+  using value_type = T;
+  static constexpr T min_value = minVal;
+  static constexpr T max_value = maxVal;
+
   std::int32_t value{static_cast<std::int32_t>(minVal)};
 
   constexpr BoundedValue() noexcept = default;

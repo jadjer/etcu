@@ -39,7 +39,7 @@ class Servo {
 
   template <type::Size packetSize>
     requires(packetSize >= 6)
-  [[nodiscard]]constexpr  auto calculate_checksum_for_packet(std::array<type::Byte, packetSize> const bytes) const noexcept -> type::Byte {
+  [[nodiscard]] constexpr auto calculate_checksum_for_packet(std::array<type::Byte, packetSize> const bytes) const noexcept -> type::Byte {
     std::size_t constexpr start_index = 2;
     std::size_t constexpr end_index = packetSize - 1;
 
@@ -119,11 +119,9 @@ class Servo {
   }
 
   constexpr auto set_position(type::Position const target_position) noexcept -> void {
-    type::Position constexpr minimalPosition{0};
-    type::Position constexpr maximalPosition{100};
-
     type::ServoPosition const servo_position =
-        common::map_range(target_position, minimalPosition, maximalPosition, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
+        common::map_range(target_position, type::Position{type::Position::min_value}, type::Position{type::Position::max_value},
+                          m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
     std::array<type::Byte, 7> params{};
     params[0] = +type::ServoRegister::RegTargetPosition;

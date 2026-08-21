@@ -19,7 +19,6 @@
 #pragma once
 
 #include "constants.hpp"
-#include "type.hpp"
 
 #include "driver/adc.hpp"
 #include "driver/gpio.hpp"
@@ -36,9 +35,10 @@ namespace config {
 
 namespace driver {
 using ADC = ::driver::ADC<constants::adc::UNIT>;
-using UARTServo = ::driver::UART<constants::uart::servo::PORT, constants::uart::servo::TX, constants::uart::servo::RX>;
+using UARTServo = ::driver::UART<constants::uart::servo::PORT, constants::uart::servo::TX, constants::uart::servo::RX, constants::uart::servo::BAUD_RATE>;
 using PowerEnable = ::driver::GPIO<constants::pin::POWER_ENABLE, GPIO_MODE_OUTPUT>;
-using UARTEcu = ::driver::UART<constants::uart::ecu::PORT, constants::uart::ecu::TX, constants::uart::ecu::RX>;
+using UARTEcu = ::driver::UART<constants::uart::ecu::PORT, constants::uart::ecu::TX, constants::uart::ecu::RX, constants::uart::ecu::BAUD_RATE>;
+using ECUWakeUp = ::driver::GPIO<constants::pin::ECU_WAKE_UP, GPIO_MODE_OUTPUT>;
 using ButtonMode = ::driver::GPIO<constants::pin::BUTTON_MODE, GPIO_MODE_INPUT, true>;
 using LedMode = ::driver::GPIO<constants::pin::LED_MODE, GPIO_MODE_OUTPUT>;
 using SwitchBrake = ::driver::GPIO<constants::pin::SWITCH_BRAKE, GPIO_MODE_INPUT>;
@@ -48,7 +48,7 @@ using SwitchGuard = ::driver::GPIO<constants::pin::SWITCH_GUARD, GPIO_MODE_INPUT
 namespace device {
 using Accelerator = ::device::Accelerator<driver::ADC, constants::adc::CHANNEL_A, constants::adc::CHANNEL_B, constants::system::MISMATCH_THRESHOLD>;
 using Servo = ::device::Servo<driver::UARTServo, driver::PowerEnable>;
-using ECU = ::device::ECU<driver::UARTEcu>;
+using ECU = ::device::ECU<driver::UARTEcu, driver::ECUWakeUp>;
 using ButtonMode = ::device::Button<driver::ButtonMode>;
 using LedMode = ::device::Indicator<driver::LedMode>;
 using Brake = ::device::Switch<driver::SwitchBrake>;
