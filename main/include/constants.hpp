@@ -37,7 +37,7 @@ inline constexpr type::GPIONum SWITCH_BRAKE{GPIO_NUM_14};
 inline constexpr type::GPIONum SWITCH_GUARD{GPIO_NUM_15};
 inline constexpr type::GPIONum LED_MODE{GPIO_NUM_16};
 inline constexpr type::GPIONum POWER_ENABLE{GPIO_NUM_18};
-inline constexpr type::GPIONum ECU_WAKE_UP{GPIO_NUM_19};
+inline constexpr type::GPIONum ECU_WAKE_UP{GPIO_NUM_21};
 }  // namespace pin
 
 namespace uart {
