@@ -19,17 +19,15 @@
 #pragma once
 
 #include "constants.hpp"
-
-#include "driver/adc.hpp"
-#include "driver/gpio.hpp"
-#include "driver/uart.hpp"
-
 #include "device/accelerator.hpp"
 #include "device/button.hpp"
 #include "device/ecu/ecu.hpp"
 #include "device/indicator.hpp"
 #include "device/servo.hpp"
 #include "device/switch.hpp"
+#include "driver/adc.hpp"
+#include "driver/gpio.hpp"
+#include "driver/uart.hpp"
 
 namespace config {
 

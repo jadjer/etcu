@@ -62,7 +62,7 @@ class Controller {
   constexpr explicit Controller(Accelerator& accelerator, Servo& servo, ECU& ecu, ModeButton& mode_button, ModeIndicator& mode_indicator, Brake& brake, Guard& guard) noexcept
       : m_ecu(ecu), m_servo(servo), m_brake(brake), m_guard(guard), m_mode_button(mode_button), m_accelerator(accelerator), m_mode_indicator(mode_indicator) {}
 
-  constexpr auto init() noexcept -> void {
+  auto init() noexcept -> void {
     m_logger.init();
 
     m_logger.log_info("Initialization...");
@@ -97,7 +97,7 @@ class Controller {
     // TODO Enable servo power
   }
 
-  constexpr auto process_system_loop() noexcept -> void {
+  auto process_system_loop() noexcept -> void {
     // =========================================================================
     // Обновляем информацию по устройствам
     // =========================================================================
@@ -228,7 +228,7 @@ class Controller {
     m_system_errors.update(m_ble_manager.send_telemetry(system_telemetry));
   }
 
-  constexpr auto process_critical_loop() noexcept -> void {
+  auto process_critical_loop() noexcept -> void {
     type::SystemState const system_state = m_system_state.get();
 
     type::Speed target_speed{0};

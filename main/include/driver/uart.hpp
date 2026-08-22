@@ -29,7 +29,7 @@ using UARTConfig = uart_config_t;
 
 template <UARTPort port, GPIONum txPin, GPIONum rxPin, Size baudRate, Size bufferSize = 4096>
 struct UART {
-  [[nodiscard]] constexpr auto init() const noexcept -> bool {  // NOLINT
+  [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
     UARTConfig constexpr config = {
         .baud_rate = baudRate,
         .data_bits = UART_DATA_8_BITS,
@@ -57,18 +57,18 @@ struct UART {
     return true;
   }
 
-  [[nodiscard]] constexpr auto flush() const noexcept -> bool {  // NOLINT
+  [[nodiscard]] auto flush() const noexcept -> bool {  // NOLINT
     return uart_flush_input(port) == ESP_OK;
   }
 
   template <type::Size packageSize>
-  [[nodiscard]] constexpr auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
+  [[nodiscard]] auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
     auto const write_bytes = uart_write_bytes(port, data.data(), data.size());
     return write_bytes == data.size();
   }
 
   template <type::Size packageSize>
-  [[nodiscard]] constexpr auto read(std::array<type::Byte, packageSize>& data, type::Time const timeout) const noexcept -> int {  // NOLINT
+  [[nodiscard]] auto read(std::array<type::Byte, packageSize>& data, type::Time const timeout) const noexcept -> int {  // NOLINT
     return uart_read_bytes(port, data.data(), data.size(), pdMS_TO_TICKS(timeout));
   }
 };

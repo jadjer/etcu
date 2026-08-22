@@ -29,7 +29,7 @@ template <class Controller, type::CoreId systemCore = 0, type::CoreId criticalCo
 class SystemHost {
   Controller& m_controller;
 
-  [[noreturn]] constexpr static auto system_task_adapter(void* pv_parameters) -> void {
+  [[noreturn]] static auto system_task_adapter(void* pv_parameters) -> void {
     auto* host = static_cast<SystemHost*>(pv_parameters);
 
     while (true) {
@@ -38,7 +38,7 @@ class SystemHost {
     }
   }
 
-  [[noreturn]] constexpr static auto critical_task_adapter(void* pv_parameters) -> void {
+  [[noreturn]] static auto critical_task_adapter(void* pv_parameters) -> void {
     auto* host = static_cast<SystemHost*>(pv_parameters);
     TickType_t last_wake_time = xTaskGetTickCount();
 
@@ -51,7 +51,7 @@ class SystemHost {
  public:
   constexpr explicit SystemHost(Controller& controller) noexcept : m_controller(controller) {}
 
-  constexpr auto run() -> void {
+  auto run() -> void {
     xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, systemCore);
     xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, criticalCore);
   }

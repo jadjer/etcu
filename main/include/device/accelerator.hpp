@@ -31,8 +31,8 @@ template <class Driver, type::ADCChannelId hallA, type::ADCChannelId hallB, type
 class Accelerator {
   Driver& m_driver_adc;
 
-  type::Position m_current_min_position{type::Position::min_value};
-  type::Position m_current_max_position{type::Position::max_value};
+  type::Position m_current_min_position{type::Position::MIN_VALUE};
+  type::Position m_current_max_position{type::Position::MAX_VALUE};
 
   type::AcceleratorCalibrationData m_calibration_data{
       .hall_a_minimal = type::MilliVolt{650},
@@ -44,7 +44,7 @@ class Accelerator {
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
 
-  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_adc.init())
       return type::SystemError::AcceleratorInitFault;
 
@@ -57,9 +57,9 @@ class Accelerator {
     return type::SystemError::None;
   }
 
-  constexpr auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
+  auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
 
-  [[nodiscard]] constexpr auto calibrate(type::AcceleratorCalibrationData& calibration_data) noexcept -> type::SystemError {
+  [[nodiscard]] auto calibrate(type::AcceleratorCalibrationData& calibration_data) noexcept -> type::SystemError {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
@@ -87,11 +87,11 @@ class Accelerator {
     return type::SystemError::None;
   }
 
-  constexpr auto set_minimal_position(type::Position const minimal_position) noexcept -> void { m_current_min_position = minimal_position; }
+  auto set_minimal_position(type::Position const position) noexcept -> void { m_current_min_position = position; }
 
-  constexpr auto set_maximal_position(type::Position const maximal_position) noexcept -> void { m_current_max_position = maximal_position; }
+  auto set_maximal_position(type::Position const position) noexcept -> void { m_current_max_position = position; }
 
-  [[nodiscard]] constexpr auto get_position(type::Position& current_position) const noexcept -> type::SystemError {
+  [[nodiscard]] auto get_position(type::Position& current_position) const noexcept -> type::SystemError {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 

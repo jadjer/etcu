@@ -33,7 +33,7 @@ class ECU {
  public:
   constexpr explicit ECU(DriverUart& driver_uart, DriverGPIO& driver_gpio) noexcept : m_driver_uart{driver_uart}, m_driver_gpio{driver_gpio} {}
 
-  constexpr auto init() noexcept -> type::SystemError {
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_uart.init())
       return type::SystemError::ECUInitFault;
 
@@ -43,9 +43,9 @@ class ECU {
     return type::SystemError::None;
   }
 
-  constexpr auto update() noexcept -> type::SystemError { return type::SystemError::None; }  // NOLINT
+  [[nodiscard]] auto update() noexcept -> type::SystemError { return type::SystemError::None; }  // NOLINT
 
-  [[nodiscard]] constexpr auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
+  [[nodiscard]] auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
     std::ignore = m_driver_gpio.enable();
 
     telemetry.is_connected = false;

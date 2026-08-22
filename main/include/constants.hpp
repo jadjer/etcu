@@ -67,10 +67,9 @@ inline constexpr type::CoreId CRITICAL_CORE{1};
 inline constexpr type::MilliSec SYSTEM_RATE{50};
 inline constexpr type::MilliSec CRITICAL_RATE{50};
 inline constexpr type::MilliSec LONG_PRESS{1500};
-inline constexpr type::Position MISMATCH_THRESHOLD{10};
+inline constexpr type::Position MISMATCH_THRESHOLD{static_cast<std::int32_t>(static_cast<float>(type::Position::MAX_VALUE) * 0.1f)};
 inline constexpr type::Ticks DEBOUNCE_TICKS{3};
 inline constexpr type::String NVS_NAMESPACE{"ETCU"};
-inline constexpr type::Position THROTTLE_EXPO_FACTOR{50};
 }  // namespace system
 
 }  // namespace constants

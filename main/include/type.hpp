@@ -227,23 +227,25 @@ struct OTAChunk {
 // };
 
 struct AcceleratorCalibrationData {
-  std::uint32_t struct_version = 0x10000001;
+  static constexpr String STRUCT_NAME = "acc_calib";
+  static constexpr std::uint32_t STRUCT_VERSION = 0x10000001;
+
+  std::uint32_t struct_version{STRUCT_VERSION};
 
   MilliVolt hall_a_minimal{0};
   MilliVolt hall_a_maximal{0};
   MilliVolt hall_b_minimal{0};
   MilliVolt hall_b_maximal{0};
-
-  static auto constexpr StructName = "acc_calib";
 };
 
 struct ServoCalibrationData {
-  std::uint32_t struct_version = 0x10000001;
+  static constexpr String STRUCT_NAME = "servo_calib";
+  static constexpr std::uint32_t STRUCT_VERSION = 0x10000001;
+
+  std::uint32_t struct_version{STRUCT_VERSION};
 
   ServoPosition position_minimal{0};
   ServoPosition position_maximal{0};
-
-  static auto constexpr StructName = "servo_calib";
 };
 
 struct ServoTelemetry {

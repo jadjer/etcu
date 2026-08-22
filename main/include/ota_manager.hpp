@@ -34,7 +34,7 @@ class OTAManager {
  public:
   OTAManager() = default;
 
-  [[nodiscard]] constexpr auto startUpdate(std::size_t const total_size) -> bool {
+  [[nodiscard]] auto startUpdate(std::size_t const total_size) -> bool {
     if (m_is_running)
       return false;
 
@@ -49,14 +49,14 @@ class OTAManager {
     return true;
   }
 
-  [[nodiscard]] constexpr auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
     if (!m_is_running)
       return false;
 
     return esp_ota_write(m_update_handle, data.data(), data.size()) == ESP_OK;
   }
 
-  constexpr auto endUpdate() -> void {
+  auto endUpdate() -> void {
     if (!m_is_running)
       return;
 
@@ -71,7 +71,7 @@ class OTAManager {
     esp_restart();
   }
 
-  [[nodiscard]] constexpr auto isActive() const -> bool { return m_is_running; }
+  [[nodiscard]] auto isActive() const -> bool { return m_is_running; }
 };
 
 }  // namespace update

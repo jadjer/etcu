@@ -39,17 +39,17 @@ class Servo {
 
   template <type::Size packetSize>
     requires(packetSize >= 6)
-  [[nodiscard]] constexpr auto calculate_checksum_for_packet(std::array<type::Byte, packetSize> const bytes) const noexcept -> type::Byte {
-    std::size_t constexpr start_index = 2;
-    std::size_t constexpr end_index = packetSize - 1;
+  [[nodiscard]] auto calculate_checksum_for_packet(std::array<type::Byte, packetSize> const bytes) const noexcept -> type::Byte {
+    static constexpr type::Size START_INDEX = 2;
+    static constexpr type::Size END_INDEX = packetSize - 1;
 
-    std::uint32_t const sum = std::accumulate(bytes.begin() + start_index, bytes.begin() + end_index, 0U);
+    std::uint32_t const sum = std::accumulate(bytes.begin() + START_INDEX, bytes.begin() + END_INDEX, 0U);
     return static_cast<type::Byte>(~(sum & 0xFF));
   }
 
-  template <std::size_t paramSize>
-  constexpr auto send_packet(type::ServoInstruction const instruction, std::array<type::Byte, paramSize> const& parameters) const noexcept -> void {
-    std::size_t constexpr packet_size = paramSize + 6;
+  template <type::Size paramSize>
+  auto send_packet(type::ServoInstruction const instruction, std::array<type::Byte, paramSize> const& parameters) const noexcept -> void {
+    type::Size constexpr packet_size = paramSize + 6;
     std::array<type::Byte, packet_size> packet;
 
     packet[0] = 0xFF;
@@ -59,7 +59,7 @@ class Servo {
     packet[4] = +instruction;
 
     if constexpr (paramSize > 0) {
-      for (std::size_t i = 0; i < paramSize; ++i) {
+      for (type::Size i = 0; i < paramSize; ++i) {
         packet[5 + i] = parameters[i];
       }
     }
@@ -70,16 +70,16 @@ class Servo {
     std::ignore = m_driver_uart.template write<packet_size>(packet);
   }
 
-  template <std::size_t paramSize>
-  [[nodiscard]] constexpr auto receive_packet(std::array<type::Byte, paramSize>& payload) noexcept -> bool {
+  template <type::Size paramSize>
+  [[nodiscard]] auto receive_packet(std::array<type::Byte, paramSize>& payload) noexcept -> bool {
+    static constexpr type::Size PACKET_SIZE = paramSize + 6;
+
     if (servoId == 0xFE)
       return false;
 
-    std::size_t constexpr packetSize = paramSize + 6;
+    std::array<type::Byte, PACKET_SIZE> response;
 
-    std::array<type::Byte, packetSize> response;
-
-    if (int const read_bytes = m_driver_uart.template read<packetSize>(response, 30); std::cmp_less(read_bytes, packetSize)) {
+    if (int const read_bytes = m_driver_uart.template read<PACKET_SIZE>(response, 30); std::cmp_less(read_bytes, PACKET_SIZE)) {
       return false;
     }
 
@@ -89,7 +89,7 @@ class Servo {
 
     type::Byte const calculated_check_sum = calculate_checksum_for_packet(response);
 
-    if (calculated_check_sum != response[packetSize - 1]) {
+    if (calculated_check_sum != response[PACKET_SIZE - 1]) {
       return false;
     }
 
@@ -120,7 +120,7 @@ class Servo {
 
   constexpr auto set_position(type::Position const target_position) noexcept -> void {
     type::ServoPosition const servo_position =
-        common::map_range(target_position, type::Position{type::Position::min_value}, type::Position{type::Position::max_value},
+        common::map_range(target_position, type::Position{type::Position::MIN_VALUE}, type::Position{type::Position::MAX_VALUE},
                           m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
     std::array<type::Byte, 7> params{};

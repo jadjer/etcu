@@ -32,14 +32,14 @@ class Indicator {
  public:
   constexpr explicit Indicator(Driver& driver) : m_driver(driver) {}
 
-  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init())
       return type::SystemError::IndicatorInitFault;
 
     return type::SystemError::None;
   }
 
-  [[nodiscard]] constexpr auto update() noexcept -> type::SystemError {  // NOLINT
+  [[nodiscard]] auto update() noexcept -> type::SystemError {  // NOLINT
     return type::SystemError::None;
   }
 

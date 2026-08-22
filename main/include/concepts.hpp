@@ -33,16 +33,17 @@ template <type::Ticks T, type::Ticks Min, type::Ticks Max>
 concept Ticks = T >= Min && T <= Max;
 
 template <typename T>
-concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T data) {
-  { data.struct_version } -> std::convertible_to<std::uint32_t>;
-  { T::StructName } -> std::convertible_to<char const*>;
+concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T instance) {
+  { T::STRUCT_VERSION } -> std::convertible_to<std::uint32_t>;
+  { T::STRUCT_NAME } -> std::convertible_to<type::String>;
+  { instance.struct_version } -> std::same_as<std::uint32_t&>;
 };
 
 template <typename T>
 concept IsBounded = requires(T instance) {
   requires std::constructible_from<T, std::int32_t>;
-  { T::min_value } -> std::convertible_to<std::int32_t>;
-  { T::max_value } -> std::convertible_to<std::int32_t>;
+  { T::MIN_VALUE } -> std::convertible_to<std::int32_t>;
+  { T::MAX_VALUE } -> std::convertible_to<std::int32_t>;
   { instance.value } -> std::same_as<std::int32_t&>;
   { instance = std::declval<std::int32_t>() } -> std::same_as<T&>;
 };

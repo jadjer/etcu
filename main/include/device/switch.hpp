@@ -17,14 +17,14 @@ class Switch {
  public:
   constexpr explicit Switch(Driver& driver) : m_driver{driver} {}
 
-  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init())
       return type::SystemError::ButtonInitFault;
 
     return type::SystemError::None;
   }
 
-  [[nodiscard]] constexpr auto is_active() noexcept -> bool { return m_driver.get_level(); }
+  [[nodiscard]] auto is_active() noexcept -> bool { return m_driver.get_level(); }
 };
 
 }  // namespace device

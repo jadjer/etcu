@@ -26,7 +26,7 @@ class PidRegulator {
 
   template <typename T>
     requires std::is_convertible_v<T, float>
-  [[nodiscard]] constexpr auto calculate(T const target, T const current) const noexcept -> float {
+  [[nodiscard]] auto calculate(T const target, T const current) const noexcept -> float {
     auto const error = static_cast<float>(target) - static_cast<float>(current);
 
     float const p_term = m_coefficients.kp * error;
@@ -38,7 +38,7 @@ class PidRegulator {
 
   template <typename T>
     requires std::is_convertible_v<T, float>
-  constexpr auto update(T const target, T const current, bool const freeze_integral = false) noexcept -> void {
+  auto update(T const target, T const current, bool const freeze_integral = false) noexcept -> void {
     auto const error = static_cast<float>(target) - static_cast<float>(current);
 
     if (!freeze_integral) {
@@ -49,7 +49,7 @@ class PidRegulator {
     m_last_error = error;
   }
 
-  constexpr auto reset() noexcept {
+  auto reset() noexcept {
     m_integral = 0.0f;
     m_last_error = 0.0f;
   }

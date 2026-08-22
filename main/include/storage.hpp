@@ -25,7 +25,7 @@
 struct Storage {
   template <class T>
     requires concepts::HasStructVersion<T>
-  [[nodiscard]] constexpr auto load_calibration(T& data) const noexcept -> bool {
+  [[nodiscard]] auto load_calibration(T& data) const noexcept -> bool {
     nvs_handle_t nvs_handle = 0;
 
     if (nvs_open(constants::system::NVS_NAMESPACE, NVS_READONLY, &nvs_handle) != ESP_OK)
@@ -40,18 +40,18 @@ struct Storage {
     if (err != ESP_OK || requiredSize != sizeof(T))
       return false;
 
-    return data.struct_version == T{}.struct_version;
+    return data.struct_version == T::CURRENT_VERSION;
   }
 
   template <class T>
     requires concepts::HasStructVersion<T>
-  [[nodiscard]] constexpr auto save_calibration(const T& data) const noexcept -> bool {
+  [[nodiscard]] auto save_calibration(T const& data) const noexcept -> bool {
     nvs_handle_t nvs_handle = 0;
 
     if (nvs_open(constants::system::NVS_NAMESPACE, NVS_READWRITE, &nvs_handle) != ESP_OK)
       return false;
 
-    esp_err_t err = nvs_set_blob(nvs_handle, T::StructName, &data, sizeof(T));
+    esp_err_t err = nvs_set_blob(nvs_handle, T::STRUCT_NAME, &data, sizeof(T));
 
     if (err == ESP_OK)
       err = nvs_commit(nvs_handle);

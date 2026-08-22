@@ -23,35 +23,35 @@
 #include "type.hpp"
 
 class Logger {
-  static constexpr auto TAG = "THROTTLE_CORE";
-  static constexpr std::size_t BufferSize = 128;
+  static constexpr type::String TAG{"THROTTLE_CORE"};
+  static constexpr type::Size BufferSize{128};
 
   template <typename... Args>
-  constexpr void write_log(esp_log_level_t const level, const char* const format, Args&&... args) noexcept {
+  void write_log(esp_log_level_t const level, const char* const format, Args&&... args) noexcept {
     std::array<char, BufferSize> buffer{};
     std::snprintf(buffer.data(), buffer.size(), format, std::forward<Args>(args)...);
     esp_log_write(level, TAG, "%s\n", buffer.data());
   }
 
  public:
-  constexpr auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); } // NOLINT
+  auto init() noexcept -> void { esp_log_level_set(TAG, ESP_LOG_INFO); }  // NOLINT
 
   template <typename... Args>
-  constexpr auto log_info(char const* const format, Args&&... args) noexcept -> void {
+  auto log_info(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_INFO, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  constexpr auto log_warn(char const* const format, Args&&... args) noexcept -> void {
+  auto log_warn(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_WARN, format, std::forward<Args>(args)...);
   }
 
   template <typename... Args>
-  constexpr auto log_error(char const* const format, Args&&... args) noexcept -> void {
+  auto log_error(char const* const format, Args&&... args) noexcept -> void {
     write_log(ESP_LOG_ERROR, format, std::forward<Args>(args)...);
   }
 
-  constexpr auto log_active_errors(type::SystemError const errors) noexcept -> void {
+  auto log_active_errors(type::SystemError const errors) noexcept -> void {
     if (errors == type::SystemError::None) {
       log_info("System status: No Errors");
       return;
@@ -103,14 +103,21 @@ class Logger {
     log_error("------------------------------");
   }
 
-  constexpr auto check_and_log_errors(type::ServoError const error) noexcept -> void { // NOLINT
-    if (error == type::ServoError::None) return;
+  auto check_and_log_errors(type::ServoError const error) noexcept -> void {  // NOLINT
+    if (error == type::ServoError::None)
+      return;
 
-    if (error & type::ServoError::Voltage)    ESP_LOGE("SERVO", "  -> Ошибка питания! Проверьте вольтаж линии.");
-    if (error & type::ServoError::AngleLimit) ESP_LOGE("SERVO", "  -> Выход за программные лимиты углов.");
-    if (error & type::ServoError::Overheat)   ESP_LOGE("SERVO", "  -> ПЕРЕГРЕВ! Дайте приводу остыть.");
-    if (error & type::ServoError::Overload)   ESP_LOGE("SERVO", "  -> ПЕРЕГРУЗКА ТОКА (Overload)! Защита отключила мотор.");
-    if (error & type::ServoError::Encoder)    ESP_LOGE("SERVO", "  -> Ошибка энкодера! Сбой датчика позиции.");
-    if (error & type::ServoError::Driver)     ESP_LOGE("SERVO", "  -> Сбой драйвера! Короткое замыкание или перегрузка ключей.");
+    if (error & type::ServoError::Voltage)
+      ESP_LOGE("SERVO", "  -> Ошибка питания! Проверьте вольтаж линии.");
+    if (error & type::ServoError::AngleLimit)
+      ESP_LOGE("SERVO", "  -> Выход за программные лимиты углов.");
+    if (error & type::ServoError::Overheat)
+      ESP_LOGE("SERVO", "  -> ПЕРЕГРЕВ! Дайте приводу остыть.");
+    if (error & type::ServoError::Overload)
+      ESP_LOGE("SERVO", "  -> ПЕРЕГРУЗКА ТОКА (Overload)! Защита отключила мотор.");
+    if (error & type::ServoError::Encoder)
+      ESP_LOGE("SERVO", "  -> Ошибка энкодера! Сбой датчика позиции.");
+    if (error & type::ServoError::Driver)
+      ESP_LOGE("SERVO", "  -> Сбой драйвера! Короткое замыкание или перегрузка ключей.");
   }
 };

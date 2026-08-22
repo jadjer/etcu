@@ -21,14 +21,12 @@
 #include "common/pid_regulator.hpp"
 #include "type.hpp"
 
-constexpr type::Size LUT_SIZE = type::Position::max_value + 1;
-constexpr type::Position SERVO_SWITCH = type::Position::max_value * 0.3;
-constexpr type::Size INDEX_SWITCH = type::Position::max_value * 0.5;
-constexpr auto PEDAL_SWITCH = 0.5f;
-constexpr auto PARABOLA_K = 1.0f / (PEDAL_SWITCH * PEDAL_SWITCH);
-
 template <type::Size N>
 consteval auto generate_flexible_lut() -> std::array<type::Position, N> {
+  static constexpr type::Position SERVO_SWITCH{static_cast<std::int32_t>(static_cast<float>(type::Position::MAX_VALUE) * 0.3f)};
+  static constexpr float PEDAL_SWITCH{0.5f};
+  static constexpr float PARABOLA_K{1.0f / (PEDAL_SWITCH * PEDAL_SWITCH)};
+
   std::array<type::Position, N> lut{};
 
   for (type::Size i = 0; i < N; ++i) {
@@ -41,7 +39,7 @@ consteval auto generate_flexible_lut() -> std::array<type::Position, N> {
 
     } else {
       auto const segment_progress = (progress - PEDAL_SWITCH) / (1.0f - PEDAL_SWITCH);
-      auto const delta_servo = static_cast<float>(type::Position::max_value - SERVO_SWITCH.value);
+      constexpr auto delta_servo = static_cast<float>(type::Position::MAX_VALUE - SERVO_SWITCH.value);
       auto const calculated = static_cast<float>(SERVO_SWITCH.value) + segment_progress * delta_servo;
 
       lut[i] = static_cast<std::int32_t>(calculated);
@@ -51,10 +49,11 @@ consteval auto generate_flexible_lut() -> std::array<type::Position, N> {
   return lut;
 }
 
-constexpr auto SERVO_LUT = generate_flexible_lut<LUT_SIZE>();
-
 class Logic {
-  common::PidRegulator<static_cast<float>(type::Position::min_value), static_cast<float>(type::Position::max_value)> m_speed_regulator{common::PidCoefficients{
+  static constexpr type::Size LUT_SIZE{static_cast<std::int32_t>(static_cast<float>(type::Position::MAX_VALUE) * 0.3f)};
+  static constexpr std::array<type::Position, LUT_SIZE> SERVO_LUT = generate_flexible_lut<LUT_SIZE>();
+
+  common::PidRegulator<static_cast<float>(type::Position::MIN_VALUE), static_cast<float>(type::Position::MAX_VALUE)> m_speed_regulator{common::PidCoefficients{
                                                                                                                                            .kp = 2.0f,
                                                                                                                                            .ki = 0.5f,
                                                                                                                                            .kd = 0.1f,
@@ -64,10 +63,10 @@ class Logic {
  public:
   constexpr explicit Logic() noexcept = default;
 
-  [[nodiscard]] constexpr auto calculate_servo_position(type::Position const accelerator_position,
-                                                        type::Position const accelerator_offset,
-                                                        type::Speed const current_speed,
-                                                        type::Speed const target_speed) noexcept -> type::Position {
+  [[nodiscard]] auto calculate_servo_position(type::Position const accelerator_position,
+                                              type::Position const accelerator_offset,
+                                              type::Speed const current_speed,
+                                              type::Speed const target_speed) noexcept -> type::Position {
     type::Position const accelerator_value = accelerator_position.value + accelerator_offset.value;
     type::Position const driver_servo_proposal = SERVO_LUT[accelerator_value.value];
 

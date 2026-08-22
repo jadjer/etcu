@@ -42,7 +42,7 @@ class ADC {
  public:
   constexpr ADC() noexcept = default;
 
-  [[nodiscard]] constexpr auto init() noexcept -> bool {
+  [[nodiscard]] auto init() noexcept -> bool {
     if (m_handle != nullptr) [[unlikely]]
       return true;
 
@@ -56,7 +56,7 @@ class ADC {
   }
 
   template <ADCChannelId channelId>
-  [[nodiscard]] constexpr auto configure_channel() noexcept -> bool {
+  [[nodiscard]] auto configure_channel() noexcept -> bool {
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
@@ -73,7 +73,7 @@ class ADC {
         .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    auto const channel_index = static_cast<std::size_t>(channelId);
+    auto const channel_index = static_cast<type::Size>(channelId);
     if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK)
       return false;
 
@@ -81,11 +81,11 @@ class ADC {
   }
 
   template <ADCChannelId channelId, typename T>
-  [[nodiscard]] constexpr auto get_voltage(T& value) const noexcept -> bool {
+  [[nodiscard]] auto get_voltage(T& value) const noexcept -> bool {
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
-    auto const channel_index = static_cast<std::size_t>(channelId);
+    auto const channel_index = static_cast<type::Size>(channelId);
     auto const calibration_handle = m_calibration_handles[channel_index];
     if (calibration_handle == nullptr) [[unlikely]]
       return false;

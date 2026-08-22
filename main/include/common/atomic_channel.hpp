@@ -28,10 +28,10 @@ class AtomicChannel {
   std::atomic<bool> m_is_ready{false};
 
  public:
-  constexpr explicit AtomicChannel() noexcept = default;
-  constexpr explicit AtomicChannel(T data) noexcept : m_data{data} {}
+  explicit AtomicChannel() noexcept = default;
+  explicit AtomicChannel(T data) noexcept : m_data{data} {}
 
-  [[nodiscard]] constexpr auto send(T const data) -> bool {
+  [[nodiscard]] auto send(T const data) -> bool {
     if (!m_is_ready.load(std::memory_order_relaxed)) {
       m_data = data;
       m_is_ready.store(true, std::memory_order_release);
@@ -40,7 +40,7 @@ class AtomicChannel {
     return false;
   }
 
-  [[nodiscard]] constexpr auto receive(T& out_data) -> bool {
+  [[nodiscard]] auto receive(T& out_data) -> bool {
     if (m_is_ready.load(std::memory_order_acquire)) {
       out_data = m_data;
       m_is_ready.store(false, std::memory_order_relaxed);

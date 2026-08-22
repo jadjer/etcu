@@ -14,7 +14,7 @@ using GPIOConfig = gpio_config_t;
 
 template <GPIONum pin, GPIOMode mode, bool inverse = false>
 struct GPIO {
-  [[nodiscard]] constexpr auto init() const noexcept -> bool {  // NOLINT
+  [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
     GPIOConfig const config = {
         .pin_bit_mask = 1ULL << pin,
         .mode = mode,
@@ -29,21 +29,21 @@ struct GPIO {
     return true;
   }
 
-  [[nodiscard]] constexpr auto get_level() const noexcept -> bool {  // NOLINT
+  [[nodiscard]] auto get_level() const noexcept -> bool {  // NOLINT
     int const level = gpio_get_level(pin);
     return inverse ? level == 0 : level == 1;
   }
 
-  [[nodiscard]] constexpr auto set_level(bool const level) const noexcept -> bool {  // NOLINT
+  [[nodiscard]] auto set_level(bool const level) const noexcept -> bool {  // NOLINT
     return gpio_set_level(pin, level) == ESP_OK;
   }
 
-  [[nodiscard]] constexpr auto enable() const noexcept -> bool {
+  [[nodiscard]] auto enable() const noexcept -> bool {
     auto const level = inverse ? 0 : 1;
     return set_level(level);
   }
 
-  [[nodiscard]] constexpr auto disable() const noexcept -> bool {
+  [[nodiscard]] auto disable() const noexcept -> bool {
     auto const level = inverse ? 1 : 0;
     return set_level(level);
   }
