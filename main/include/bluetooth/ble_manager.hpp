@@ -19,6 +19,7 @@
 #pragma once
 
 #include <NimBLEDevice.h>
+#include <string>
 #include "bluetooth/callbacks/characteristic_callback.hpp"
 #include "bluetooth/callbacks/server_callback.hpp"
 #include "common/atomic_channel.hpp"
@@ -45,7 +46,7 @@ class BLEManager {
   [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(constants::bluetooth::DEVICE_NAME)) {
+    if (!NimBLEDevice::init(static_cast<std::string>(constants::bluetooth::DEVICE_NAME))) {
       return type::SystemError::BluetoothInitFault;
     }
 
@@ -60,21 +61,21 @@ class BLEManager {
     m_server = NimBLEDevice::createServer();
     m_server->setCallbacks(&m_server_callback);
 
-    NimBLEService* service = m_server->createService(constants::bluetooth::SERVICE_UUID);
+    NimBLEService* service = m_server->createService(static_cast<std::string>(constants::bluetooth::SERVICE_UUID));
     {
-      m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTA_CHARACTERISTIC_UUID, WRITE | NOTIFY);
+      m_ota_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::OTA_CHARACTERISTIC_UUID), WRITE | NOTIFY);
       m_ota_characteristic->setCallbacks(&m_ota_callback);
     }
     {
-      m_control_characteristic = service->createCharacteristic(constants::bluetooth::CONTROL_CHARACTERISTIC_UUID, WRITE);
+      m_control_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::CONTROL_CHARACTERISTIC_UUID), WRITE);
       m_control_characteristic->setCallbacks(&m_control_callback);
     }
     {
-      m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TELEMETRY_CHARACTERISTIC_UUID, READ | NOTIFY);
+      m_telemetry_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::TELEMETRY_CHARACTERISTIC_UUID), READ | NOTIFY);
     }
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();
-    advertising->setName(constants::bluetooth::DEVICE_NAME);
+    advertising->setName(static_cast<std::string>(constants::bluetooth::DEVICE_NAME));
     advertising->addServiceUUID(service->getUUID());
     advertising->enableScanResponse(true);
     advertising->setMinInterval(32);  // 32 * 0.625ms = 20ms

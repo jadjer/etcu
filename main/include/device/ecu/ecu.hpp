@@ -34,10 +34,10 @@ class ECU {
   constexpr explicit ECU(DriverUart& driver_uart, DriverGPIO& driver_gpio) noexcept : m_driver_uart{driver_uart}, m_driver_gpio{driver_gpio} {}
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver_uart.init())
+    if (!m_driver_uart.init()) [[unlikely]]
       return type::SystemError::ECUInitFault;
 
-    if (!m_driver_gpio.init())
+    if (!m_driver_gpio.init()) [[unlikely]]
       return type::SystemError::ECUInitFault;
 
     return type::SystemError::None;

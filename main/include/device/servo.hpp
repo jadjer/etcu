@@ -58,7 +58,7 @@ class Servo {
     packet[3] = paramSize + 2;
     packet[4] = +instruction;
 
-    if constexpr (paramSize > 0) {
+    if constexpr (paramSize > 0) { [[likely]]
       for (type::Size i = 0; i < paramSize; ++i) {
         packet[5 + i] = parameters[i];
       }
@@ -79,21 +79,21 @@ class Servo {
 
     std::array<type::Byte, PACKET_SIZE> response;
 
-    if (int const read_bytes = m_driver_uart.template read<PACKET_SIZE>(response, 30); std::cmp_less(read_bytes, PACKET_SIZE)) {
+    if (int const read_bytes = m_driver_uart.template read<PACKET_SIZE>(response, 30); std::cmp_less(read_bytes, PACKET_SIZE)) { [[unlikely]]
       return false;
     }
 
-    if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servoId) {
+    if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servoId) { [[unlikely]]
       return false;
     }
 
     type::Byte const calculated_check_sum = calculate_checksum_for_packet(response);
 
-    if (calculated_check_sum != response[PACKET_SIZE - 1]) {
+    if (calculated_check_sum != response[PACKET_SIZE - 1]) { [[unlikely]]
       return false;
     }
 
-    if constexpr (paramSize > 0) {
+    if constexpr (paramSize > 0) { [[likely]]
       for (std::size_t i = 0; i < paramSize; ++i) {
         payload[i] = static_cast<type::Byte>(response[5 + i]);
       }
@@ -106,13 +106,13 @@ class Servo {
   constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
 
   [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
-    if (!m_driver_uart.init())
+    if (!m_driver_uart.init()) [[unlikely]]
       return type::SystemError::ServoInitError;
 
-    if (!m_driver_power.init())
+    if (!m_driver_power.init()) [[unlikely]]
       return type::SystemError::ServoInitError;
 
-    if (!m_driver_power.enable())
+    if (!m_driver_power.enable()) [[unlikely]]
       return type::SystemError::ServoPowerFail;
 
     return type::SystemError::None;

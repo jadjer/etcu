@@ -64,7 +64,7 @@ class ADC {
         .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    if (adc_oneshot_config_channel(m_handle, channelId, &channel_config) != ESP_OK)
+    if (esp_err_t const error = adc_oneshot_config_channel(m_handle, channelId, &channel_config); error != ESP_OK) [[unlikely]]
       return false;
 
     ADCCalibrationConfig constexpr calibration_config = {
@@ -74,7 +74,7 @@ class ADC {
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
     auto const channel_index = static_cast<type::Size>(channelId);
-    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK)
+    if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK) [[unlikely]]
       return false;
 
     return true;
@@ -92,12 +92,12 @@ class ADC {
 
     int raw_value = 0;
 
-    if (adc_oneshot_read(m_handle, channelId, &raw_value) != ESP_OK) [[unlikely]]
+    if (esp_err_t const error = adc_oneshot_read(m_handle, channelId, &raw_value); error != ESP_OK) [[unlikely]]
       return false;
 
     int voltage = 0;
 
-    if (adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage); error != ESP_OK) [[unlikely]] {
       return false;
     }
 

@@ -23,6 +23,7 @@
 #include <esp_adc/adc_oneshot.h>
 #include <array>
 #include <cstdint>
+#include <string_view>
 #include "common/bounded_value.hpp"
 
 namespace type {
@@ -54,7 +55,7 @@ using Time = std::uint16_t;
 using Size = std::size_t;
 using ServoId = std::uint8_t;
 using CoreId = std::uint8_t;
-using String = char const*;
+using String = std::string_view;
 
 using Voltage = common::BoundedValue<std::uint8_t, 0, 100, tag::Volt>;
 using MilliVolt = common::BoundedValue<std::uint16_t, 0, 3100, tag::MilliVolt>;

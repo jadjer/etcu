@@ -45,13 +45,13 @@ struct UART {
             },
     };
 
-    if (uart_param_config(port, &config) != ESP_OK)
+    if (esp_err_t const error = uart_param_config(port, &config); error != ESP_OK) [[unlikely]]
       return false;
 
-    if (uart_set_pin(port, txPin, rxPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK)
+    if (esp_err_t const error = uart_set_pin(port, txPin, rxPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); error != ESP_OK) [[unlikely]]
       return false;
 
-    if (uart_driver_install(port, bufferSize, bufferSize, 0, nullptr, 0) != ESP_OK)
+    if (esp_err_t const error = uart_driver_install(port, bufferSize, bufferSize, 0, nullptr, 0); error != ESP_OK) [[unlikely]]
       return false;
 
     return true;

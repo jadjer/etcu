@@ -26,18 +26,18 @@ struct Storage {
   template <class T>
     requires concepts::HasStructVersion<T>
   [[nodiscard]] auto load_calibration(T& data) const noexcept -> bool {
-    nvs_handle_t nvs_handle = 0;
+    nvs_handle_t nvs_handle{0};
 
-    if (nvs_open(constants::system::NVS_NAMESPACE, NVS_READONLY, &nvs_handle) != ESP_OK)
+    if (nvs_open(constants::system::NVS_NAMESPACE.data(), NVS_READONLY, &nvs_handle) != ESP_OK)
       return false;
 
     std::size_t requiredSize = sizeof(T);
 
-    esp_err_t const err = nvs_get_blob(nvs_handle, T::StructName, &data, &requiredSize);
+    esp_err_t const error = nvs_get_blob(nvs_handle, T::StructName, &data, &requiredSize);
 
     nvs_close(nvs_handle);
 
-    if (err != ESP_OK || requiredSize != sizeof(T))
+    if (error != ESP_OK || requiredSize != sizeof(T))
       return false;
 
     return data.struct_version == T::CURRENT_VERSION;
@@ -46,18 +46,20 @@ struct Storage {
   template <class T>
     requires concepts::HasStructVersion<T>
   [[nodiscard]] auto save_calibration(T const& data) const noexcept -> bool {
-    nvs_handle_t nvs_handle = 0;
+    nvs_handle_t nvs_handle{0};
 
-    if (nvs_open(constants::system::NVS_NAMESPACE, NVS_READWRITE, &nvs_handle) != ESP_OK)
+    if (nvs_open(constants::system::NVS_NAMESPACE.data(), NVS_READWRITE, &nvs_handle) != ESP_OK) [[unlikely]]
       return false;
 
-    esp_err_t err = nvs_set_blob(nvs_handle, T::STRUCT_NAME, &data, sizeof(T));
+    if (esp_err_t const error = nvs_set_blob(nvs_handle, T::STRUCT_NAME.data(), &data, sizeof(T)); error != ESP_OK) [[unlikely]] {
+      nvs_close(nvs_handle);
+      return false;
+    }
 
-    if (err == ESP_OK)
-      err = nvs_commit(nvs_handle);
+    esp_err_t const error = nvs_commit(nvs_handle);
 
     nvs_close(nvs_handle);
 
-    return err == ESP_OK;
+    return error == ESP_OK;
   }
 };

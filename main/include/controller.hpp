@@ -92,7 +92,7 @@ class Controller {
       m_system_errors.add(type::SystemError::GuardLock);
     }
 
-    m_logger.log_info(m_system_errors.has_any() ? "Not ready" : "Ready");
+    m_logger.log_info("{}", m_system_errors.has_any() ? "Not ready" : "Ready");
 
     // TODO Enable servo power
   }
@@ -162,7 +162,7 @@ class Controller {
       case type::SystemState::Normal: {
         if (m_mode_button.is_long_press()) {
           m_target_speed.set(ecu_telemetry.speed);
-          m_logger.log_info("Set offset as %d", accelerator_position);
+          m_logger.log_info("Set offset as %d", accelerator_position.value);
         }
       } break;
 

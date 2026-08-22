@@ -32,22 +32,24 @@ class AtomicChannel {
   explicit AtomicChannel(T data) noexcept : m_data{data} {}
 
   [[nodiscard]] auto send(T const data) -> bool {
-    if (!m_is_ready.load(std::memory_order_relaxed)) {
-      m_data = data;
-      m_is_ready.store(true, std::memory_order_release);
-      return true;
-    }
-    return false;
+    if (bool const is_ready = m_is_ready.load(std::memory_order_relaxed); is_ready == true)
+      return false;
+
+    m_data = data;
+    m_is_ready.store(true, std::memory_order_release);
+
+    return true;
   }
 
   [[nodiscard]] auto receive(T& out_data) -> bool {
-    if (m_is_ready.load(std::memory_order_acquire)) {
-      out_data = m_data;
-      m_is_ready.store(false, std::memory_order_relaxed);
-      return true;
-    }
-    return false;
+    if (bool const is_ready = m_is_ready.load(std::memory_order_acquire); is_ready == false)
+      return false;
+
+    out_data = m_data;
+    m_is_ready.store(false, std::memory_order_relaxed);
+
+    return true;
   }
 };
 
-}  // namespace commons
+}  // namespace common

@@ -42,7 +42,7 @@ class OTAManager {
     if (m_update_partition == nullptr)
       return false;
 
-    if (esp_err_t const err = esp_ota_begin(m_update_partition, total_size, &m_update_handle); err != ESP_OK)
+    if (esp_err_t const error = esp_ota_begin(m_update_partition, total_size, &m_update_handle); error != ESP_OK)
       return false;
 
     m_is_running = true;
@@ -60,10 +60,10 @@ class OTAManager {
     if (!m_is_running)
       return;
 
-    if (esp_ota_end(m_update_handle) != ESP_OK)
+    if (esp_err_t const error = esp_ota_end(m_update_handle); error != ESP_OK)
       return;
 
-    if (esp_ota_set_boot_partition(m_update_partition) != ESP_OK)
+    if (esp_err_t const error = esp_ota_set_boot_partition(m_update_partition); error != ESP_OK)
       return;
 
     m_is_running = false;

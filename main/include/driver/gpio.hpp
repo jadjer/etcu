@@ -23,7 +23,7 @@ struct GPIO {
         .intr_type = GPIO_INTR_DISABLE,
     };
 
-    if (auto const err = gpio_config(&config); err != ESP_OK)
+    if (esp_err_t const err = gpio_config(&config); err != ESP_OK) [[unlikely]]
       return false;
 
     return true;

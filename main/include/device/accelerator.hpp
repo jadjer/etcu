@@ -45,13 +45,13 @@ class Accelerator {
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver_adc.init())
+    if (!m_driver_adc.init()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
-    if (!m_driver_adc.template configure_channel<hallA>())
+    if (!m_driver_adc.template configure_channel<hallA>()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
-    if (!m_driver_adc.template configure_channel<hallB>())
+    if (!m_driver_adc.template configure_channel<hallB>()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
     return type::SystemError::None;
@@ -63,10 +63,10 @@ class Accelerator {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_adc.template get_voltage<hallA>(voltage_a))
+    if (!m_driver_adc.template get_voltage<hallA>(voltage_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_adc.template get_voltage<hallB>(voltage_b))
+    if (!m_driver_adc.template get_voltage<hallB>(voltage_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
     auto const v_a = voltage_a.value;
@@ -95,10 +95,10 @@ class Accelerator {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_adc.template get_voltage<hallA>(voltage_a))
+    if (!m_driver_adc.template get_voltage<hallA>(voltage_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_adc.template get_voltage<hallB>(voltage_b))
+    if (!m_driver_adc.template get_voltage<hallB>(voltage_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
     type::Position const pos_a =
