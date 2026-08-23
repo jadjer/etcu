@@ -19,32 +19,33 @@
 #pragma once
 
 #include <concepts>
-#include "type.hpp"
+#include "type/telemetry.hpp"
+#include "type/type.hpp"
 
 namespace concepts {
 
-template <type::CoreId T>
+template <type::primitive::CoreId T>
 concept CoreId = T <= 1;
 
-template <type::CoreRate T>
+template <type::primitive::CoreRate T>
 concept CoreRate = T >= 10;
 
-template <type::Ticks T, type::Ticks Min, type::Ticks Max>
+template <type::primitive::Ticks T, type::primitive::Ticks Min, type::primitive::Ticks Max>
 concept Ticks = T >= Min && T <= Max;
 
 template <typename T>
 concept HasStructVersion = std::is_trivially_copyable_v<T> && requires(T instance) {
   { T::STRUCT_VERSION } -> std::convertible_to<std::uint32_t>;
-  { T::STRUCT_NAME } -> std::convertible_to<type::String>;
+  { T::STRUCT_NAME } -> std::convertible_to<type::primitive::String>;
   { instance.struct_version } -> std::same_as<std::uint32_t&>;
 };
 
 template <typename T>
 concept IsBounded = requires(T instance) {
   requires std::constructible_from<T, std::int32_t>;
-  { T::MIN_VALUE } -> std::convertible_to<std::int32_t>;
-  { T::MAX_VALUE } -> std::convertible_to<std::int32_t>;
-  { instance.value } -> std::same_as<std::int32_t&>;
+  { T::MinValue } -> std::convertible_to<std::int32_t>;
+  { T::MaxValue } -> std::convertible_to<std::int32_t>;
+  { instance.value } -> std::convertible_to<std::int32_t>;
   { instance = std::declval<std::int32_t>() } -> std::same_as<T&>;
 };
 
@@ -111,7 +112,7 @@ concept GPIO = requires(T gpio, bool const level) {
 };
 
 template <typename T>
-concept UART = requires(T uart, std::array<type::Byte, 10> buffer, type::Time timeout) {
+concept UART = requires(T uart, std::array<type::primitive::Byte, 10> buffer, type::primitive::Time timeout) {
   { uart.init() } noexcept -> std::same_as<bool>;
   { uart.flush() } noexcept -> std::same_as<bool>;
   { uart.template write<10>(buffer) } noexcept -> std::same_as<bool>;
@@ -121,8 +122,8 @@ concept UART = requires(T uart, std::array<type::Byte, 10> buffer, type::Time ti
 template <typename T, typename V>
 concept ADC = requires(T adc, V& voltage) {
   { adc.init() } noexcept -> std::same_as<bool>;
-  { adc.template configure_channel<type::ADCChannelId::ADC_CHANNEL_0>() } noexcept -> std::same_as<bool>;
-  { adc.template get_voltage<type::ADCChannelId::ADC_CHANNEL_0>(voltage) } noexcept -> std::same_as<bool>;
+  { adc.template configure_channel<type::primitive::ADCChannelId::ADC_CHANNEL_0>() } noexcept -> std::same_as<bool>;
+  { adc.template get_voltage<type::primitive::ADCChannelId::ADC_CHANNEL_0>(voltage) } noexcept -> std::same_as<bool>;
 };
 
 }  // namespace concepts

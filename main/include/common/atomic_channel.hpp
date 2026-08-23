@@ -24,7 +24,7 @@ namespace common {
 
 template <class T>
 class AtomicChannel {
-  T m_data;
+  T m_data{};
   std::atomic<bool> m_is_ready{false};
 
  public:

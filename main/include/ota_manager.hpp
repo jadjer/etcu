@@ -20,6 +20,7 @@
 
 #include <esp_ota_ops.h>
 #include "constants.hpp"
+#include "type/type.hpp"
 
 namespace update {
 
@@ -32,9 +33,7 @@ class OTAManager {
   OTAPartition m_update_partition{nullptr};
 
  public:
-  OTAManager() = default;
-
-  [[nodiscard]] auto startUpdate(std::size_t const total_size) -> bool {
+  [[nodiscard]] auto startUpdate(type::primitive::Size const total_size) -> bool {
     if (m_is_running)
       return false;
 

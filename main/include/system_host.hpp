@@ -21,9 +21,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "concepts.hpp"
-#include "type.hpp"
+#include "type/type.hpp"
 
-template <class Controller, type::CoreId systemCore = 0, type::CoreId criticalCore = 1, type::CoreRate rate = 10>
+template <class Controller, type::primitive::CoreId systemCore = 0, type::primitive::CoreId criticalCore = 1, type::primitive::CoreRate rate = 10>
   requires concepts::Controller<Controller> && concepts::CoreId<systemCore> && concepts::CoreId<criticalCore> && concepts::CoreRate<rate>
 
 class SystemHost {

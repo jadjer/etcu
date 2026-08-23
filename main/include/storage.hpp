@@ -23,6 +23,7 @@
 #include "constants.hpp"
 
 struct Storage {
+
   template <class T>
     requires concepts::HasStructVersion<T>
   [[nodiscard]] auto load_calibration(T& data) const noexcept -> bool {

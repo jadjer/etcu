@@ -19,16 +19,14 @@
 #pragma once
 
 #include <atomic>
-#include "type.hpp"
+#include "type/type.hpp"
 
 class SystemErrors {
-  static constexpr auto to_underlying(type::SystemError err) noexcept -> type::Error { return static_cast<type::Error>(err); }
+  static constexpr auto to_underlying(type::SystemError err) noexcept -> type::primitive::Error { return static_cast<type::primitive::Error>(err); }
 
-  std::atomic<type::Error> m_errors_mask;
+  std::atomic<type::primitive::Error> m_errors_mask{0};
 
  public:
-  SystemErrors() noexcept = default;
-
   auto add(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_or(to_underlying(err), std::memory_order_relaxed); }
   auto update(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_and(~to_underlying(err), std::memory_order_relaxed); }
   auto reset() noexcept -> void { m_errors_mask.store(0, std::memory_order_relaxed); }

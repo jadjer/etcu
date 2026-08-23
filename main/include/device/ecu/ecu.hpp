@@ -18,8 +18,8 @@
 
 #pragma once
 
+#include "../../type/type.hpp"
 #include "concepts.hpp"
-#include "type.hpp"
 
 namespace device {
 
@@ -52,8 +52,8 @@ class ECU {
     telemetry.rpm = type::RPM{0};
     telemetry.speed = type::Speed{0};
     telemetry.tps = type::Position{0};
-    telemetry.started = false;
-    telemetry.clutch_enabled = false;
+    telemetry.is_started = false;
+    telemetry.is_clutch_enabled = false;
 
     return type::SystemError::None;
   }

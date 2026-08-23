@@ -51,7 +51,6 @@ using ButtonMode = ::device::Button<driver::ButtonMode>;
 using LedMode = ::device::Indicator<driver::LedMode>;
 using Brake = ::device::Switch<driver::SwitchBrake>;
 using Guard = ::device::Switch<driver::SwitchGuard>;
-
 }  // namespace device
 
 }  // namespace config

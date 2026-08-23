@@ -22,6 +22,8 @@
 
 namespace driver {
 
+using Time = std::uint16_t;
+using Byte = std::uint8_t;
 using Size = std::size_t;
 using GPIONum = gpio_num_t;
 using UARTPort = uart_port_t;
@@ -61,14 +63,14 @@ struct UART {
     return uart_flush_input(port) == ESP_OK;
   }
 
-  template <type::Size packageSize>
-  [[nodiscard]] auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
+  template <Size packageSize>
+  [[nodiscard]] auto write(std::array<Byte, packageSize> const& data) const noexcept -> bool {  // NOLINT
     auto const write_bytes = uart_write_bytes(port, data.data(), data.size());
     return write_bytes == data.size();
   }
 
-  template <type::Size packageSize>
-  [[nodiscard]] auto read(std::array<type::Byte, packageSize>& data, type::Time const timeout) const noexcept -> int {  // NOLINT
+  template <Size packageSize>
+  [[nodiscard]] auto read(std::array<Byte, packageSize>& data, Time const timeout) const noexcept -> int {  // NOLINT
     return uart_read_bytes(port, data.data(), data.size(), pdMS_TO_TICKS(timeout));
   }
 };

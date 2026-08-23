@@ -45,7 +45,7 @@ constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out
 
   std::int64_t const scaled_raw = t_min + ((v_raw - f_min) * to_span + (from_span / 2)) / from_span;
 
-  return scaled_raw;
+  return static_cast<Out>(scaled_raw);
 }
 
 }  // namespace common

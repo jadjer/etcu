@@ -19,27 +19,29 @@
 #pragma once
 
 #include <algorithm>
+#include "type/type.hpp"
+#include "type/calibration.hpp"
+#include "type/error.hpp"
 #include "common/map_range.hpp"
 #include "concepts.hpp"
-#include "type.hpp"
 
 namespace device {
 
-template <class Driver, type::ADCChannelId hallA, type::ADCChannelId hallB, type::Position threshold>
+template <class Driver, type::primitive::ADCChannelId hallA, type::primitive::ADCChannelId hallB, type::Position threshold>
   requires concepts::ADC<Driver, type::MilliVolt>
 
 class Accelerator {
+  type::AcceleratorCalibrationData m_calibration_data{
+      .hall_a_minimal{650},
+      .hall_a_maximal{1350},
+      .hall_b_minimal{320},
+      .hall_b_maximal{690},
+  };
+
   Driver& m_driver_adc;
 
-  type::Position m_current_min_position{type::Position::MIN_VALUE};
-  type::Position m_current_max_position{type::Position::MAX_VALUE};
-
-  type::AcceleratorCalibrationData m_calibration_data{
-      .hall_a_minimal = type::MilliVolt{650},
-      .hall_a_maximal = type::MilliVolt{1350},
-      .hall_b_minimal = type::MilliVolt{320},
-      .hall_b_maximal = type::MilliVolt{690},
-  };
+  type::Position m_current_min_position{type::Position::MinValue};
+  type::Position m_current_max_position{type::Position::MaxValue};
 
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
@@ -110,7 +112,7 @@ class Accelerator {
 
     auto const raw_diff = std::abs(pos_a.value - pos_b.value);
 
-    if (raw_diff > threshold) [[unlikely]] {
+    if (raw_diff > threshold.value) [[unlikely]] {
       current_position = type::Position{0};
 
       return type::SystemError::AcceleratorMismatch;

@@ -18,31 +18,31 @@
 
 #pragma once
 
+#include "../type/type.hpp"
 #include "concepts.hpp"
-#include "type.hpp"
 
 namespace device {
 
-enum class ButtonEvent : type::Byte {
+enum class ButtonEvent : type::primitive::Byte {
   None = 0,
   ShortPress,
   LongPress,
 };
 
-enum class ButtonState : type::Byte {
+enum class ButtonState : type::primitive::Byte {
   Idle = 0,
   Debounce,
   Pressed,
   WaitRelease,
 };
 
-template <class Driver, type::Ticks debounce = 1, type::Ticks longPress = 20>
+template <class Driver, type::primitive::Ticks debounce = 1, type::primitive::Ticks longPress = 20>
   requires concepts::GPIO<Driver> && concepts::Ticks<debounce, 1, 10> && concepts::Ticks<longPress, 10, 100>
 
 class Button {
   Driver& m_driver;
 
-  type::Ticks m_ticks_count{0};
+  type::primitive::Ticks m_ticks_count{0};
   ButtonState m_state{ButtonState::Idle};
   ButtonEvent m_current_event{ButtonEvent::None};
 

@@ -22,9 +22,10 @@
 #include <string>
 #include "bluetooth/callbacks/characteristic_callback.hpp"
 #include "bluetooth/callbacks/server_callback.hpp"
+#include "bluetooth/callbacks/system_info_callback.hpp"
 #include "common/atomic_channel.hpp"
 #include "constants.hpp"
-#include "type.hpp"
+#include "type/telemetry.hpp"
 
 namespace bluetooth {
 
@@ -33,8 +34,10 @@ class BLEManager {
   NimBLECharacteristic* m_ota_characteristic{nullptr};
   NimBLECharacteristic* m_control_characteristic{nullptr};
   NimBLECharacteristic* m_telemetry_characteristic{nullptr};
+  NimBLECharacteristic* m_system_info_characteristic{nullptr};
 
   callback::ServerCallback m_server_callback;
+  callback::SystemInfoCallback m_system_info_callback;
   callback::CharacteristicCallback<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>> m_ota_callback;
   callback::CharacteristicCallback<type::BluetoothControl> m_control_callback;
 
@@ -73,6 +76,10 @@ class BLEManager {
     {
       m_telemetry_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::TELEMETRY_CHARACTERISTIC_UUID), READ | NOTIFY);
     }
+    {
+      m_system_info_characteristic = service->createCharacteristic("qwe", READ);
+      m_system_info_characteristic->setCallbacks(&m_system_info_callback);
+    }
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();
     advertising->setName(static_cast<std::string>(constants::bluetooth::DEVICE_NAME));
@@ -94,7 +101,9 @@ class BLEManager {
     if (m_telemetry_characteristic == nullptr)
       return type::SystemError::BluetoothInitFault;
 
-    m_telemetry_characteristic->setValue(reinterpret_cast<std::uint8_t const*>(&data), sizeof(type::SystemTelemetry));
+    type::dto::SystemTelemetry const system_telemetry = data.to_dto();
+
+    m_telemetry_characteristic->setValue(reinterpret_cast<type::primitive::Byte const*>(&system_telemetry), sizeof(type::dto::SystemTelemetry));
 
     std::ignore = m_telemetry_characteristic->notify();
 

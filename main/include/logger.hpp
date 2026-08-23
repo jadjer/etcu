@@ -21,15 +21,15 @@
 #include <esp_log.h>
 #include <array>
 #include <format>
-#include "type.hpp"
+#include "type/type.hpp"
 
 class Logger {
-  static constexpr type::String TAG{"THROTTLE_CORE"};
-  static constexpr type::Size BufferSize{128};
+  static constexpr type::primitive::String TAG{"THROTTLE_CORE"};
+  static constexpr type::primitive::Size BUFFER_SIZE{128};
 
   template <typename... Args>
   void write_log(esp_log_level_t const level, std::format_string<Args...> format, Args&&... args) noexcept {
-    std::array<char, BufferSize> buffer{};
+    std::array<char, BUFFER_SIZE> buffer{};
 
     auto const result = std::format_to_n(buffer.data(), buffer.size() - 1, format, std::forward<Args>(args)...);
     *result.out = '\0';

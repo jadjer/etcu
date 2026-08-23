@@ -21,15 +21,19 @@
 #include <esp_adc/adc_cali.h>
 #include <esp_adc/adc_cali_scheme.h>
 #include <esp_adc/adc_oneshot.h>
+#include <array>
 
 namespace driver {
 
+inline constexpr std::uint8_t CalibrationSize = 11;
+
+using Size = std::size_t;
 using ADCUnitId = adc_unit_t;
 using ADCHandle = adc_oneshot_unit_handle_t;
 using ADCChannelId = adc_channel_t;
 using ADCAttenuation = adc_atten_t;
 using ADCCalibrationHandle = adc_cali_handle_t;
-using ADCCalibrationHandles = std::array<ADCCalibrationHandle, 11>;
+using ADCCalibrationHandles = std::array<ADCCalibrationHandle, CalibrationSize>;
 using ADCHandleConfig = adc_oneshot_unit_init_cfg_t;
 using ADCChannelConfig = adc_oneshot_chan_cfg_t;
 using ADCCalibrationConfig = adc_cali_curve_fitting_config_t;
@@ -40,8 +44,6 @@ class ADC {
   ADCCalibrationHandles m_calibration_handles{};
 
  public:
-  constexpr ADC() noexcept = default;
-
   [[nodiscard]] auto init() noexcept -> bool {
     if (m_handle != nullptr) [[unlikely]]
       return true;
@@ -73,7 +75,7 @@ class ADC {
         .atten = attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-    auto const channel_index = static_cast<type::Size>(channelId);
+    auto const channel_index = static_cast<Size>(channelId);
     if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK) [[unlikely]]
       return false;
 
@@ -85,7 +87,7 @@ class ADC {
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
-    auto const channel_index = static_cast<type::Size>(channelId);
+    auto const channel_index = static_cast<Size>(channelId);
     auto const calibration_handle = m_calibration_handles[channel_index];
     if (calibration_handle == nullptr) [[unlikely]]
       return false;

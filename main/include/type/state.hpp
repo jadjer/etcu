@@ -13,26 +13,35 @@
 // limitations under the License.
 
 //
-// Created by jadjer on 3.08.26.
+// Created by jadjer on 24.08.26.
 //
 
 #pragma once
 
-#include <atomic>
+#include "type/primitive.hpp"
 
-namespace common {
+namespace type {
 
-template <class T>
-class AtomicValue {
-  std::atomic<T> m_data{};
-
- public:
-  explicit AtomicValue() noexcept = default;
-  explicit AtomicValue(T data) noexcept : m_data{data} {}
-
-  auto set(T const data) noexcept -> void { m_data.store(data, std::memory_order_relaxed); }
-
-  [[nodiscard]] auto get() noexcept -> T { return m_data.load(std::memory_order_relaxed); }
+enum class SystemState : primitive::Byte {
+  Off = 0,
+  Normal,
+  Calibration,
+  Update,
 };
 
-}  // namespace commons
+enum class OTAStatus : primitive::Byte {
+  ReadyForNext = 0x00,
+  Busy = 0x01,
+  ErrorOccurred = 0x02,
+  Completed = 0x03,
+};
+
+enum class ServoMode : primitive::Byte {
+  PositionMode = 0x00,
+  WheelMode = 0x01,
+  PwmMode = 0x02,
+  StepMode = 0x03,
+};
+
+}
+
