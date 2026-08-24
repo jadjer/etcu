@@ -5,8 +5,10 @@
 #pragma once
 
 #include <array>
+#include "type/error.hpp"
 #include "type/state.hpp"
 #include "type/telemetry_dto.hpp"
+#include "type/type.hpp"
 
 namespace type {
 
@@ -26,9 +28,11 @@ struct BluetoothControl {
   }
 };
 
-template <std::uint8_t packageSize>
+template <std::uint8_t PackageSize>
 struct OTAChunk {
-  std::array<primitive::Byte, packageSize> chunk{};
+  static constexpr std::uint8_t package_size{PackageSize};
+
+  std::array<std::uint8_t, package_size> chunk{};
   std::uint16_t chunk_size{0};
   std::uint16_t chunk_number{0};
   std::uint16_t chunk_total{0};
@@ -36,7 +40,7 @@ struct OTAChunk {
 
   constexpr OTAChunk() noexcept = default;
 
-  constexpr explicit OTAChunk(dto::OTAChunk<packageSize> const& dto) noexcept
+  constexpr explicit OTAChunk(dto::OTAChunk<PackageSize> const& dto) noexcept
       : chunk{dto.chunk}, chunk_size(dto.chunk_size), chunk_number(dto.chunk_number), chunk_total(dto.chunk_total), firmware_size(dto.firmware_size) {}
 };
 
@@ -47,7 +51,7 @@ struct ServoTelemetry {
   primitive::Load load{0};
   Speed speed{0};
   Current current{0};
-  Voltage voltage{0};
+  Volt voltage{0};
   ServoPosition position{0};
   Temperature temperature{0};
 

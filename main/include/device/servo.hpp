@@ -20,12 +20,12 @@
 
 #include <numeric>
 #include <utility>
-#include "type/type.hpp"
 #include "common/map_range.hpp"
+#include "type/type.hpp"
 
 namespace device {
 
-enum class ServoRegister : type::primitive::Byte {
+enum class ServoRegister : std::uint8_t {
   // =========================================================================
   // ЗОНА EEPROM (Энергонезависимая. Запись доступна только при RegLockSign = 0)
   // =========================================================================
@@ -65,7 +65,7 @@ enum class ServoRegister : type::primitive::Byte {
   RegStatusErrorFlags = 0x48,    // 1 байт (R) - Битовая маска активных ошибок аппаратной защиты
 };
 
-enum class ServoInstruction : type::primitive::Byte {
+enum class ServoInstruction : std::uint8_t {
   InstPing = 0x01,
   InstRead = 0x02,
   InstWrite = 0x03,
@@ -77,14 +77,16 @@ enum class ServoInstruction : type::primitive::Byte {
 
 template <typename T>
   requires std::is_enum_v<T>
-[[nodiscard]] constexpr auto operator+(T const reg) noexcept -> type::primitive::Byte {
-  return static_cast<type::primitive::Byte>(reg);
+[[nodiscard]] constexpr auto operator+(T const reg) noexcept -> std::uint8_t {
+  return static_cast<std::uint8_t>(reg);
 }
 
-template <class Driver, class PowerEnable, type::primitive::ServoId const servoId = 1>
+template <class Driver, class PowerEnable, std::uint8_t const ServoId = 1>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable>
 
 class Servo {
+  static constexpr std::uint8_t servo_id{ServoId};
+
   type::ServoCalibrationData m_calibration_data{
       .position_minimal{600},
       .position_maximal{1250},
@@ -93,67 +95,71 @@ class Servo {
   Driver& m_driver_uart;
   PowerEnable& m_driver_power;
 
-  template <type::primitive::Size packetSize>
-    requires(packetSize >= 6)
-  [[nodiscard]] auto calculate_checksum_for_packet(std::array<type::primitive::Byte, packetSize> const bytes) const noexcept -> type::primitive::Byte {
-    static constexpr type::primitive::Size START_INDEX = 2;
-    static constexpr type::primitive::Size END_INDEX = packetSize - 1;
+  template <std::size_t PacketSize>
+    requires(PacketSize >= 6)
+  [[nodiscard]] auto calculate_checksum_for_packet(std::array<std::uint8_t, PacketSize> const bytes) const noexcept -> std::uint8_t {
+    static constexpr std::size_t packet_size = PacketSize;
+    static constexpr std::size_t start_index = 2;
+    static constexpr std::size_t end_index = packet_size - 1;
 
-    std::uint32_t const sum = std::accumulate(bytes.begin() + START_INDEX, bytes.begin() + END_INDEX, 0U);
-    return static_cast<type::primitive::Byte>(~(sum & 0xFF));
+    std::uint32_t const sum = std::accumulate(bytes.begin() + start_index, bytes.begin() + end_index, 0U);
+    return static_cast<std::uint8_t>(~(sum & 0xFF));
   }
 
-  template <type::primitive::Size paramSize>
-  auto send_packet(ServoInstruction const instruction, std::array<type::primitive::Byte, paramSize> const& parameters) const noexcept -> void {
-    type::primitive::Size constexpr packet_size = paramSize + 6;
-    std::array<type::primitive::Byte, packet_size> packet;
+  template <std::size_t ParamSize>
+  auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> void {
+    static constexpr std::size_t param_size = ParamSize;
+    static constexpr std::size_t packet_size = param_size + 6;
+
+    std::array<std::uint8_t, packet_size> packet;
 
     packet[0] = 0xFF;
     packet[1] = 0xFF;
-    packet[2] = servoId;
-    packet[3] = paramSize + 2;
+    packet[2] = servo_id;
+    packet[3] = ParamSize + 2;
     packet[4] = +instruction;
 
-    if constexpr (paramSize > 0) {
+    if constexpr (param_size > 0) {
       [[likely]]
-      for (type::primitive::Size i = 0; i < paramSize; ++i) {
+      for (std::size_t i = 0; i < param_size; ++i) {
         packet[5 + i] = parameters[i];
       }
     }
 
-    packet[5 + paramSize] = calculate_checksum_for_packet(packet);
+    packet[5 + param_size] = calculate_checksum_for_packet(packet);
 
     std::ignore = m_driver_uart.flush();
     std::ignore = m_driver_uart.template write<packet_size>(packet);
   }
 
-  template <type::primitive::Size paramSize>
-  [[nodiscard]] auto receive_packet(std::array<type::primitive::Byte, paramSize>& payload) noexcept -> bool {
-    static constexpr type::primitive::Size PACKET_SIZE = paramSize + 6;
+  template <std::size_t ParamSize>
+  [[nodiscard]] auto receive_packet(std::array<std::uint8_t, ParamSize>& payload) noexcept -> bool {
+    static constexpr std::size_t param_size = ParamSize;
+    static constexpr std::size_t package_size = param_size + 6;
 
-    if (servoId == 0xFE)
+    if (servo_id == 0xFE)
       return false;
 
-    std::array<type::primitive::Byte, PACKET_SIZE> response;
+    std::array<std::uint8_t, package_size> response;
 
-    if (int const read_bytes = m_driver_uart.template read<PACKET_SIZE>(response, 30); std::cmp_less(read_bytes, PACKET_SIZE)) {
+    if (int const read_bytes = m_driver_uart.template read<package_size>(response, 30); std::cmp_less(read_bytes, package_size)) {
       [[unlikely]] return false;
     }
 
-    if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servoId) {
+    if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servo_id) {
       [[unlikely]] return false;
     }
 
-    type::primitive::Byte const calculated_check_sum = calculate_checksum_for_packet(response);
+    std::uint8_t const calculated_check_sum = calculate_checksum_for_packet(response);
 
-    if (calculated_check_sum != response[PACKET_SIZE - 1]) {
+    if (calculated_check_sum != response[package_size - 1]) {
       [[unlikely]] return false;
     }
 
-    if constexpr (paramSize > 0) {
+    if constexpr (param_size > 0) {
       [[likely]]
-      for (std::size_t i = 0; i < paramSize; ++i) {
-        payload[i] = static_cast<type::primitive::Byte>(response[5 + i]);
+      for (std::size_t i = 0; i < param_size; ++i) {
+        payload[i] = static_cast<std::uint8_t>(response[5 + i]);
       }
     }
 
@@ -178,10 +184,10 @@ class Servo {
 
   constexpr auto set_position(type::Position const target_position) noexcept -> void {
     type::ServoPosition const servo_position =
-        common::map_range(target_position, type::Position{type::Position::MinValue}, type::Position{type::Position::MaxValue},
+        common::map_range(target_position, type::Position{type::Position::min_value}, type::Position{type::Position::max_value},
                           m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
-    std::array<type::primitive::Byte, 7> params{};
+    std::array<std::uint8_t, 7> params{};
     params[0] = +ServoRegister::RegTargetPosition;
     params[1] = servo_position.value & 0xFF;
     params[2] = (servo_position.value >> 8) & 0xFF;
@@ -191,15 +197,15 @@ class Servo {
     params[6] = (0 >> 8) & 0xFF;
     send_packet(ServoInstruction::InstWrite, params);
 
-    std::array<type::primitive::Byte, 0> payload;
+    std::array<std::uint8_t, 0> payload;
     std::ignore = receive_packet(payload);
   }
 
   [[nodiscard]] constexpr auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
-    std::array<type::primitive::Byte, 2> constexpr params{+ServoRegister::RegPresentPosition, 15};
+    std::array<std::uint8_t, 2> constexpr params{+ServoRegister::RegPresentPosition, 15};
     send_packet(ServoInstruction::InstRead, params);
 
-    if (std::array<type::primitive::Byte, 15> payload{}; receive_packet(payload)) {
+    if (std::array<std::uint8_t, 15> payload{}; receive_packet(payload)) {
       telemetry.is_connected = true;
       telemetry.position = ((payload[1] << 8) | payload[0]) & 0x7FFF;
       telemetry.speed = ((payload[3] << 8) | payload[2]) & 0x7FFF;
@@ -219,7 +225,7 @@ class Servo {
     std::array const params{+ServoRegister::RegMode, +mode};
     send_packet(ServoInstruction::InstWrite, params);
 
-    std::array<type::primitive::Byte, 0> payload;
+    std::array<std::uint8_t, 0> payload;
     std::ignore = receive_packet(payload);
   }
 
@@ -232,21 +238,21 @@ class Servo {
       reg_value |= 0x8000;
     }
 
-    auto const low_byte = static_cast<type::primitive::Byte>(reg_value & 0xFF);
-    auto const high_byte = static_cast<type::primitive::Byte>((reg_value >> 8) & 0xFF);
+    auto const low_byte = static_cast<std::uint8_t>(reg_value & 0xFF);
+    auto const high_byte = static_cast<std::uint8_t>((reg_value >> 8) & 0xFF);
 
     std::array const params{+ServoRegister::RegTargetSpeed, low_byte, high_byte};
     send_packet(ServoInstruction::InstWrite, params);
 
-    std::array<type::primitive::Byte, 0> payload;
+    std::array<std::uint8_t, 0> payload;
     std::ignore = receive_packet(payload);
   }
 
   [[nodiscard]] constexpr auto read_current(type::Current& current) noexcept -> bool {
-    std::array<type::primitive::Byte, 2> constexpr params{+ServoRegister::RegPresentCurrent, 2};
+    std::array<std::uint8_t, 2> constexpr params{+ServoRegister::RegPresentCurrent, 2};
     send_packet(ServoInstruction::InstRead, params);
 
-    if (std::array<type::primitive::Byte, 2> payload{}; receive_packet(payload)) {
+    if (std::array<std::uint8_t, 2> payload{}; receive_packet(payload)) {
       current = ((payload[1] << 8) | payload[0]) & 0x7FFF;
 
       return true;
@@ -256,10 +262,10 @@ class Servo {
   }
 
   [[nodiscard]] constexpr auto read_position(type::ServoPosition& position) noexcept -> bool {
-    std::array<type::primitive::Byte, 2> constexpr params{+ServoRegister::RegPresentPosition, 2};
+    std::array<std::uint8_t, 2> constexpr params{+ServoRegister::RegPresentPosition, 2};
     send_packet(ServoInstruction::InstRead, params);
 
-    if (std::array<type::primitive::Byte, 2> payload{}; receive_packet(payload)) {
+    if (std::array<std::uint8_t, 2> payload{}; receive_packet(payload)) {
       position = payload[0] | (payload[1] << 8);
 
       return true;

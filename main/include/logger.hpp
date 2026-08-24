@@ -21,24 +21,24 @@
 #include <esp_log.h>
 #include <array>
 #include <format>
-#include "type/type.hpp"
+#include <string_view>
 
 class Logger {
-  static constexpr type::primitive::String TAG{"THROTTLE_CORE"};
-  static constexpr type::primitive::Size BUFFER_SIZE{128};
+  static constexpr std::string_view tag{"THROTTLE_CORE"};
+  static constexpr std::size_t buffer_size{128};
 
   template <typename... Args>
   void write_log(esp_log_level_t const level, std::format_string<Args...> format, Args&&... args) noexcept {
-    std::array<char, BUFFER_SIZE> buffer{};
+    std::array<char, buffer_size> buffer{};
 
     auto const result = std::format_to_n(buffer.data(), buffer.size() - 1, format, std::forward<Args>(args)...);
     *result.out = '\0';
 
-    esp_log_write(level, TAG.data(), "%s\n", buffer.data());
+    esp_log_write(level, tag.data(), "%s\n", buffer.data());
   }
 
  public:
-  auto init() noexcept -> void { esp_log_level_set(TAG.data(), ESP_LOG_INFO); }  // NOLINT
+  auto init() noexcept -> void { esp_log_level_set(tag.data(), ESP_LOG_INFO); }  // NOLINT
 
   template <typename... Args>
   auto log_info(std::format_string<Args...> format, Args&&... args) noexcept -> void {

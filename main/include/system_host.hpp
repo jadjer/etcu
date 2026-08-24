@@ -20,11 +20,16 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "concepts.hpp"
-#include "type/type.hpp"
 
-template <class Controller, type::primitive::CoreId systemCore = 0, type::primitive::CoreId criticalCore = 1, type::primitive::CoreRate rate = 10>
-  requires concepts::Controller<Controller> && concepts::CoreId<systemCore> && concepts::CoreId<criticalCore> && concepts::CoreRate<rate>
+template <typename T>
+concept ControllerConcept = requires(T controller) {
+  { controller.init() } noexcept -> std::same_as<void>;
+  { controller.process_system_loop() } noexcept -> std::same_as<void>;
+  { controller.process_critical_loop() } noexcept -> std::same_as<void>;
+};
+
+template <class Controller, std::uint8_t SystemCore = 0, std::uint8_t CriticalCore = 1, std::uint16_t RateMS = 10>
+  requires ControllerConcept<Controller> && (SystemCore <= 1) && (CriticalCore <= 1) && (RateMS >= 10)
 
 class SystemHost {
   Controller& m_controller;
@@ -34,7 +39,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_system_loop();
-      vTaskDelay(pdMS_TO_TICKS(rate));
+      vTaskDelay(pdMS_TO_TICKS(RateMS));
     }
   }
 
@@ -44,7 +49,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_critical_loop();
-      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(rate));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(RateMS));
     }
   }
 
@@ -52,7 +57,7 @@ class SystemHost {
   constexpr explicit SystemHost(Controller& controller) noexcept : m_controller(controller) {}
 
   auto run() -> void {
-    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, systemCore);
-    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, criticalCore);
+    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, CriticalCore);
   }
 };

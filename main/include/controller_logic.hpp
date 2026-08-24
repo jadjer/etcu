@@ -21,26 +21,27 @@
 #include "common/pid_regulator.hpp"
 #include "type/type.hpp"
 
-template <type::primitive::Size N>
-consteval auto generate_flexible_lut() -> std::array<type::Position, N> {
-  static constexpr type::Position SERVO_SWITCH{static_cast<type::primitive::Position>(static_cast<float>(type::Position::MaxValue) * 0.3f)};
-  static constexpr float PEDAL_SWITCH{0.5f};
-  static constexpr float PARABOLA_K{1.0f / (PEDAL_SWITCH * PEDAL_SWITCH)};
+template <std::size_t LutSize>
+consteval auto generate_flexible_lut() -> std::array<type::Position, LutSize> {
+  static constexpr type::Position servo_switch{static_cast<type::primitive::Position>(static_cast<float>(type::Position::max_value) * 0.3f)};
+  static constexpr float accelerator_switch{0.5f};
+  static constexpr float parabola_k{1.0f / (accelerator_switch * accelerator_switch)};
+  static constexpr std::size_t lut_size{LutSize};
+  static constexpr float delta_servo = type::Position::max_value - servo_switch.value;
 
-  std::array<type::Position, N> lut;
+  std::array<type::Position, lut_size> lut;
 
-  for (type::primitive::Size i = 0; i < N; ++i) {
-    float const progress = static_cast<float>(i) / static_cast<float>(N - 1);
+  for (std::size_t i = 0; i < lut_size; ++i) {
+    float const progress = static_cast<float>(i) / static_cast<float>(lut_size - 1);
 
-    if (progress <= PEDAL_SWITCH) {
-      auto const calculated = PARABOLA_K * static_cast<float>(SERVO_SWITCH.value) * progress * progress;
+    if (progress <= accelerator_switch) {
+      auto const calculated = parabola_k * static_cast<float>(servo_switch.value) * progress * progress;
 
       lut[i] = static_cast<type::primitive::Position>(calculated);
 
     } else {
-      auto const segment_progress = (progress - PEDAL_SWITCH) / (1.0f - PEDAL_SWITCH);
-      constexpr auto delta_servo = static_cast<float>(type::Position::MaxValue - SERVO_SWITCH.value);
-      auto const calculated = static_cast<float>(SERVO_SWITCH.value) + segment_progress * delta_servo;
+      auto const segment_progress = (progress - accelerator_switch) / (1.0f - accelerator_switch);
+      auto const calculated = static_cast<float>(servo_switch.value) + segment_progress * delta_servo;
 
       lut[i] = static_cast<type::primitive::Position>(calculated);
     }
@@ -50,10 +51,10 @@ consteval auto generate_flexible_lut() -> std::array<type::Position, N> {
 }
 
 class Logic {
-  static constexpr type::primitive::Size LUT_SIZE{static_cast<type::primitive::Size>(static_cast<float>(type::Position::MaxValue) * 0.3f)};
-  static constexpr std::array<type::Position, LUT_SIZE> SERVO_LUT{generate_flexible_lut<LUT_SIZE>()};
+  static constexpr std::size_t lut_size{type::Position::max_value};
+  static constexpr std::array<type::Position, lut_size> servo_lut{generate_flexible_lut<lut_size>()};
 
-  common::PidRegulator<static_cast<float>(type::Position::MinValue), static_cast<float>(type::Position::MaxValue)> m_speed_regulator{common::PidCoefficients{
+  common::PidRegulator<static_cast<float>(type::Position::min_value), static_cast<float>(type::Position::max_value)> m_speed_regulator{common::PidCoefficients{
                                                                                                                                          .kp = 2.0f,
                                                                                                                                          .ki = 0.5f,
                                                                                                                                          .kd = 0.1f,
@@ -66,7 +67,7 @@ class Logic {
                                               type::Speed const current_speed,
                                               type::Speed const target_speed) noexcept -> type::Position {
     type::Position const accelerator_value{accelerator_position + accelerator_offset};
-    type::Position const driver_servo_proposal{SERVO_LUT[accelerator_value.value]};
+    type::Position const driver_servo_proposal{servo_lut[accelerator_value.value]};
 
     if (target_speed.value < 60) {
       m_speed_regulator.reset();

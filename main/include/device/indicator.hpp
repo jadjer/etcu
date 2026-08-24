@@ -18,8 +18,7 @@
 
 #pragma once
 
-#include "../type/type.hpp"
-#include "concepts.hpp"
+#include "config/concepts.hpp"
 
 namespace device {
 

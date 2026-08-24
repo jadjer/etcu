@@ -18,31 +18,30 @@
 
 #pragma once
 
-#include "../type/type.hpp"
-#include "concepts.hpp"
+#include "config/concepts.hpp"
 
 namespace device {
 
-enum class ButtonEvent : type::primitive::Byte {
+enum class ButtonEvent : std::uint8_t {
   None = 0,
   ShortPress,
   LongPress,
 };
 
-enum class ButtonState : type::primitive::Byte {
+enum class ButtonState : std::uint8_t {
   Idle = 0,
   Debounce,
   Pressed,
   WaitRelease,
 };
 
-template <class Driver, type::primitive::Ticks debounce = 1, type::primitive::Ticks longPress = 20>
-  requires concepts::GPIO<Driver> && concepts::Ticks<debounce, 1, 10> && concepts::Ticks<longPress, 10, 100>
+template <class Driver, std::uint16_t Debounce = 1, std::uint16_t LongPress = 20>
+  requires concepts::GPIO<Driver>
 
 class Button {
   Driver& m_driver;
 
-  type::primitive::Ticks m_ticks_count{0};
+  std::uint16_t m_ticks_count{0};
   ButtonState m_state{ButtonState::Idle};
   ButtonEvent m_current_event{ButtonEvent::None};
 
@@ -78,7 +77,7 @@ class Button {
 
         m_ticks_count++;
 
-        if (m_ticks_count >= debounce) {
+        if (m_ticks_count >= Debounce) {
           m_state = ButtonState::Pressed;
         }
       } break;
@@ -91,7 +90,7 @@ class Button {
 
         m_ticks_count++;
 
-        if (m_ticks_count >= longPress) {
+        if (m_ticks_count >= LongPress) {
           m_state = ButtonState::WaitRelease;
           m_current_event = ButtonEvent::LongPress;
         }

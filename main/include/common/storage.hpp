@@ -19,40 +19,48 @@
 #pragma once
 
 #include <nvs.h>
-#include "concepts.hpp"
-#include "constants.hpp"
+#include "config/concepts.hpp"
+#include "config/constants.hpp"
+
+namespace common {
+
+template <typename T>
+concept HasStructVersionConcept = std::is_trivially_copyable_v<T> && requires(T instance) {
+  { T::current_version } -> std::convertible_to<std::uint32_t>;
+  { T::struct_name } -> std::convertible_to<std::string_view>;
+  { instance.struct_version } -> std::same_as<std::uint32_t&>;
+};
 
 struct Storage {
-
   template <class T>
-    requires concepts::HasStructVersion<T>
+    requires HasStructVersionConcept<T>
   [[nodiscard]] auto load_calibration(T& data) const noexcept -> bool {
     nvs_handle_t nvs_handle{0};
 
-    if (nvs_open(constants::system::NVS_NAMESPACE.data(), NVS_READONLY, &nvs_handle) != ESP_OK)
+    if (nvs_open(constants::system::NVSNamespace.data(), NVS_READONLY, &nvs_handle) != ESP_OK)
       return false;
 
     std::size_t requiredSize = sizeof(T);
 
-    esp_err_t const error = nvs_get_blob(nvs_handle, T::StructName, &data, &requiredSize);
+    esp_err_t const error = nvs_get_blob(nvs_handle, T::struct_name.data(), &data, &requiredSize);
 
     nvs_close(nvs_handle);
 
     if (error != ESP_OK || requiredSize != sizeof(T))
       return false;
 
-    return data.struct_version == T::CURRENT_VERSION;
+    return data.struct_version == T::current_version;
   }
 
   template <class T>
-    requires concepts::HasStructVersion<T>
+    requires HasStructVersionConcept<T>
   [[nodiscard]] auto save_calibration(T const& data) const noexcept -> bool {
     nvs_handle_t nvs_handle{0};
 
-    if (nvs_open(constants::system::NVS_NAMESPACE.data(), NVS_READWRITE, &nvs_handle) != ESP_OK) [[unlikely]]
+    if (nvs_open(constants::system::NVSNamespace.data(), NVS_READWRITE, &nvs_handle) != ESP_OK) [[unlikely]]
       return false;
 
-    if (esp_err_t const error = nvs_set_blob(nvs_handle, T::STRUCT_NAME.data(), &data, sizeof(T)); error != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = nvs_set_blob(nvs_handle, T::struct_name.data(), &data, sizeof(T)); error != ESP_OK) [[unlikely]] {
       nvs_close(nvs_handle);
       return false;
     }
@@ -64,3 +72,5 @@ struct Storage {
     return error == ESP_OK;
   }
 };
+
+}  // namespace common

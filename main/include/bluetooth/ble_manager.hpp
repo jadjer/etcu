@@ -19,12 +19,11 @@
 #pragma once
 
 #include <NimBLEDevice.h>
-#include <string>
 #include "bluetooth/callbacks/characteristic_callback.hpp"
 #include "bluetooth/callbacks/server_callback.hpp"
 #include "bluetooth/callbacks/system_info_callback.hpp"
 #include "common/atomic_channel.hpp"
-#include "constants.hpp"
+#include "config/constants.hpp"
 #include "type/telemetry.hpp"
 
 namespace bluetooth {
@@ -38,23 +37,23 @@ class BLEManager {
 
   callback::ServerCallback m_server_callback;
   callback::SystemInfoCallback m_system_info_callback;
-  callback::CharacteristicCallback<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>> m_ota_callback;
+  callback::CharacteristicCallback<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_callback;
   callback::CharacteristicCallback<type::BluetoothControl> m_control_callback;
 
  public:
-  constexpr explicit BLEManager(common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>>& ota_chunk,
+  constexpr explicit BLEManager(common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>>& ota_chunk,
                                 common::AtomicChannel<type::BluetoothControl>& control)
       : m_ota_callback(ota_chunk), m_control_callback(control) {}
 
   [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(static_cast<std::string>(constants::bluetooth::DEVICE_NAME))) {
+    if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data())) {
       return type::SystemError::BluetoothInitFault;
     }
 
     if (!NimBLEDevice::setPower(ESP_PWR_LVL_P9)) {
-      return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault;
+      return (type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault);
     }
 
     if (!NimBLEDevice::setMTU(512)) {
@@ -64,17 +63,17 @@ class BLEManager {
     m_server = NimBLEDevice::createServer();
     m_server->setCallbacks(&m_server_callback);
 
-    NimBLEService* service = m_server->createService(static_cast<std::string>(constants::bluetooth::SERVICE_UUID));
+    NimBLEService* service = m_server->createService(constants::bluetooth::ServiceUUID.data());
     {
-      m_ota_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::OTA_CHARACTERISTIC_UUID), WRITE | NOTIFY);
+      m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharacteristicUUID.data(), WRITE | NOTIFY);
       m_ota_characteristic->setCallbacks(&m_ota_callback);
     }
     {
-      m_control_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::CONTROL_CHARACTERISTIC_UUID), WRITE);
+      m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharacteristicUUID.data(), WRITE);
       m_control_characteristic->setCallbacks(&m_control_callback);
     }
     {
-      m_telemetry_characteristic = service->createCharacteristic(static_cast<std::string>(constants::bluetooth::TELEMETRY_CHARACTERISTIC_UUID), READ | NOTIFY);
+      m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharacteristicUUID.data(), READ | NOTIFY);
     }
     {
       m_system_info_characteristic = service->createCharacteristic("qwe", READ);
@@ -82,7 +81,7 @@ class BLEManager {
     }
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();
-    advertising->setName(static_cast<std::string>(constants::bluetooth::DEVICE_NAME));
+    advertising->setName(constants::bluetooth::DeviceName.data());
     advertising->addServiceUUID(service->getUUID());
     advertising->enableScanResponse(true);
     advertising->setMinInterval(32);  // 32 * 0.625ms = 20ms
@@ -103,7 +102,7 @@ class BLEManager {
 
     type::dto::SystemTelemetry const system_telemetry = data.to_dto();
 
-    m_telemetry_characteristic->setValue(reinterpret_cast<type::primitive::Byte const*>(&system_telemetry), sizeof(type::dto::SystemTelemetry));
+    m_telemetry_characteristic->setValue(reinterpret_cast<std::uint8_t const*>(&system_telemetry), sizeof(type::dto::SystemTelemetry));
 
     std::ignore = m_telemetry_characteristic->notify();
 

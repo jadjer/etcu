@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "constants.hpp"
+#include "config/constants.hpp"
 #include "device/accelerator.hpp"
 #include "device/button.hpp"
 #include "device/ecu/ecu.hpp"
@@ -32,19 +32,19 @@
 namespace config {
 
 namespace driver {
-using ADC = ::driver::ADC<constants::adc::UNIT>;
-using UARTServo = ::driver::UART<constants::uart::servo::PORT, constants::uart::servo::TX, constants::uart::servo::RX, constants::uart::servo::BAUD_RATE>;
-using PowerEnable = ::driver::GPIO<constants::pin::POWER_ENABLE, GPIO_MODE_OUTPUT>;
-using UARTEcu = ::driver::UART<constants::uart::ecu::PORT, constants::uart::ecu::TX, constants::uart::ecu::RX, constants::uart::ecu::BAUD_RATE>;
-using ECUWakeUp = ::driver::GPIO<constants::pin::ECU_WAKE_UP, GPIO_MODE_OUTPUT>;
-using ButtonMode = ::driver::GPIO<constants::pin::BUTTON_MODE, GPIO_MODE_INPUT, true>;
-using LedMode = ::driver::GPIO<constants::pin::LED_MODE, GPIO_MODE_OUTPUT>;
-using SwitchBrake = ::driver::GPIO<constants::pin::SWITCH_BRAKE, GPIO_MODE_INPUT>;
-using SwitchGuard = ::driver::GPIO<constants::pin::SWITCH_GUARD, GPIO_MODE_INPUT>;
+using ADC = ::driver::ADC<constants::adc::Unit>;
+using UARTServo = ::driver::UART<constants::uart::servo::Port, constants::uart::servo::Tx, constants::uart::servo::Rx, constants::uart::servo::BaudRate>;
+using PowerEnable = ::driver::GPIO<constants::pin::PowerEnable, ::driver::GPIOConfigMode::Output>;
+using UARTEcu = ::driver::UART<constants::uart::ecu::Port, constants::uart::ecu::Tx, constants::uart::ecu::Rx, constants::uart::ecu::BaudRate>;
+using ECUWakeUp = ::driver::GPIO<constants::pin::ECUWakeUp, ::driver::GPIOConfigMode::Output>;
+using ButtonMode = ::driver::GPIO<constants::pin::ButtonMode, ::driver::GPIOConfigMode::Input, true>;
+using LedMode = ::driver::GPIO<constants::pin::LedMode, ::driver::GPIOConfigMode::Output>;
+using SwitchBrake = ::driver::GPIO<constants::pin::SwitchBrake, ::driver::GPIOConfigMode::Input>;
+using SwitchGuard = ::driver::GPIO<constants::pin::SwitchGuard, ::driver::GPIOConfigMode::Input>;
 }  // namespace driver
 
 namespace device {
-using Accelerator = ::device::Accelerator<driver::ADC, constants::adc::CHANNEL_A, constants::adc::CHANNEL_B, constants::system::MISMATCH_THRESHOLD>;
+using Accelerator = ::device::Accelerator<driver::ADC, constants::adc::ChannelA, constants::adc::ChannelB, constants::system::MismatchThreshold>;
 using Servo = ::device::Servo<driver::UARTServo, driver::PowerEnable>;
 using ECU = ::device::ECU<driver::UARTEcu, driver::ECUWakeUp>;
 using ButtonMode = ::device::Button<driver::ButtonMode>;

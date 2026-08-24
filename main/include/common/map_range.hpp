@@ -19,12 +19,20 @@
 #pragma once
 
 #include <algorithm>
-#include "concepts.hpp"
 
 namespace common {
 
+template <typename T>
+concept IsBoundedConcept = requires(T instance) {
+  requires std::constructible_from<T, std::int32_t>;
+  { T::min_value } -> std::convertible_to<std::int32_t>;
+  { T::max_value } -> std::convertible_to<std::int32_t>;
+  { instance.value } -> std::convertible_to<std::int32_t>;
+  { instance = std::declval<std::int32_t>() } -> std::same_as<T&>;
+};
+
 template <typename In, typename Out>
-  requires concepts::IsBounded<In> && concepts::IsBounded<Out>
+  requires IsBoundedConcept<In> && IsBoundedConcept<Out>
 constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out const toMin, Out const toMax) -> Out {
   if (fromMax < fromMin) [[unlikely]]
     return toMin;

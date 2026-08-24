@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "config.hpp"
 #include "controller.hpp"
+#include "include/config/config.hpp"
 #include "system_host.hpp"
 
 namespace {

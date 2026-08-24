@@ -22,31 +22,31 @@
 
 namespace type::limit {
 
-inline constexpr primitive::Voltage VoltMin{0};
-inline constexpr primitive::Voltage VoltMax{100};
+inline constexpr primitive::Volt volt_min{0};
+inline constexpr primitive::Volt volt_max{100};
 
-inline constexpr primitive::MilliVolt MilliVoltMin{0};
-inline constexpr primitive::MilliVolt MilliVoltMax{3100};
+inline constexpr primitive::MilliVolt milli_volt_min{0};
+inline constexpr primitive::MilliVolt milli_volt_max{3100};
 
-inline constexpr primitive::Position PositionMin{0};
-inline constexpr primitive::Position PositionMax{1000};
+inline constexpr primitive::Position position_min{0};
+inline constexpr primitive::Position position_max{1000};
 
-inline constexpr primitive::ServoPosition ServoPositionMin{0};
-inline constexpr primitive::ServoPosition ServoPositionMax{4100};
+inline constexpr primitive::ServoPosition servo_position_min{0};
+inline constexpr primitive::ServoPosition servo_position_max{4100};
 
-inline constexpr primitive::RPM RpmMin{0};
-inline constexpr primitive::RPM RpmMax{9000};
+inline constexpr primitive::RPM rpm_min{0};
+inline constexpr primitive::RPM rpm_max{9000};
 
-inline constexpr primitive::Speed SpeedMin{0};
-inline constexpr primitive::Speed SpeedMax{200};
+inline constexpr primitive::Speed speed_min{0};
+inline constexpr primitive::Speed speed_max{200};
 
-inline constexpr primitive::Current CurrentMin{0};
-inline constexpr primitive::Current CurrentMax{2500};
+inline constexpr primitive::Current current_min{0};
+inline constexpr primitive::Current current_max{2500};
 
-inline constexpr primitive::Temperature TemperatureMin{0};
-inline constexpr primitive::Temperature TemperatureMax{150};
+inline constexpr primitive::Temperature temperature_min{0};
+inline constexpr primitive::Temperature temperature_max{150};
 
-inline constexpr primitive::MilliSec MilliSecMin{0};
-inline constexpr primitive::MilliSec MilliSecMax{1000};
+inline constexpr primitive::MilliSec milli_sec_min{0};
+inline constexpr primitive::MilliSec milli_sec_max{1000};
 
 }  // namespace type::limits

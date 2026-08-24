@@ -27,22 +27,9 @@
 
 namespace type::primitive {
 
-using ADCChannelId = adc_channel_t;
-using UARTPort = uart_port_t;
-using ADCUnitId = adc_unit_t;
-using GPIONum = gpio_num_t;
-using CoreRate = std::uint8_t;
-using Ticks = std::uint16_t;
-using Error = std::uint32_t;
-using Byte = std::uint8_t;
 using Load = std::uint16_t;
 using Time = std::uint16_t;
-using Size = std::size_t;
-using ServoId = std::uint8_t;
-using CoreId = std::uint8_t;
-using String = std::string_view;
-
-using Voltage = std::uint8_t;
+using Volt = std::uint8_t;
 using MilliVolt = std::uint16_t;
 using Position = std::uint16_t;
 using ServoPosition = std::uint16_t;
@@ -53,5 +40,4 @@ using Temperature = std::uint16_t;
 using MilliSec = std::uint16_t;
 using FixedString = std::array<char, 16>;
 
-}
-
+}  // namespace type::primitive

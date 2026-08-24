@@ -19,19 +19,18 @@
 #pragma once
 
 #include <algorithm>
-#include <cstdint>
 
 namespace common {
 
-template <typename T, T minVal, T maxVal, typename Tag>
-  requires std::is_arithmetic_v<T> && (minVal <= maxVal)
+template <typename T, T MinVal, T MaxVal, typename Tag>
+  requires std::is_arithmetic_v<T> && (MinVal <= MaxVal)
 struct BoundedValue {
-  using ConvertableType = std::int64_t;
+  using convertible_type = std::int64_t;
 
-  static constexpr T MinValue{minVal};
-  static constexpr T MaxValue{maxVal};
+  static constexpr T min_value{MinVal};
+  static constexpr T max_value{MaxVal};
 
-  T value{minVal};
+  T value{min_value};
 
   constexpr explicit BoundedValue() = default;
 
@@ -39,14 +38,14 @@ struct BoundedValue {
     requires(!std::same_as<Tag, OtherTag>)
   constexpr explicit BoundedValue(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) = delete;
   constexpr explicit BoundedValue(T const& val) noexcept
-      : value{static_cast<T>(std::clamp(static_cast<ConvertableType>(val), static_cast<ConvertableType>(minVal), static_cast<ConvertableType>(maxVal)))} {}
+      : value{static_cast<T>(std::clamp(static_cast<convertible_type>(val), static_cast<convertible_type>(min_value), static_cast<convertible_type>(max_value)))} {}
 
   template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
     requires(!std::same_as<Tag, OtherTag>)
   constexpr auto operator=(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) -> BoundedValue& = delete;
   constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
   constexpr auto operator=(T const& val) noexcept -> BoundedValue& {
-    value = static_cast<T>(std::clamp(static_cast<ConvertableType>(val), static_cast<ConvertableType>(minVal), static_cast<ConvertableType>(maxVal)));
+    value = static_cast<T>(std::clamp(static_cast<convertible_type>(val), static_cast<convertible_type>(min_value), static_cast<convertible_type>(max_value)));
     return *this;
   }
 
@@ -59,20 +58,20 @@ struct BoundedValue {
     requires(!std::same_as<Tag, OtherTag>)
   constexpr auto operator*(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
   constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<ConvertableType>(value) * static_cast<ConvertableType>(other.value))};
+    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) * static_cast<convertible_type>(other.value))};
   }
   constexpr auto operator*(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<ConvertableType>(value) * static_cast<ConvertableType>(val))};
+    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) * static_cast<convertible_type>(val))};
   }
 
   template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
     requires(!std::same_as<Tag, OtherTag>)
   constexpr auto operator/(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
   constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<ConvertableType>(value) / static_cast<ConvertableType>(other.value))};
+    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) / static_cast<convertible_type>(other.value))};
   }
   constexpr auto operator/(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<ConvertableType>(value) / static_cast<ConvertableType>(val))};
+    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) / static_cast<convertible_type>(val))};
   }
 
   template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
@@ -80,7 +79,7 @@ struct BoundedValue {
   constexpr auto operator+(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
   constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<T>(value + other.value)}; }
   constexpr auto operator+(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<ConvertableType>(value) + static_cast<ConvertableType>(val))};
+    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) + static_cast<convertible_type>(val))};
   }
 
   template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
@@ -88,7 +87,7 @@ struct BoundedValue {
   constexpr auto operator-(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
   constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<T>(value - other.value)}; }
   constexpr auto operator-(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<ConvertableType>(value) - static_cast<ConvertableType>(val))};
+    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) - static_cast<convertible_type>(val))};
   }
 };
 

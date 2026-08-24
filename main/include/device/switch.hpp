@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "concepts.hpp"
+#include "config/concepts.hpp"
 
 namespace device {
 

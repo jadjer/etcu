@@ -14,8 +14,11 @@ struct PidCoefficients {
   float kd{0.0f};
 };
 
-template <float minLimit, float maxLimit>
+template <float MinLimit, float MaxLimit>
 class PidRegulator {
+  static constexpr float min_limit{MinLimit};
+  static constexpr float max_limit{MaxLimit};
+
   float m_dt{0.0f};
   float m_integral{0.0f};
   float m_last_error{0.0f};
@@ -43,7 +46,7 @@ class PidRegulator {
 
     if (!freeze_integral) {
       m_integral += static_cast<float>(error) * m_dt;
-      m_integral = std::clamp(m_integral, minLimit, maxLimit);
+      m_integral = std::clamp(m_integral, min_limit, max_limit);
     }
 
     m_last_error = error;

@@ -29,14 +29,16 @@ struct BluetoothControl {
 
 } __attribute__((packed));
 
-template <std::uint8_t packageSize>
+template <std::uint8_t PackageSize>
 struct OTAChunk {
+  static constexpr std::uint8_t package_size{PackageSize};
+
   std::uint32_t firmware_size{0};
   std::uint16_t chunk_total{0};
   std::uint16_t chunk_number{0};
   std::uint16_t chunk_size{0};
 
-  std::array<primitive::Byte, packageSize> chunk{};
+  std::array<std::uint8_t, package_size> chunk{};
 
 } __attribute__((packed));
 
@@ -47,7 +49,7 @@ struct ServoTelemetry {
   primitive::Load load{0};
   primitive::Speed speed{0};
   primitive::Current current{0};
-  primitive::Voltage voltage{0};
+  primitive::Volt voltage{0};
   primitive::ServoPosition position{0};
   primitive::Temperature temperature{0};
 

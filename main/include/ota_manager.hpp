@@ -19,21 +19,17 @@
 #pragma once
 
 #include <esp_ota_ops.h>
-#include "constants.hpp"
-#include "type/type.hpp"
+#include "config/constants.hpp"
 
 namespace update {
 
-using OTAHandle = esp_ota_handle_t;
-using OTAPartition = esp_partition_t const*;
-
 class OTAManager {
   bool m_is_running{false};
-  OTAHandle m_update_handle{0};
-  OTAPartition m_update_partition{nullptr};
+  esp_ota_handle_t m_update_handle{0};
+  esp_partition_t const* m_update_partition{nullptr};
 
  public:
-  [[nodiscard]] auto startUpdate(type::primitive::Size const total_size) -> bool {
+  [[nodiscard]] auto startUpdate(std::size_t const total_size) -> bool {
     if (m_is_running)
       return false;
 
@@ -48,7 +44,7 @@ class OTAManager {
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MaxBlePayloadSize> const& data) const -> bool {
     if (!m_is_running)
       return false;
 

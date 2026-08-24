@@ -22,7 +22,7 @@
 
 namespace type {
 
-enum class ServoError : primitive::Byte {
+enum class ServoError : std::uint8_t {
   None = 0x00,
   Voltage = 0x01,
   AngleLimit = 0x02,
@@ -33,10 +33,10 @@ enum class ServoError : primitive::Byte {
 };
 
 [[nodiscard]] constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
-  return (static_cast<primitive::Byte>(lhs) & static_cast<primitive::Byte>(rhs)) != 0;
+  return (static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs)) != 0;
 }
 
-enum class SystemError : primitive::Error {
+enum class SystemError : std::uint32_t {
   None = 0,
 
   GuardLock = 1 << 0,
@@ -72,15 +72,23 @@ enum class SystemError : primitive::Error {
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {
-  return static_cast<SystemError>(static_cast<primitive::Error>(a) | static_cast<primitive::Error>(b));
+  return static_cast<SystemError>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
+}
+
+[[nodiscard]] constexpr auto operator&(SystemError const a, SystemError const b) noexcept -> SystemError {
+  return static_cast<SystemError>(static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b));
+}
+
+[[nodiscard]] constexpr auto operator~(SystemError const a) noexcept -> SystemError {
+  return static_cast<SystemError>(~static_cast<std::uint32_t>(a));
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const err) -> bool {
-  return static_cast<primitive::Error>(err) != 0;
+  return static_cast<std::uint32_t>(err) != 0;
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const mask, SystemError const err) -> bool {
-  return (static_cast<primitive::Error>(mask) & static_cast<primitive::Error>(err)) != 0;
+  return (static_cast<std::uint32_t>(mask) & static_cast<std::uint32_t>(err)) != 0;
 }
 
 }

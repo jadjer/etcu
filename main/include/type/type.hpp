@@ -38,14 +38,14 @@ struct MilliSec {};
 
 }  // namespace tag
 
-using Voltage = common::BoundedValue<primitive::Voltage, limit::VoltMin, limit::VoltMax, tag::Volt>;
-using MilliVolt = common::BoundedValue<primitive::MilliVolt, limit::MilliVoltMin, limit::MilliVoltMax, tag::MilliVolt>;
-using Position = common::BoundedValue<primitive::Position, limit::PositionMin, limit::PositionMax, tag::Position>;
-using ServoPosition = common::BoundedValue<primitive::ServoPosition, limit::ServoPositionMin, limit::ServoPositionMax, tag::ServoPosition>;
-using RPM = common::BoundedValue<primitive::RPM, limit::RpmMin, limit::RpmMax, tag::RPM>;
-using Speed = common::BoundedValue<primitive::Speed, limit::SpeedMin, limit::SpeedMax, tag::Speed>;
-using Current = common::BoundedValue<primitive::Current, limit::CurrentMin, limit::CurrentMax, tag::Current>;
-using Temperature = common::BoundedValue<primitive::Temperature, limit::TemperatureMin, limit::TemperatureMax, tag::Temperature>;
-using MilliSec = common::BoundedValue<primitive::MilliSec, limit::MilliSecMin, limit::MilliSecMax, tag::MilliSec>;
+using Volt = common::BoundedValue<primitive::Volt, limit::volt_min, limit::volt_max, tag::Volt>;
+using MilliVolt = common::BoundedValue<primitive::MilliVolt, limit::milli_volt_min, limit::milli_volt_max, tag::MilliVolt>;
+using Position = common::BoundedValue<primitive::Position, limit::position_min, limit::position_max, tag::Position>;
+using ServoPosition = common::BoundedValue<primitive::ServoPosition, limit::servo_position_min, limit::servo_position_max, tag::ServoPosition>;
+using RPM = common::BoundedValue<primitive::RPM, limit::rpm_min, limit::rpm_max, tag::RPM>;
+using Speed = common::BoundedValue<primitive::Speed, limit::speed_min, limit::speed_max, tag::Speed>;
+using Current = common::BoundedValue<primitive::Current, limit::current_min, limit::current_max, tag::Current>;
+using Temperature = common::BoundedValue<primitive::Temperature, limit::temperature_min, limit::temperature_max, tag::Temperature>;
+using MilliSec = common::BoundedValue<primitive::MilliSec, limit::milli_sec_min, limit::milli_sec_max, tag::MilliSec>;
 
 }  // namespace type

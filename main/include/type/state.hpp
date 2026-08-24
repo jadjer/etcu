@@ -22,21 +22,21 @@
 
 namespace type {
 
-enum class SystemState : primitive::Byte {
+enum class SystemState : std::uint8_t {
   Off = 0,
   Normal,
   Calibration,
   Update,
 };
 
-enum class OTAStatus : primitive::Byte {
+enum class OTAStatus : std::uint8_t {
   ReadyForNext = 0x00,
   Busy = 0x01,
   ErrorOccurred = 0x02,
   Completed = 0x03,
 };
 
-enum class ServoMode : primitive::Byte {
+enum class ServoMode : std::uint8_t {
   PositionMode = 0x00,
   WheelMode = 0x01,
   PwmMode = 0x02,

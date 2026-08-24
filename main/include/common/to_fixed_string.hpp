@@ -8,16 +8,18 @@
 
 namespace common {
 
-template <std::size_t N>
-constexpr auto to_fixed_string(char const* str) noexcept -> std::array<char, N> {
-  std::array<char, N> arr{};
+template <std::size_t StringSize>
+constexpr auto to_fixed_string(char const* str) noexcept -> std::array<char, StringSize> {
+  static constexpr std::size_t string_size{StringSize};
+
+  std::array<char, string_size> arr{};
   std::size_t i = 0;
-  // Копируем символы, пока не дойдем до конца строки или не кончится массив
-  while (str[i] != '\0' && i < (N - 1)) {
+
+  while (str[i] != '\0' && i < (string_size - 1)) {
     arr[i] = str[i];
     i++;
   }
-  arr[i] = '\0'; // Гарантируем нуль-терминатор в конце
+  arr[i] = '\0';
   return arr;
 }
 

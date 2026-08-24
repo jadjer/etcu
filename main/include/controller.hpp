@@ -21,14 +21,61 @@
 #include "bluetooth/ble_manager.hpp"
 #include "common/atomic_channel.hpp"
 #include "common/atomic_value.hpp"
-#include "concepts.hpp"
+#include "common/storage.hpp"
+#include "config/concepts.hpp"
 #include "controller_logic.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
-#include "storage.hpp"
 #include "system_errors.hpp"
-#include "type/type.hpp"
+#include "type/calibration.hpp"
 #include "type/telemetry.hpp"
+#include "type/type.hpp"
+
+template <typename T>
+concept AcceleratorConcept =
+    requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const& position, type::Position& position_result) {
+      { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
+      { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
+      { accelerator.calibrate(calibration_data) } noexcept -> std::same_as<type::SystemError>;
+      { accelerator.set_minimal_position(position) } noexcept -> std::same_as<void>;
+      { accelerator.set_maximal_position(position) } noexcept -> std::same_as<void>;
+      { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
+    };
+
+template <typename T>
+concept ButtonConcept = requires(T button) {
+  { button.init() } noexcept -> std::same_as<type::SystemError>;
+  { button.update() } noexcept -> std::same_as<void>;
+  { button.is_active() } noexcept -> std::same_as<bool>;
+  { button.is_short_press() } noexcept -> std::same_as<bool>;
+  { button.is_long_press() } noexcept -> std::same_as<bool>;
+};
+
+template <typename T>
+concept SwitchConcept = requires(T s) {
+  { s.init() } noexcept -> std::same_as<type::SystemError>;
+  { s.is_active() } noexcept -> std::same_as<bool>;
+};
+
+template <typename T>
+concept ECUConcept = requires(T ecu, type::ECUTelemetry telemetry) {
+  { ecu.init() } noexcept -> std::same_as<type::SystemError>;
+  { ecu.update() } noexcept -> std::same_as<type::SystemError>;
+  { ecu.get_telemetry(telemetry) } noexcept -> std::same_as<type::SystemError>;
+};
+
+template <typename T>
+concept IndicatorConcept = requires(T indicator) {
+  { indicator.init() } noexcept -> std::same_as<type::SystemError>;
+  { indicator.update() } noexcept -> std::same_as<type::SystemError>;
+};
+
+template <typename T>
+concept ServoConcept = requires(T servo, type::Position const& position, type::ServoTelemetry& telemetry) {
+  { servo.init() } noexcept -> std::same_as<type::SystemError>;
+  { servo.set_position(position) } noexcept -> std::same_as<void>;
+  { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
+};
 
 struct DriveTelemetry {
   type::ServoTelemetry servo_telemetry{};
@@ -37,8 +84,8 @@ struct DriveTelemetry {
 };
 
 template <class Accelerator, class Servo, class ECU, class ModeButton, class ModeIndicator, class Brake, class Guard>
-  requires concepts::Accelerator<Accelerator> && concepts::Servo<Servo> && concepts::ECU<ECU> && concepts::Button<ModeButton> &&
-           concepts::Indicator<ModeIndicator> && concepts::Switch<Brake> && concepts::Switch<Guard>
+  requires AcceleratorConcept<Accelerator> && ServoConcept<Servo> && ECUConcept<ECU> && ButtonConcept<ModeButton> && IndicatorConcept<ModeIndicator> &&
+           SwitchConcept<Brake> && SwitchConcept<Guard>
 
 class Controller {
   ECU& m_ecu;
@@ -49,7 +96,7 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>> m_ota_chunk{};
+  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_chunk{};
   common::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry{};
   common::AtomicChannel<type::BluetoothControl> m_ble_control{};
   common::AtomicChannel<DriveTelemetry> m_driver_telemetry{};
@@ -60,7 +107,7 @@ class Controller {
 
   Logic m_logic{};
   Logger m_logger{};
-  Storage m_storage{};
+  common::Storage m_storage{};
   SystemErrors m_system_errors{};
   update::OTAManager m_ota_manager{};
   bluetooth::BLEManager m_ble_manager{m_ota_chunk, m_ble_control};
@@ -201,7 +248,7 @@ class Controller {
       } break;
 
       case type::SystemState::Update: {
-        type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> chunk;
+        type::OTAChunk<constants::bluetooth::MaxBlePayloadSize> chunk;
 
         if (bool const is_received = m_ota_chunk.receive(chunk)) {
           // if (!m_ota_manager.isActive())
