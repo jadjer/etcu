@@ -27,18 +27,22 @@
 
 namespace device {
 
-template <class Driver, int HallA, int HallB, type::Position threshold>
+template <class Driver, int HallA, int HallB, type::Position Threshold>
   requires concepts::ADC<Driver, type::MilliVolt>
 
 class Accelerator {
-  type::AcceleratorCalibrationData m_calibration_data{
-      .hall_a_minimal{650},
-      .hall_a_maximal{1350},
-      .hall_b_minimal{320},
-      .hall_b_maximal{690},
-  };
+  static constexpr int hall_a{HallA};
+  static constexpr int hall_b{HallB};
+  static constexpr type::Position threshold{Threshold};
 
   Driver& m_driver_adc;
+
+  type::AcceleratorCalibrationData m_calibration_data{
+    .hall_a_minimal{650},
+    .hall_a_maximal{1350},
+    .hall_b_minimal{320},
+    .hall_b_maximal{690},
+};
 
   type::Position m_current_min_position{type::Position::min_value};
   type::Position m_current_max_position{type::Position::max_value};
@@ -50,10 +54,10 @@ class Accelerator {
     if (!m_driver_adc.init()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
-    if (!m_driver_adc.template configure_channel<HallA>()) [[unlikely]]
+    if (!m_driver_adc.template configure_channel<hall_a>()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
-    if (!m_driver_adc.template configure_channel<HallB>()) [[unlikely]]
+    if (!m_driver_adc.template configure_channel<hall_b>()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
     return type::SystemError::None;
@@ -65,10 +69,10 @@ class Accelerator {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_adc.template get_voltage<HallA>(voltage_a)) [[unlikely]]
+    if (!m_driver_adc.template get_voltage<hall_a>(voltage_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_adc.template get_voltage<HallB>(voltage_b)) [[unlikely]]
+    if (!m_driver_adc.template get_voltage<hall_b>(voltage_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
     auto const v_a = voltage_a.value;
@@ -97,10 +101,10 @@ class Accelerator {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_adc.template get_voltage<HallA>(voltage_a)) [[unlikely]]
+    if (!m_driver_adc.template get_voltage<hall_a>(voltage_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_adc.template get_voltage<HallB>(voltage_b)) [[unlikely]]
+    if (!m_driver_adc.template get_voltage<hall_b>(voltage_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
     type::Position const pos_a =
@@ -110,9 +114,9 @@ class Accelerator {
 
     ESP_LOGI("ACC", "%d %d %d %d", voltage_a, voltage_b, pos_a, pos_b);
 
-    auto const raw_diff = std::abs(pos_a.value - pos_b.value);
+    type::Position const raw_diff = std::abs(pos_a.value - pos_b.value);
 
-    if (raw_diff > threshold.value) [[unlikely]] {
+    if (raw_diff > threshold) [[unlikely]] {
       current_position = type::Position{0};
 
       return type::SystemError::AcceleratorMismatch;

@@ -51,15 +51,15 @@ static_assert(static_cast<int>(ADCAttenuation::Db12) == static_cast<int>(ADC_ATT
 
 template <ADCUnit UnitId, ADCAttenuation Attenuation = ADCAttenuation::Db12>
 class ADC {
-  static constexpr std::uint8_t CalibrationSize = 11;
-  static constexpr auto target_unit = static_cast<adc_unit_t>(UnitId);
-  static constexpr auto target_attenuation = static_cast<adc_atten_t>(Attenuation);
+  static constexpr std::uint8_t calibration_size{11};
+  static constexpr auto esp_unit{static_cast<adc_unit_t>(UnitId)};
+  static constexpr auto esp_attenuation{static_cast<adc_atten_t>(Attenuation)};
 
   adc_oneshot_unit_handle_t m_handle{nullptr};
-  std::array<adc_cali_handle_t, CalibrationSize> m_calibration_handles{};
+  std::array<adc_cali_handle_t, calibration_size> m_calibration_handles{};
 
  public:
-  constexpr explicit ADC() noexcept = default;
+  constexpr ADC() noexcept = default;
 
   ADC(ADC const&) noexcept = delete;
   auto operator=(ADC const&) noexcept -> ADC& = delete;
@@ -79,7 +79,7 @@ class ADC {
       return true;
 
     adc_oneshot_unit_init_cfg_t const handle_config = {
-        .unit_id = target_unit,
+        .unit_id = esp_unit,
         .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
@@ -95,7 +95,7 @@ class ADC {
     constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
 
     adc_oneshot_chan_cfg_t const channel_config = {
-        .atten = target_attenuation,
+        .atten = esp_attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
@@ -103,9 +103,9 @@ class ADC {
       return false;
 
     adc_cali_curve_fitting_config_t const calibration_config = {
-        .unit_id = target_unit,
+        .unit_id = esp_unit,
         .chan = esp_channel,
-        .atten = target_attenuation,
+        .atten = esp_attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 

@@ -32,7 +32,7 @@ static_assert(static_cast<int>(GPIOConfigMode::InputOutputOpedDrain) == static_c
 
 template <int Pin, GPIOConfigMode Mode, bool Inverse = false>
 struct GPIO {
-  static constexpr auto esp_pin = static_cast<gpio_num_t>(Pin);
+  static constexpr auto esp_pin{static_cast<gpio_num_t>(Pin)};
 
   static constexpr gpio_mode_t get_esp_mode() noexcept {
     if constexpr (Mode == GPIOConfigMode::Input)

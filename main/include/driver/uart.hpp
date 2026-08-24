@@ -34,28 +34,29 @@ enum class UartPort : std::uint8_t {
 };
 
 template <UartPort Port, int TxPin, int RxPin, int BaudRate, std::size_t BufferSize = 4096>
-struct UART {
- private:
-  static constexpr auto esp_port = static_cast<uart_port_t>(Port);
-  static constexpr auto esp_tx = static_cast<gpio_num_t>(TxPin);
-  static constexpr auto esp_rx = static_cast<gpio_num_t>(RxPin);
-  static constexpr auto esp_baud_rate = static_cast<uint32_t>(BaudRate);
+class UART {
+  static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
+  static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
+  static constexpr auto esp_rx{static_cast<gpio_num_t>(RxPin)};
+  static constexpr auto esp_baud_rate{static_cast<uint32_t>(BaudRate)};
 
  public:
-  constexpr explicit UART() noexcept = default;
+  constexpr UART() noexcept = default;
 
   UART(UART const&) = delete;
   auto operator=(UART const&) -> UART& = delete;
 
   [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
-    uart_config_t const config = {.baud_rate = BaudRate,
-                                  .data_bits = UART_DATA_8_BITS,
-                                  .parity = UART_PARITY_DISABLE,
-                                  .stop_bits = UART_STOP_BITS_1,
-                                  .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-                                  .rx_flow_ctrl_thresh = 104,
-                                  .source_clk = UART_SCLK_DEFAULT,
-                                  .flags = {}};
+    uart_config_t const config = {
+        .baud_rate = BaudRate,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 104,
+        .source_clk = UART_SCLK_DEFAULT,
+        .flags = {},
+    };
 
     if (esp_err_t const error = uart_param_config(esp_port, &config); error != ESP_OK) [[unlikely]]
       return false;

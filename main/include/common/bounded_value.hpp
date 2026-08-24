@@ -22,73 +22,28 @@
 
 namespace common {
 
-template <typename T, T MinVal, T MaxVal, typename Tag>
-  requires std::is_arithmetic_v<T> && (MinVal <= MaxVal)
+template <typename T, T MinVal, T MaxVal>
+  requires std::is_convertible_v<T, std::int32_t> && std::is_arithmetic_v<T> && (MinVal <= MaxVal)
+
 struct BoundedValue {
-  using convertible_type = std::int64_t;
+  static constexpr std::int32_t min_value{MinVal};
+  static constexpr std::int32_t max_value{MaxVal};
 
-  static constexpr T min_value{MinVal};
-  static constexpr T max_value{MaxVal};
+  std::int32_t value{min_value};
 
-  T value{min_value};
+  constexpr BoundedValue() = default;
+  constexpr BoundedValue(std::int32_t const val) noexcept : value{std::clamp(val, min_value, max_value)} {}
 
-  constexpr explicit BoundedValue() = default;
+  constexpr auto get() const noexcept -> T { return static_cast<T>(value); }
 
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr explicit BoundedValue(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) = delete;
-  constexpr explicit BoundedValue(T const& val) noexcept
-      : value{static_cast<T>(std::clamp(static_cast<convertible_type>(val), static_cast<convertible_type>(min_value), static_cast<convertible_type>(max_value)))} {}
-
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr auto operator=(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) -> BoundedValue& = delete;
-  constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
-  constexpr auto operator=(T const& val) noexcept -> BoundedValue& {
-    value = static_cast<T>(std::clamp(static_cast<convertible_type>(val), static_cast<convertible_type>(min_value), static_cast<convertible_type>(max_value)));
-    return *this;
-  }
-
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr auto operator<=>(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
   constexpr auto operator<=>(BoundedValue const&) const = default;
 
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr auto operator*(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
-  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) * static_cast<convertible_type>(other.value))};
-  }
-  constexpr auto operator*(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) * static_cast<convertible_type>(val))};
-  }
+  constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
 
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr auto operator/(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
-  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) / static_cast<convertible_type>(other.value))};
-  }
-  constexpr auto operator/(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) / static_cast<convertible_type>(val))};
-  }
-
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr auto operator+(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
-  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<T>(value + other.value)}; }
-  constexpr auto operator+(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) + static_cast<convertible_type>(val))};
-  }
-
-  template <typename OtherT, OtherT oMin, OtherT oMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr auto operator-(BoundedValue<OtherT, oMin, oMax, OtherTag> const&) const = delete;
-  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<T>(value - other.value)}; }
-  constexpr auto operator-(T const& val) const noexcept -> BoundedValue {
-    return BoundedValue{static_cast<T>(static_cast<convertible_type>(value) - static_cast<convertible_type>(val))};
-  }
+  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value * other.value}; }
+  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value / other.value}; }
+  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value + other.value}; }
+  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value - other.value}; }
 };
 
 }  // namespace common

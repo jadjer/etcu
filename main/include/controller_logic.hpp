@@ -34,17 +34,16 @@ consteval auto generate_flexible_lut() -> std::array<type::Position, LutSize> {
   for (std::size_t i = 0; i < lut_size; ++i) {
     float const progress = static_cast<float>(i) / static_cast<float>(lut_size - 1);
 
+    float calculated;
+
     if (progress <= accelerator_switch) {
-      auto const calculated = parabola_k * static_cast<float>(servo_switch.value) * progress * progress;
-
-      lut[i] = static_cast<type::primitive::Position>(calculated);
-
+      calculated = parabola_k * static_cast<float>(servo_switch.value) * progress * progress;
     } else {
       auto const segment_progress = (progress - accelerator_switch) / (1.0f - accelerator_switch);
-      auto const calculated = static_cast<float>(servo_switch.value) + segment_progress * delta_servo;
-
-      lut[i] = static_cast<type::primitive::Position>(calculated);
+      calculated = static_cast<float>(servo_switch.value) + segment_progress * delta_servo;
     }
+
+    lut[i] = type::Position{static_cast<int>(calculated)};
   }
 
   return lut;
@@ -55,11 +54,11 @@ class Logic {
   static constexpr std::array<type::Position, lut_size> servo_lut{generate_flexible_lut<lut_size>()};
 
   common::PidRegulator<static_cast<float>(type::Position::min_value), static_cast<float>(type::Position::max_value)> m_speed_regulator{common::PidCoefficients{
-                                                                                                                                         .kp = 2.0f,
-                                                                                                                                         .ki = 0.5f,
-                                                                                                                                         .kd = 0.1f,
-                                                                                                                                     },
-                                                                                                                                     0.01f};
+                                                                                                                                           .kp = 2.0f,
+                                                                                                                                           .ki = 0.5f,
+                                                                                                                                           .kd = 0.1f,
+                                                                                                                                       },
+                                                                                                                                       0.01f};
 
  public:
   [[nodiscard]] auto calculate_servo_position(type::Position const accelerator_position,

@@ -23,7 +23,7 @@ struct BluetoothControl {
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::BluetoothControl {
     return dto::BluetoothControl{
         .sync_enabled = sync_enabled,
-        .accelerator_offset = accelerator_offset.value,
+        .accelerator_offset = accelerator_offset.get(),
     };
   }
 };
@@ -61,11 +61,11 @@ struct ServoTelemetry {
         .is_moved = is_moved,
 
         .load = load,
-        .speed = speed.value,
-        .current = current.value,
-        .voltage = voltage.value,
-        .position = position.value,
-        .temperature = temperature.value,
+        .speed = speed.get(),
+        .current = current.get(),
+        .voltage = voltage.get(),
+        .position = position.get(),
+        .temperature = temperature.get(),
     };
   }
 };
@@ -85,9 +85,9 @@ struct ECUTelemetry {
         .is_started = is_started,
         .is_clutch_enabled = is_clutch_enabled,
 
-        .rpm = rpm.value,
-        .speed = speed.value,
-        .tps = tps.value,
+        .rpm = rpm.get(),
+        .speed = speed.get(),
+        .tps = tps.get(),
     };
   }
 };
@@ -117,10 +117,10 @@ struct SystemTelemetry {
         .servo_telemetry = servo_telemetry.to_dto(),
         .ecu_telemetry = ecu_telemetry.to_dto(),
 
-        .accelerator_position = accelerator_position.value,
-        .accelerator_offset = accelerator_offset.value,
-        .throttle_position = throttle_position.value,
-        .target_speed = target_speed.value,
+        .accelerator_position = accelerator_position.get(),
+        .accelerator_offset = accelerator_offset.get(),
+        .throttle_position = throttle_position.get(),
+        .target_speed = target_speed.get(),
 
         .system_state = system_state,
         .system_errors = system_errors,

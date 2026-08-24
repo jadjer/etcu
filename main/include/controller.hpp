@@ -96,20 +96,20 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_chunk{};
-  common::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry{};
-  common::AtomicChannel<type::BluetoothControl> m_ble_control{};
-  common::AtomicChannel<DriveTelemetry> m_driver_telemetry{};
+  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_chunk;
+  common::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry;
+  common::AtomicChannel<type::BluetoothControl> m_ble_control;
+  common::AtomicChannel<DriveTelemetry> m_driver_telemetry;
 
   common::AtomicValue<type::Speed> m_target_speed{type::Speed{0}};
   common::AtomicValue<type::Position> m_accelerator_offset{type::Position{0}};
   common::AtomicValue<type::SystemState> m_system_state{type::SystemState::Normal};
 
-  Logic m_logic{};
-  Logger m_logger{};
-  common::Storage m_storage{};
-  SystemErrors m_system_errors{};
-  update::OTAManager m_ota_manager{};
+  Logic m_logic;
+  Logger m_logger;
+  common::Storage m_storage;
+  SystemErrors m_system_errors;
+  update::OTAManager m_ota_manager;
   bluetooth::BLEManager m_ble_manager{m_ota_chunk, m_ble_control};
 
  public:
