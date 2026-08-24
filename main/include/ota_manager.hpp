@@ -19,22 +19,17 @@
 #pragma once
 
 #include <esp_ota_ops.h>
-#include "constants.hpp"
+#include "config/constants.hpp"
 
 namespace update {
 
-using OTAHandle = esp_ota_handle_t;
-using OTAPartition = esp_partition_t const*;
-
 class OTAManager {
   bool m_is_running{false};
-  OTAHandle m_update_handle{0};
-  OTAPartition m_update_partition{nullptr};
+  esp_ota_handle_t m_update_handle{0};
+  esp_partition_t const* m_update_partition{nullptr};
 
  public:
-  OTAManager() = default;
-
-  auto startUpdate(std::size_t const total_size) -> bool {
+  [[nodiscard]] auto startUpdate(std::size_t const total_size) -> bool {
     if (m_is_running)
       return false;
 
@@ -42,14 +37,14 @@ class OTAManager {
     if (m_update_partition == nullptr)
       return false;
 
-    if (esp_err_t const err = esp_ota_begin(m_update_partition, total_size, &m_update_handle); err != ESP_OK)
+    if (esp_err_t const error = esp_ota_begin(m_update_partition, total_size, &m_update_handle); error != ESP_OK)
       return false;
 
     m_is_running = true;
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> const& data) const -> bool {
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MaxBlePayloadSize> const& data) const -> bool {
     if (!m_is_running)
       return false;
 
@@ -60,10 +55,10 @@ class OTAManager {
     if (!m_is_running)
       return;
 
-    if (esp_ota_end(m_update_handle) != ESP_OK)
+    if (esp_err_t const error = esp_ota_end(m_update_handle); error != ESP_OK)
       return;
 
-    if (esp_ota_set_boot_partition(m_update_partition) != ESP_OK)
+    if (esp_err_t const error = esp_ota_set_boot_partition(m_update_partition); error != ESP_OK)
       return;
 
     m_is_running = false;

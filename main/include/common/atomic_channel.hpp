@@ -24,30 +24,35 @@ namespace common {
 
 template <class T>
 class AtomicChannel {
-  T m_data;
+  T m_data{};
   std::atomic<bool> m_is_ready{false};
 
  public:
-  constexpr explicit AtomicChannel() noexcept = default;
-  constexpr explicit AtomicChannel(T data) noexcept : m_data{data} {}
+  AtomicChannel() noexcept = default;
+  explicit AtomicChannel(T data) noexcept : m_data{data} {}
 
-  [[nodiscard]] constexpr auto send(T const data) -> bool {
-    if (!m_is_ready.load(std::memory_order_relaxed)) {
-      m_data = data;
-      m_is_ready.store(true, std::memory_order_release);
-      return true;
-    }
-    return false;
+  AtomicChannel(AtomicChannel const&) = delete;
+  auto operator=(AtomicChannel const&) -> AtomicChannel& = delete;
+
+  auto send(T const data) -> bool {
+    if (m_is_ready.exchange(true, std::memory_order_acquire))
+      return false;
+
+    m_data = data;
+    m_is_ready.store(true, std::memory_order_release);
+
+    return true;
   }
 
-  [[nodiscard]] constexpr auto receive(T& out_data) -> bool {
-    if (m_is_ready.load(std::memory_order_acquire)) {
-      out_data = m_data;
-      m_is_ready.store(false, std::memory_order_relaxed);
-      return true;
-    }
-    return false;
+  auto receive(T& out_data) -> bool {
+    if (!m_is_ready.load(std::memory_order_acquire))
+      return false;
+
+    out_data = m_data;
+    m_is_ready.store(false, std::memory_order_release);
+
+    return true;
   }
 };
 
-}  // namespace commons
+}  // namespace common

@@ -20,37 +20,44 @@
 
 #include <algorithm>
 #include "common/map_range.hpp"
-#include "concepts.hpp"
-#include "type.hpp"
+#include "config/concepts.hpp"
+#include "type/calibration.hpp"
+#include "type/error.hpp"
+#include "type/type.hpp"
 
 namespace device {
 
-template <typename DriverChannelA, typename DriverChannelB, type::Position threshold>
-  requires concepts::ADC<DriverChannelA, type::MilliVolt> && concepts::ADC<DriverChannelB, type::MilliVolt>
+template <class Driver, int HallA, int HallB, type::Position Threshold>
+  requires concepts::ADC<Driver, type::MilliVolt>
 
 class Accelerator {
-  DriverChannelA& m_driver_channel_a;
-  DriverChannelB& m_driver_channel_b;
+  static constexpr int hall_a{HallA};
+  static constexpr int hall_b{HallB};
+  static constexpr type::Position threshold{Threshold};
 
-  type::Position m_current_min_position{0};
-  type::Position m_current_max_position{100};
+  Driver& m_driver_adc;
 
   type::AcceleratorCalibrationData m_calibration_data{
-      .hall_a_minimal = type::MilliVolt{620},
-      .hall_a_maximal = type::MilliVolt{1320},
-      .hall_b_minimal = type::MilliVolt{220},
-      .hall_b_maximal = type::MilliVolt{460},
-  };
+    .hall_a_minimal{650},
+    .hall_a_maximal{1350},
+    .hall_b_minimal{320},
+    .hall_b_maximal{690},
+};
+
+  type::Position m_current_min_position{type::Position::min_value};
+  type::Position m_current_max_position{type::Position::max_value};
 
  public:
-  explicit Accelerator(DriverChannelA& driver_channel_a, DriverChannelB& driver_channel_b) noexcept
-      : m_driver_channel_a(driver_channel_a), m_driver_channel_b(driver_channel_b) {}
+  constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
 
-  auto init() noexcept -> type::SystemError {
-    if (!m_driver_channel_a.init())
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
+    if (!m_driver_adc.init()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
-    if (!m_driver_channel_b.init())
+    if (!m_driver_adc.template configure_channel<hall_a>()) [[unlikely]]
+      return type::SystemError::AcceleratorInitFault;
+
+    if (!m_driver_adc.template configure_channel<hall_b>()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
 
     return type::SystemError::None;
@@ -58,23 +65,23 @@ class Accelerator {
 
   auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
 
-  auto calibrate(type::AcceleratorCalibrationData& calibration_data) noexcept -> type::SystemError {
+  [[nodiscard]] auto calibrate(type::AcceleratorCalibrationData& calibration_data) noexcept -> type::SystemError {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_channel_a.get_voltage(voltage_a))
+    if (!m_driver_adc.template get_voltage<hall_a>(voltage_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_channel_b.get_voltage(voltage_b))
+    if (!m_driver_adc.template get_voltage<hall_b>(voltage_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    int64_t const v_a = voltage_a.get();
-    int64_t const v_b = voltage_b.get();
+    auto const v_a = voltage_a.value;
+    auto const v_b = voltage_b.value;
 
-    int64_t const a_min = m_calibration_data.hall_a_minimal.get();
-    int64_t const a_max = m_calibration_data.hall_a_maximal.get();
-    int64_t const b_min = m_calibration_data.hall_b_minimal.get();
-    int64_t const b_max = m_calibration_data.hall_b_maximal.get();
+    auto const a_min = m_calibration_data.hall_a_minimal.value;
+    auto const a_max = m_calibration_data.hall_a_maximal.value;
+    auto const b_min = m_calibration_data.hall_b_minimal.value;
+    auto const b_max = m_calibration_data.hall_b_maximal.value;
 
     m_calibration_data.hall_a_minimal = type::MilliVolt{std::min(a_min, v_a)};
     m_calibration_data.hall_a_maximal = type::MilliVolt{std::max(a_max, v_a)};
@@ -86,33 +93,31 @@ class Accelerator {
     return type::SystemError::None;
   }
 
-  auto set_minimal_position(type::Position const minimal_position) noexcept -> void { m_current_min_position = minimal_position; }
+  auto set_minimal_position(type::Position const position) noexcept -> void { m_current_min_position = position; }
 
-  auto set_maximal_position(type::Position const maximal_position) noexcept -> void { m_current_max_position = maximal_position; }
+  auto set_maximal_position(type::Position const position) noexcept -> void { m_current_max_position = position; }
 
-  auto get_position(type::Position& current_position) const noexcept -> type::SystemError {
+  [[nodiscard]] auto get_position(type::Position& current_position) const noexcept -> type::SystemError {
     type::MilliVolt voltage_a{0};
     type::MilliVolt voltage_b{0};
 
-    if (!m_driver_channel_a.get_voltage(voltage_a))
+    if (!m_driver_adc.template get_voltage<hall_a>(voltage_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_channel_b.get_voltage(voltage_b))
+    if (!m_driver_adc.template get_voltage<hall_b>(voltage_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    // Масштабируем вольтаж в проценты положения педали [0..100%]
     type::Position const pos_a =
         common::map_range(voltage_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, m_current_min_position, m_current_max_position);
     type::Position const pos_b =
         common::map_range(voltage_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, m_current_min_position, m_current_max_position);
 
-    // ИСПРАВЛЕНИЕ: Вычисляем разность по модулю в чистом int64_t.
-    // Это полностью защищает от усечения отрицательных чисел в clamp-конструкторе.
-    int64_t const raw_diff = std::abs(static_cast<int64_t>(pos_a.get()) - static_cast<int64_t>(pos_b.get()));
+    ESP_LOGI("ACC", "%d %d %d %d", voltage_a, voltage_b, pos_a, pos_b);
 
-    // Сравниваем сырую дельту int64_t с порогом threshold (у которого операторы сравнения с числами перегружены)
+    type::Position const raw_diff = std::abs(pos_a.value - pos_b.value);
+
     if (raw_diff > threshold) [[unlikely]] {
-      current_position = type::Position{0};  // Явное конструирование explicit типа
+      current_position = type::Position{0};
 
       return type::SystemError::AcceleratorMismatch;
     }

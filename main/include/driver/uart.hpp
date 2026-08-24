@@ -18,57 +18,69 @@
 
 #pragma once
 
+#include <array>
+#include <cstddef>
+
+#include <driver/gpio.h>
 #include <driver/uart.h>
-#include "type.hpp"
+#include <freertos/FreeRTOS.h>
 
 namespace driver {
 
-using UARTConfig = uart_config_t;
+enum class UartPort : std::uint8_t {
+  Uart0 = 0,
+  Uart1 = 1,
+  Uart2 = 2,
+};
 
-template <type::UARTPort port, type::GPIONum txPin, type::GPIONum rxPin, type::Size baudRate = 1'000'000, type::Size bufferSize = 4096>
+template <UartPort Port, int TxPin, int RxPin, int BaudRate, std::size_t BufferSize = 4096>
 class UART {
+  static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
+  static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
+  static constexpr auto esp_rx{static_cast<gpio_num_t>(RxPin)};
+  static constexpr auto esp_baud_rate{static_cast<uint32_t>(BaudRate)};
+
  public:
+  constexpr UART() noexcept = default;
+
+  UART(UART const&) = delete;
+  auto operator=(UART const&) -> UART& = delete;
+
   [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
-    UARTConfig constexpr config = {
-        .baud_rate = baudRate,
+    uart_config_t const config = {
+        .baud_rate = BaudRate,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .rx_flow_ctrl_thresh = 104,
         .source_clk = UART_SCLK_DEFAULT,
-        .flags =
-            {
-                .allow_pd = false,
-                .backup_before_sleep = false,
-            },
+        .flags = {},
     };
 
-    if (uart_param_config(port, &config) != ESP_OK)
+    if (esp_err_t const error = uart_param_config(esp_port, &config); error != ESP_OK) [[unlikely]]
       return false;
 
-    if (uart_set_pin(port, txPin, rxPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK)
+    if (esp_err_t const error = uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); error != ESP_OK) [[unlikely]]
       return false;
 
-    if (uart_driver_install(port, bufferSize, bufferSize, 0, nullptr, 0) != ESP_OK)
+    if (esp_err_t const error = uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0); error != ESP_OK) [[unlikely]]
       return false;
 
     return true;
   }
 
-  [[nodiscard]] auto flush() const noexcept -> bool {  // NOLINT
-    return uart_flush_input(port) == ESP_OK;
+  [[nodiscard]] auto flush() const noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }  // NOLINT
+
+  template <std::size_t PackageSize>
+  [[nodiscard]] auto write(std::array<std::uint8_t, PackageSize> const& data) const noexcept -> bool {  // NOLINT
+    auto const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
+    return write_bytes == static_cast<int>(data.size());
   }
 
-  template <type::Size packageSize>
-  [[nodiscard]] auto write(std::array<type::Byte, packageSize> const& data) const noexcept -> bool {
-    auto const write_bytes = uart_write_bytes(port, data.data(), data.size());
-    return write_bytes == data.size() ? true : false;
-  }
-
-  template <type::Size packageSize>
-  [[nodiscard]] auto read(std::array<type::Byte, packageSize>& data, type::Time const timeout) const noexcept -> int {  // NOLINT
-    return uart_read_bytes(port, data.data(), data.size(), pdMS_TO_TICKS(timeout));
+  template <std::size_t PackageSize>
+  [[nodiscard]] auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) const noexcept -> int {  // NOLINT
+    return uart_read_bytes(esp_port, data.data(), data.size(), pdMS_TO_TICKS(timeout_ms));
   }
 };
 

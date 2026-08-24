@@ -21,17 +21,71 @@
 #include "bluetooth/ble_manager.hpp"
 #include "common/atomic_channel.hpp"
 #include "common/atomic_value.hpp"
-#include "concepts.hpp"
+#include "common/storage.hpp"
+#include "config/concepts.hpp"
 #include "controller_logic.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
-#include "storage.hpp"
 #include "system_errors.hpp"
-#include "type.hpp"
+#include "type/calibration.hpp"
+#include "type/telemetry.hpp"
+#include "type/type.hpp"
+
+template <typename T>
+concept AcceleratorConcept =
+    requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const& position, type::Position& position_result) {
+      { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
+      { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
+      { accelerator.calibrate(calibration_data) } noexcept -> std::same_as<type::SystemError>;
+      { accelerator.set_minimal_position(position) } noexcept -> std::same_as<void>;
+      { accelerator.set_maximal_position(position) } noexcept -> std::same_as<void>;
+      { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
+    };
+
+template <typename T>
+concept ButtonConcept = requires(T button) {
+  { button.init() } noexcept -> std::same_as<type::SystemError>;
+  { button.update() } noexcept -> std::same_as<void>;
+  { button.is_active() } noexcept -> std::same_as<bool>;
+  { button.is_short_press() } noexcept -> std::same_as<bool>;
+  { button.is_long_press() } noexcept -> std::same_as<bool>;
+};
+
+template <typename T>
+concept SwitchConcept = requires(T s) {
+  { s.init() } noexcept -> std::same_as<type::SystemError>;
+  { s.is_active() } noexcept -> std::same_as<bool>;
+};
+
+template <typename T>
+concept ECUConcept = requires(T ecu, type::ECUTelemetry telemetry) {
+  { ecu.init() } noexcept -> std::same_as<type::SystemError>;
+  { ecu.update() } noexcept -> std::same_as<type::SystemError>;
+  { ecu.get_telemetry(telemetry) } noexcept -> std::same_as<type::SystemError>;
+};
+
+template <typename T>
+concept IndicatorConcept = requires(T indicator) {
+  { indicator.init() } noexcept -> std::same_as<type::SystemError>;
+  { indicator.update() } noexcept -> std::same_as<type::SystemError>;
+};
+
+template <typename T>
+concept ServoConcept = requires(T servo, type::Position const& position, type::ServoTelemetry& telemetry) {
+  { servo.init() } noexcept -> std::same_as<type::SystemError>;
+  { servo.set_position(position) } noexcept -> std::same_as<void>;
+  { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
+};
+
+struct DriveTelemetry {
+  type::ServoTelemetry servo_telemetry{};
+  type::Position accelerator_position{};
+  type::Position throttle_position{};
+};
 
 template <class Accelerator, class Servo, class ECU, class ModeButton, class ModeIndicator, class Brake, class Guard>
-  requires concepts::Accelerator<Accelerator> && concepts::Servo<Servo> && concepts::ECU<ECU> && concepts::Button<ModeButton> &&
-           concepts::Indicator<ModeIndicator> && concepts::Switch<Brake> && concepts::Switch<Guard>
+  requires AcceleratorConcept<Accelerator> && ServoConcept<Servo> && ECUConcept<ECU> && ButtonConcept<ModeButton> && IndicatorConcept<ModeIndicator> &&
+           SwitchConcept<Brake> && SwitchConcept<Guard>
 
 class Controller {
   ECU& m_ecu;
@@ -42,10 +96,10 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE>> m_ota_chunk;
+  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_chunk;
   common::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry;
   common::AtomicChannel<type::BluetoothControl> m_ble_control;
-  common::AtomicChannel<type::DriveTelemetry> m_driver_telemetry;
+  common::AtomicChannel<DriveTelemetry> m_driver_telemetry;
 
   common::AtomicValue<type::Speed> m_target_speed{type::Speed{0}};
   common::AtomicValue<type::Position> m_accelerator_offset{type::Position{0}};
@@ -53,13 +107,19 @@ class Controller {
 
   Logic m_logic;
   Logger m_logger;
-  Storage m_storage;
+  common::Storage m_storage;
   SystemErrors m_system_errors;
   update::OTAManager m_ota_manager;
   bluetooth::BLEManager m_ble_manager{m_ota_chunk, m_ble_control};
 
  public:
-  explicit Controller(Accelerator& accelerator, Servo& servo, ECU& ecu, ModeButton& mode_button, ModeIndicator& mode_indicator, Brake& brake, Guard& guard) noexcept
+  constexpr explicit Controller(Accelerator& accelerator,
+                                Servo& servo,
+                                ECU& ecu,
+                                ModeButton& mode_button,
+                                ModeIndicator& mode_indicator,
+                                Brake& brake,
+                                Guard& guard) noexcept
       : m_ecu(ecu), m_servo(servo), m_brake(brake), m_guard(guard), m_mode_button(mode_button), m_accelerator(accelerator), m_mode_indicator(mode_indicator) {}
 
   auto init() noexcept -> void {
@@ -92,7 +152,7 @@ class Controller {
       m_system_errors.add(type::SystemError::GuardLock);
     }
 
-    m_logger.log_info(m_system_errors.has_any() ? "Not ready" : "Ready");
+    m_logger.log_info("{}", m_system_errors.has_any() ? "Not ready" : "Ready");
 
     // TODO Enable servo power
   }
@@ -162,7 +222,7 @@ class Controller {
       case type::SystemState::Normal: {
         if (m_mode_button.is_long_press()) {
           m_target_speed.set(ecu_telemetry.speed);
-          m_logger.log_info("Set offset as %d", accelerator_position);
+          m_logger.log_info("Set offset as %d", accelerator_position.value);
         }
       } break;
 
@@ -188,7 +248,7 @@ class Controller {
       } break;
 
       case type::SystemState::Update: {
-        type::OTAChunk<constants::bluetooth::MAX_BLE_PAYLOAD_SIZE> chunk;
+        type::OTAChunk<constants::bluetooth::MaxBlePayloadSize> chunk;
 
         if (bool const is_received = m_ota_chunk.receive(chunk)) {
           // if (!m_ota_manager.isActive())
@@ -207,21 +267,23 @@ class Controller {
     // Отправка телеметрии через BLE
     // =========================================================================
 
-    if (type::DriveTelemetry telemetry; m_driver_telemetry.receive(telemetry)) {
+    if (DriveTelemetry telemetry; m_driver_telemetry.receive(telemetry)) {
       accelerator_position = telemetry.accelerator_position;
       throttle_position = telemetry.throttle_position;
       servo_telemetry = telemetry.servo_telemetry;
     }
 
     type::SystemTelemetry const system_telemetry{
+        .is_guard_active = guard_active,
+        .is_brake_enabled = brake_active,
+
         .servo_telemetry = servo_telemetry,
         .ecu_telemetry = ecu_telemetry,
         .accelerator_position = accelerator_position,
         .accelerator_offset = accelerator_offset,
         .throttle_position = throttle_position,
         .target_speed = target_speed,
-        .guard_active = guard_active,
-        .brake_enabled = brake_active,
+
         .system_state = system_state,
         .system_errors = m_system_errors.get_all(),
     };
@@ -248,12 +310,12 @@ class Controller {
       m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }
 
-    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_offset, accelerator_position, current_speed, target_speed);
+    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_position, accelerator_offset, current_speed, target_speed);
 
     m_servo.set_position(throttle_position);
-    m_servo.get_telemetry(servo_telemetry);
+    std::ignore = m_servo.get_telemetry(servo_telemetry);
 
-    type::DriveTelemetry const drive_telemetry{
+    DriveTelemetry const drive_telemetry{
         .servo_telemetry = servo_telemetry,
         .accelerator_position = accelerator_position,
         .throttle_position = throttle_position,

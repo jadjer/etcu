@@ -22,89 +22,28 @@
 
 namespace common {
 
-template <typename T, T minVal>
-struct BoundedValueStorage {
-  T m_value{minVal};
+template <typename T, T MinVal, T MaxVal>
+  requires std::is_convertible_v<T, std::int32_t> && std::is_arithmetic_v<T> && (MinVal <= MaxVal)
+
+struct BoundedValue {
+  static constexpr std::int32_t min_value{MinVal};
+  static constexpr std::int32_t max_value{MaxVal};
+
+  std::int32_t value{min_value};
+
+  constexpr BoundedValue() = default;
+  constexpr BoundedValue(std::int32_t const val) noexcept : value{std::clamp(val, min_value, max_value)} {}
+
+  constexpr auto get() const noexcept -> T { return static_cast<T>(value); }
+
+  constexpr auto operator<=>(BoundedValue const&) const = default;
+
+  constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
+
+  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value * other.value}; }
+  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value / other.value}; }
+  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value + other.value}; }
+  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value - other.value}; }
 };
 
-template <typename T, T minVal, T maxVal, typename Tag>
-class BoundedValue : public BoundedValueStorage<T, minVal> {
-  using BoundedValueStorage<T, minVal>::m_value;
-
- public:
-  constexpr explicit BoundedValue() noexcept = default;
-
-  constexpr explicit BoundedValue(int64_t const val) noexcept {
-    auto const clamped = std::clamp(val, static_cast<int64_t>(minVal), static_cast<int64_t>(maxVal));
-    BoundedValueStorage<T, minVal>::m_value = static_cast<T>(clamped);
-  }
-
-  template <typename OtherT, OtherT otherMin, OtherT otherMax, typename OtherTag>
-    requires(!std::same_as<Tag, OtherTag>)
-  constexpr explicit BoundedValue(BoundedValue<OtherT, otherMin, otherMax, OtherTag> const&) = delete;
-
-  [[nodiscard]] constexpr T get() const noexcept { return BoundedValueStorage<T, minVal>::m_value; }
-
-  [[nodiscard]] constexpr bool operator==(BoundedValue const& other) const noexcept { return get() == other.get(); }
-  [[nodiscard]] constexpr auto operator<=>(BoundedValue const& other) const noexcept { return get() <=> other.get(); }
-
-  [[nodiscard]] constexpr BoundedValue operator+(BoundedValue const& other) const noexcept {
-    return BoundedValue{static_cast<int64_t>(get()) + static_cast<int64_t>(other.get())};
-  }
-  [[nodiscard]] constexpr BoundedValue operator-(BoundedValue const& other) const noexcept {
-    return BoundedValue{static_cast<int64_t>(get()) - static_cast<int64_t>(other.get())};
-  }
-  [[nodiscard]] constexpr BoundedValue operator*(BoundedValue const& other) const noexcept {
-    return BoundedValue{static_cast<int64_t>(get()) * static_cast<int64_t>(other.get())};
-  }
-  [[nodiscard]] constexpr BoundedValue operator/(BoundedValue const& other) const noexcept {
-    return BoundedValue{static_cast<int64_t>(get()) / static_cast<int64_t>(other.get())};
-  }
-
-  [[nodiscard]] constexpr BoundedValue operator+(std::integral auto const other) const noexcept { return BoundedValue{static_cast<int64_t>(get()) + other}; }
-  [[nodiscard]] constexpr BoundedValue operator-(std::integral auto const other) const noexcept { return BoundedValue{static_cast<int64_t>(get()) - other}; }
-  [[nodiscard]] constexpr BoundedValue operator*(std::integral auto const other) const noexcept { return BoundedValue{static_cast<int64_t>(get()) * other}; }
-  [[nodiscard]] constexpr BoundedValue operator/(std::integral auto const other) const noexcept { return BoundedValue{static_cast<int64_t>(get()) / other}; }
-};
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator<=(BoundedValue<T, minVal, maxVal, Tag> const& lhs, std::integral auto const rhs) noexcept {
-  return static_cast<int64_t>(lhs.get()) <= static_cast<int64_t>(rhs);
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator>=(BoundedValue<T, minVal, maxVal, Tag> const& lhs, std::integral auto const rhs) noexcept {
-  return static_cast<int64_t>(lhs.get()) >= static_cast<int64_t>(rhs);
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator>(BoundedValue<T, minVal, maxVal, Tag> const& lhs, std::integral auto const rhs) noexcept {
-  return static_cast<int64_t>(lhs.get()) > static_cast<int64_t>(rhs);
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator<(BoundedValue<T, minVal, maxVal, Tag> const& lhs, std::integral auto const rhs) noexcept {
-  return static_cast<int64_t>(lhs.get()) < static_cast<int64_t>(rhs);
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator<=(std::integral auto const lhs, BoundedValue<T, minVal, maxVal, Tag> const& rhs) noexcept {
-  return static_cast<int64_t>(lhs) <= static_cast<int64_t>(rhs.get());
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator>=(std::integral auto const lhs, BoundedValue<T, minVal, maxVal, Tag> const& rhs) noexcept {
-  return static_cast<int64_t>(lhs) >= static_cast<int64_t>(rhs.get());
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator>(std::integral auto const lhs, BoundedValue<T, minVal, maxVal, Tag> const& rhs) noexcept {
-  return static_cast<int64_t>(lhs) > static_cast<int64_t>(rhs.get());
-}
-
-template <typename T, T minVal, T maxVal, typename Tag>
-[[nodiscard]] constexpr bool operator<(std::integral auto const lhs, BoundedValue<T, minVal, maxVal, Tag> const& rhs) noexcept {
-  return static_cast<int64_t>(lhs) < static_cast<int64_t>(rhs.get());
-}
-
-}  // namespace commons
+}  // namespace common

@@ -1,0 +1,56 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//
+// Created by jadjer on 23.07.26.
+//
+
+#pragma once
+
+#include "config/constants.hpp"
+#include "device/accelerator.hpp"
+#include "device/button.hpp"
+#include "device/ecu/ecu.hpp"
+#include "device/indicator.hpp"
+#include "device/servo.hpp"
+#include "device/switch.hpp"
+#include "driver/adc.hpp"
+#include "driver/gpio.hpp"
+#include "driver/uart.hpp"
+
+namespace config {
+
+namespace driver {
+using ADC = ::driver::ADC<constants::adc::Unit>;
+using UARTServo = ::driver::UART<constants::uart::servo::Port, constants::uart::servo::Tx, constants::uart::servo::Rx, constants::uart::servo::BaudRate>;
+using PowerEnable = ::driver::GPIO<constants::pin::PowerEnable, ::driver::GPIOConfigMode::Output>;
+using UARTEcu = ::driver::UART<constants::uart::ecu::Port, constants::uart::ecu::Tx, constants::uart::ecu::Rx, constants::uart::ecu::BaudRate>;
+using ECUWakeUp = ::driver::GPIO<constants::pin::ECUWakeUp, ::driver::GPIOConfigMode::Output>;
+using ButtonMode = ::driver::GPIO<constants::pin::ButtonMode, ::driver::GPIOConfigMode::Input, true>;
+using LedMode = ::driver::GPIO<constants::pin::LedMode, ::driver::GPIOConfigMode::Output>;
+using SwitchBrake = ::driver::GPIO<constants::pin::SwitchBrake, ::driver::GPIOConfigMode::Input>;
+using SwitchGuard = ::driver::GPIO<constants::pin::SwitchGuard, ::driver::GPIOConfigMode::Input>;
+}  // namespace driver
+
+namespace device {
+using Accelerator = ::device::Accelerator<driver::ADC, constants::adc::ChannelA, constants::adc::ChannelB, constants::system::MismatchThreshold>;
+using Servo = ::device::Servo<driver::UARTServo, driver::PowerEnable>;
+using ECU = ::device::ECU<driver::UARTEcu, driver::ECUWakeUp>;
+using ButtonMode = ::device::Button<driver::ButtonMode>;
+using LedMode = ::device::Indicator<driver::LedMode>;
+using Brake = ::device::Switch<driver::SwitchBrake>;
+using Guard = ::device::Switch<driver::SwitchGuard>;
+}  // namespace device
+
+}  // namespace config

@@ -28,13 +28,13 @@ class CharacteristicCallback : public NimBLECharacteristicCallbacks {
   common::AtomicChannel<DataType>& m_channel;
 
  public:
-  explicit CharacteristicCallback(common::AtomicChannel<DataType>& channel) : m_channel(channel) {}
+  constexpr explicit CharacteristicCallback(common::AtomicChannel<DataType>& channel) : m_channel(channel) {}
 
-  auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo& /*conn_info*/) -> void override {
+  auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
     DataType const chunk = characteristic->getValue<DataType>();
 
     std::ignore = m_channel.send(chunk);
   }
 };
 
-}  // namespace bluetooth::callbacks
+}  // namespace bluetooth::callback

@@ -12,22 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "config.hpp"
 #include "controller.hpp"
+#include "include/config/config.hpp"
 #include "system_host.hpp"
 
 namespace {
 
-config::driver::ADCChannelA adc_channel_a_driver;
-config::driver::ADCChannelB adc_channel_b_driver;
-config::device::Accelerator accelerator{adc_channel_a_driver, adc_channel_b_driver};
+config::driver::ADC adc_driver;
+config::device::Accelerator accelerator{adc_driver};
 
 config::driver::UARTServo uart_servo_driver;
-config::driver::PowerEnable power_enable;
-config::device::Servo servo{uart_servo_driver, power_enable};
+config::driver::PowerEnable power_enable_driver;
+config::device::Servo servo{uart_servo_driver, power_enable_driver};
 
 config::driver::UARTEcu uart_ecu_driver;
-config::device::ECU ecu{uart_ecu_driver};
+config::driver::ECUWakeUp ecu_wake_up_driver;
+config::device::ECU ecu{uart_ecu_driver, ecu_wake_up_driver};
 
 config::driver::ButtonMode button_mode_driver;
 config::device::ButtonMode mode_button{button_mode_driver};

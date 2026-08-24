@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "concepts.hpp"
+#include "config/concepts.hpp"
 
 namespace device {
 
@@ -15,10 +15,10 @@ class Switch {
   Driver& m_driver;
 
  public:
-  explicit Switch(Driver& driver) : m_driver{driver} {}
+  constexpr explicit Switch(Driver& driver) : m_driver{driver} {}
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver.init())
+    if (!m_driver.init()) [[unlikely]]
       return type::SystemError::ButtonInitFault;
 
     return type::SystemError::None;

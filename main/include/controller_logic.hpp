@@ -18,37 +18,77 @@
 
 #pragma once
 
-#include "common/map_range.hpp"
-#include "constants.hpp"
-#include "type.hpp"
+#include "common/pid_regulator.hpp"
+#include "type/type.hpp"
 
-template <type::Position throttleExpoFactor>
-consteval auto generate_expo_lut() -> std::array<type::Position, 101> {
-  std::array<type::Position, 101> lut;
+template <std::size_t LutSize>
+consteval auto generate_flexible_lut() -> std::array<type::Position, LutSize> {
+  static constexpr type::Position servo_switch{static_cast<type::primitive::Position>(static_cast<float>(type::Position::max_value) * 0.3f)};
+  static constexpr float accelerator_switch{0.5f};
+  static constexpr float parabola_k{1.0f / (accelerator_switch * accelerator_switch)};
+  static constexpr std::size_t lut_size{LutSize};
+  static constexpr float delta_servo = type::Position::max_value - servo_switch.value;
 
-  for (std::size_t i = 0; i <= 100; ++i) {
-    type::Position constexpr positionMinimal{0};
-    type::Position constexpr positionMaximal{100};
+  std::array<type::Position, lut_size> lut;
 
-    type::Position const in{i};
-    type::Position const quadratic_part{(in * in + 50) / 100};
+  for (std::size_t i = 0; i < lut_size; ++i) {
+    float const progress = static_cast<float>(i) / static_cast<float>(lut_size - 1);
 
-    lut[i] = common::map_range(throttleExpoFactor, positionMinimal, positionMaximal, in, quadratic_part);
+    float calculated;
+
+    if (progress <= accelerator_switch) {
+      calculated = parabola_k * static_cast<float>(servo_switch.value) * progress * progress;
+    } else {
+      auto const segment_progress = (progress - accelerator_switch) / (1.0f - accelerator_switch);
+      calculated = static_cast<float>(servo_switch.value) + segment_progress * delta_servo;
+    }
+
+    lut[i] = type::Position{static_cast<int>(calculated)};
   }
 
   return lut;
 }
 
 class Logic {
-  static std::array<type::Position, 101> constexpr MExpoLut{generate_expo_lut<constants::system::THROTTLE_EXPO_FACTOR>()};
+  static constexpr std::size_t lut_size{type::Position::max_value};
+  static constexpr std::array<type::Position, lut_size> servo_lut{generate_flexible_lut<lut_size>()};
+
+  common::PidRegulator<static_cast<float>(type::Position::min_value), static_cast<float>(type::Position::max_value)> m_speed_regulator{common::PidCoefficients{
+                                                                                                                                           .kp = 2.0f,
+                                                                                                                                           .ki = 0.5f,
+                                                                                                                                           .kd = 0.1f,
+                                                                                                                                       },
+                                                                                                                                       0.01f};
 
  public:
-  constexpr Logic() noexcept = default;
-
-  [[nodiscard]] auto calculate_servo_position(type::Position const acc_offset,  // NOLINT
-                                              type::Position const acc_position,
+  [[nodiscard]] auto calculate_servo_position(type::Position const accelerator_position,
+                                              type::Position const accelerator_offset,
                                               type::Speed const current_speed,
-                                              type::Speed const target_speed) const noexcept -> type::Position {
-    return MExpoLut[acc_position.get()];
+                                              type::Speed const target_speed) noexcept -> type::Position {
+    type::Position const accelerator_value{accelerator_position + accelerator_offset};
+    type::Position const driver_servo_proposal{servo_lut[accelerator_value.value]};
+
+    if (target_speed.value < 60) {
+      m_speed_regulator.reset();
+      return driver_servo_proposal;
+    }
+
+    float const pid_value = m_speed_regulator.calculate(target_speed.value, current_speed.value);
+    type::Position const pid_servo_proposal{static_cast<type::primitive::Position>(pid_value)};
+
+    type::Position target_servo_position{0};
+    bool freeze_integral = false;
+
+    if (driver_servo_proposal >= pid_servo_proposal) {
+      target_servo_position = driver_servo_proposal;
+      freeze_integral = true;
+    } else {
+      target_servo_position = pid_servo_proposal;
+      freeze_integral = false;
+    }
+
+    m_speed_regulator.update(target_speed.value, current_speed.value, freeze_integral);
+
+    return target_servo_position;
   }
 };

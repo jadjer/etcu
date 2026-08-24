@@ -27,9 +27,9 @@ class ServerCallback : public NimBLEServerCallbacks {
   std::atomic<bool> m_connected{false};
 
  public:
-  auto onConnect(NimBLEServer* /*server*/, NimBLEConnInfo& /*conn_info*/) -> void override { m_connected.store(true, std::memory_order_relaxed); }
+  auto onConnect(NimBLEServer*, NimBLEConnInfo&) -> void override { m_connected.store(true, std::memory_order_relaxed); }
 
-  auto onDisconnect(NimBLEServer* server, NimBLEConnInfo& /*conn_info*/, int /*reason*/) -> void override {
+  auto onDisconnect(NimBLEServer* server, NimBLEConnInfo&, int) -> void override {
     m_connected.store(false, std::memory_order_relaxed);
 
     std::ignore = server->startAdvertising();
@@ -38,4 +38,4 @@ class ServerCallback : public NimBLEServerCallbacks {
   [[nodiscard]] auto isConnected() const -> bool { return m_connected.load(std::memory_order_relaxed); }
 };
 
-}  // namespace bluetooth::callbacks
+}  // namespace bluetooth::callback

@@ -22,16 +22,37 @@
 
 namespace common {
 
-template <class T>
+template <typename T>
 class AtomicValue {
-  std::atomic<T> m_data;
+  T m_data{};
+  mutable std::atomic_flag m_lock = ATOMIC_FLAG_INIT;
 
  public:
-  constexpr explicit AtomicValue(T data) noexcept : m_data{data} {}
+  constexpr AtomicValue() noexcept = default;
+  constexpr explicit AtomicValue(T const& data) noexcept : m_data{data} {}
 
-  constexpr auto set(T const data) noexcept -> void { m_data.store(data, std::memory_order_relaxed); }
+  AtomicValue(AtomicValue const&) = delete;
+  auto operator=(AtomicValue const&) -> AtomicValue& = delete;
 
-  [[nodiscard]] constexpr auto get() noexcept -> T { return m_data.load(std::memory_order_relaxed); }
+  auto set(T const& data) noexcept -> void {
+    while (m_lock.test_and_set(std::memory_order_acquire)) {
+    }
+
+    m_data = data;
+
+    m_lock.clear(std::memory_order_release);
+  }
+
+  [[nodiscard]] auto get() const noexcept -> T {
+    while (m_lock.test_and_set(std::memory_order_acquire)) {
+    }
+
+    T const current_state = m_data;
+
+    m_lock.clear(std::memory_order_release);
+
+    return current_state;
+  }
 };
 
-}  // namespace commons
+}  // namespace common

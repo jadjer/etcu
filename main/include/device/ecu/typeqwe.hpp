@@ -4,6 +4,9 @@
 
 #pragma once
 
+#include <cstdint>
+#include <string>
+
 namespace device::type {
 
 using Byte = std::uint8_t;
@@ -88,4 +91,4 @@ struct CommandResult {
   uint8_t* data;
 };
 
-}
+}  // namespace device::type

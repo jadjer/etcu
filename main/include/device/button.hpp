@@ -18,39 +18,38 @@
 
 #pragma once
 
-#include "concepts.hpp"
-#include "type.hpp"
+#include "config/concepts.hpp"
 
 namespace device {
 
-enum class ButtonEvent : type::Byte {
+enum class ButtonEvent : std::uint8_t {
   None = 0,
   ShortPress,
   LongPress,
 };
 
-enum class ButtonState : type::Byte {
+enum class ButtonState : std::uint8_t {
   Idle = 0,
   Debounce,
   Pressed,
   WaitRelease,
 };
 
-template <class Driver, type::Ticks debounce = 1, type::Ticks longPress = 20>
-  requires concepts::GPIO<Driver> && concepts::Ticks<debounce, 1, 10> && concepts::Ticks<longPress, 10, 100>
+template <class Driver, std::uint16_t Debounce = 1, std::uint16_t LongPress = 20>
+  requires concepts::GPIO<Driver>
 
 class Button {
   Driver& m_driver;
 
-  type::Ticks m_ticks_count{0};
+  std::uint16_t m_ticks_count{0};
   ButtonState m_state{ButtonState::Idle};
   ButtonEvent m_current_event{ButtonEvent::None};
 
  public:
-  explicit Button(Driver& driver) noexcept : m_driver{driver} {}
+  constexpr explicit Button(Driver& driver) noexcept : m_driver{driver} {}
 
-  auto init() noexcept -> type::SystemError {
-    if (!m_driver.init())
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
+    if (!m_driver.init()) [[unlikely]]
       return type::SystemError::ButtonInitFault;
 
     return type::SystemError::None;
@@ -78,7 +77,7 @@ class Button {
 
         m_ticks_count++;
 
-        if (m_ticks_count >= debounce) {
+        if (m_ticks_count >= Debounce) {
           m_state = ButtonState::Pressed;
         }
       } break;
@@ -91,7 +90,7 @@ class Button {
 
         m_ticks_count++;
 
-        if (m_ticks_count >= longPress) {
+        if (m_ticks_count >= LongPress) {
           m_state = ButtonState::WaitRelease;
           m_current_event = ButtonEvent::LongPress;
         }

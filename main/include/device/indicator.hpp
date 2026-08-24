@@ -18,8 +18,7 @@
 
 #pragma once
 
-#include "concepts.hpp"
-#include "type.hpp"
+#include "config/concepts.hpp"
 
 namespace device {
 
@@ -30,16 +29,16 @@ class Indicator {
   Driver& m_driver;
 
  public:
-  explicit Indicator(Driver& driver) : m_driver(driver) {}
+  constexpr explicit Indicator(Driver& driver) : m_driver(driver) {}
 
-  auto init() noexcept -> type::SystemError {
-    if (!m_driver.init())
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
+    if (!m_driver.init()) [[unlikely]]
       return type::SystemError::IndicatorInitFault;
 
     return type::SystemError::None;
   }
 
-  auto update() noexcept -> type::SystemError {  // NOLINT
+  [[nodiscard]] auto update() noexcept -> type::SystemError {  // NOLINT
     return type::SystemError::None;
   }
 
