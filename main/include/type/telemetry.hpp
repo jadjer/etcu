@@ -95,7 +95,6 @@ struct ECUTelemetry {
 struct SystemTelemetry {
   bool is_guard_active{false};
   bool is_brake_enabled{false};
-  bool is_clutch_enabled{false};
 
   ServoTelemetry servo_telemetry{};
   ECUTelemetry ecu_telemetry{};
@@ -112,10 +111,9 @@ struct SystemTelemetry {
     return dto::SystemTelemetry{
         .is_guard_active = is_guard_active,
         .is_brake_enabled = is_brake_enabled,
-        .is_clutch_enabled = is_clutch_enabled,
 
-        .servo_telemetry = servo_telemetry.to_dto(),
         .ecu_telemetry = ecu_telemetry.to_dto(),
+        .servo_telemetry = servo_telemetry.to_dto(),
 
         .accelerator_position = accelerator_position.get(),
         .accelerator_offset = accelerator_offset.get(),
