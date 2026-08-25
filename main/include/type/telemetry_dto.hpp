@@ -29,6 +29,17 @@ struct BluetoothControl {
 
 } __attribute__((packed));
 
+struct ECUTelemetry {
+  bool is_connected{false};
+  bool is_started{false};
+  bool is_clutch_enabled{false};
+
+  primitive::RPM rpm{0};
+  primitive::Speed speed{0};
+  primitive::Position tps{0};
+
+} __attribute__((packed));
+
 template <std::uint8_t PackageSize>
 struct OTAChunk {
   static constexpr std::uint8_t package_size{PackageSize};
@@ -55,24 +66,19 @@ struct ServoTelemetry {
 
 } __attribute__((packed));
 
-struct ECUTelemetry {
-  bool is_connected{false};
-  bool is_started{false};
-  bool is_clutch_enabled{false};
-
-  primitive::RPM rpm{0};
-  primitive::Speed speed{0};
-  primitive::Position tps{0};
+struct SystemInfo {
+  primitive::FixedString board_version{};
+  primitive::FixedString build_date{};
+  primitive::FixedString firmware_version{};
 
 } __attribute__((packed));
 
 struct SystemTelemetry {
   bool is_guard_active{false};
   bool is_brake_enabled{false};
-  bool is_clutch_enabled{false};
 
-  ServoTelemetry servo_telemetry{};
   ECUTelemetry ecu_telemetry{};
+  ServoTelemetry servo_telemetry{};
 
   primitive::Position accelerator_position{0};
   primitive::Position accelerator_offset{0};
@@ -81,13 +87,6 @@ struct SystemTelemetry {
 
   SystemState system_state{SystemState::Off};
   SystemError system_errors{SystemError::None};
-
-} __attribute__((packed));
-
-struct SystemInfo {
-  primitive::FixedString board_version{};
-  primitive::FixedString build_date{};
-  primitive::FixedString firmware_version{};
 
 } __attribute__((packed));
 
