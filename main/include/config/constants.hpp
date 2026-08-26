@@ -69,7 +69,7 @@ inline constexpr std::uint8_t CriticalCore{1};
 inline constexpr type::MilliSec SystemRate{50};
 inline constexpr type::MilliSec CriticalRate{50};
 inline constexpr type::MilliSec LongPressUS{1500};
-inline constexpr type::Position MismatchThreshold(static_cast<std::int64_t>(type::Position::max_value) / 10);
+inline constexpr type::Position MismatchThreshold(static_cast<std::int64_t>(type::Position::value_max) / 10);
 inline constexpr std::uint16_t DebounceTicksUS{3};
 inline constexpr std::string_view NVSNamespace{"ETCU"};
 }  // namespace system

@@ -22,6 +22,9 @@
 
 namespace type::limit {
 
+inline constexpr primitive::Load load_min{0};
+inline constexpr primitive::Load load_max{1000};
+
 inline constexpr primitive::Volt volt_min{0};
 inline constexpr primitive::Volt volt_max{100};
 

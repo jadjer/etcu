@@ -29,40 +29,61 @@ enum class ServoRegister : std::uint8_t {
   // =========================================================================
   // ЗОНА EEPROM (Энергонезависимая. Запись доступна только при RegLockSign = 0)
   // =========================================================================
-  RegModel = 0x03,             // 1 байт (R) - Модель (у ST3020 свой ID модели)
-  RegId = 0x05,                // 1 байт - Идентификатор сервопривода (ID: 1-253)
-  RegBaudRate = 0x06,          // 1 байт - Скорость UART (0: 1Mbps, 1: 500kbps, 2: 250kbps, 3: 128kbps, 4: 115.2kbps, 5: 76.8kbps, 6: 57.6kbps, 7: 38.4kbps)
-  RegMinPositionLimit = 0x09,  // 2 байта - Минимальный предел угла (0 - 4095)
-  RegMaxPositionLimit = 0x0B,  // 2 байта - Максимальный предел угла (0 - 4095)
-  RegCwDeadband = 0x1A,        // 1 байт - Люфт/мертвая зона по часовой стрелке
-  RegCcwDeadband = 0x1B,       // 1 байт - Люфт/мертвая зона против часовой стрелки
-  RegOffset = 0x1F,            // 2 байта - Коррекция программного нуля (смещение средней точки)
-  RegMode = 0x21,              // 1 байт - Режим работы устройства (0: Position Mode, 1: Speed/Wheel Mode, 2: PWM Mode, 3: Step Mode)
+  FormwareMajorVersion = 0x00,
+  FormwareMinorVersion = 0x01,
+  ServoMajorVersion = 0x03,
+  ServoMinorVersion = 0x04,
+  Id = 0x05,
+  BaudRate = 0x06,
+  ReturnDelayTime = 0x07,
+  ResponseStatusLevel = 0x08,
+  MinAngleLimit = 0x09,
+  MaxAngleLimit = 0x0B,
+  MaxTemperatureLimit = 0x0D,
+  MaxInputVoltageLimit = 0x0E,
+  MinInputVoltageLimit = 0x0F,
+  MaxTorqueLimit = 0x10,
+  Phase = 0x12,
+  UnloadCondition = 0x13,
+  LedAlarmCondition = 0x14,
+  ComplianceP = 0x15,
+  ComplianceD = 0x16,
+  ComplianceI = 0x17,
+  MinStartingForce = 0x18,
+  CWDeadZone = 0x1A,
+  CCWDeadZone = 0x1B,
+  ProtectionCurrent = 0x1C,
+  AngleResolution = 0x1E,
+  PositionCorrection = 0x1F,
+  OperationMode = 0x21,
+  ProtectionTorque = 0x22,
+  ProtectionTime = 0x23,
+  OverloadTorque = 0x24,
+  SpeedCloseLoopP = 0x25,
+  OvercurrentProtectionTime = 0x26,
+  VelocityCloseLoopI = 0x27,
 
   // =========================================================================
-  // ЗОНА RAM (Оперативная. Сбрасывается в дефолт при выключении питания)
+  // ЗОНА SRAM (Оперативная. Сбрасывается в дефолт при выключении питания)
   // =========================================================================
-  RegTorqueEnable = 0x28,    // 1 байт - Включение H-моста мотора (1: Включен, 0: Выключен/Вал свободен)
-  RegAcceleration = 0x29,    // 1 байт - Ускорение старта и стопа (Smooth профиль движения, 0 - выкл)
-  RegTargetPosition = 0x2A,  // 2 байта - Целевое положение (0 - 4095 шагов)
-  RegTargetTime = 0x2C,      // 2 байта - Время, за которое сервопривод обязан доехать до цели (в мс)
-  RegTargetSpeed = 0x2E,     // 2 байта - Целевая скорость движения (шагов в секунду)
-  RegTorqueLimit = 0x30,     // 2 байта - Предел крутящего момента (0 - 1023, где 1023 - 100% мощности)
-  RegLock = 0x37,            // 1 байт - Блокировка EEPROM (1: Заблокировано [Дефолт], 0: Разрешена запись)
+  TorqueEnable = 0x28,
+  Acceleration = 0x29,
+  TargetPosition = 0x2A,
+  OperationTime = 0x2C,
+  OperationSpeed = 0x2E,
+  TorqueLimit = 0x30,
 
-  // Регистры обратной связи/телеметрии (Только чтение)
-  RegPresentPosition = 0x38,  // 2 байта (R) - Текущее положение магнитного энкодера (0 - 4095)
-  RegPresentSpeed = 0x3A,     // 2 байта (R) - Текущая скорость вала (шагов/сек). Специфический знак направления.
-  RegPresentLoad = 0x3C,      // 2 байта (R) - Текущая расчетная нагрузка (0 - 1023, 10-й бит задает вектор)
-  RegPresentVoltage = 0x3E,   // 1 байт (R) - Текущее напряжение питания (значение / 10 = Вольты, например 120 = 12.0V)
-  RegPresentTemp = 0x3F,      // 1 байт (R) - Текущая температура внутри корпуса (в °C)
-  RegMoveStatus = 0x42,       // 1 байт (R) - Флаг движения (1: вал еще крутится, 0: приехали в целевую точку)
-  RegPresentCurrent = 0x45,   // 2 байта (R) - Честный физический ток на шунтах (в мА, 15-й бит — направление)
+  LockFlag = 0x37,
+  CurrentPosition = 0x38,
+  CurrentSpeed = 0x3A,
+  CurrentLoad = 0x3C,
+  CurrentVoltage = 0x3E,
+  CurrentTemperature = 0x3F,
+  AsynchronousWriteFlag = 0x40,
+  ServoStatus = 0x41,
+  MoveFlag = 0x42,
 
-  // Дополнительные глубокие диагностические регистры ST3020
-  RegEncoderRawPosition = 0x44,  // 2 байта (R) - Физические сырые данные энкодера без учета калибровочного Offset
-  RegPresentPwm = 0x46,          // 2 байта (R) - Текущая заполненность ШИМ, подаваемая драйвером на фазы мотора
-  RegStatusErrorFlags = 0x48,    // 1 байт (R) - Битовая маска активных ошибок аппаратной защиты
+  CurrentCurrent = 0x45,
 };
 
 enum class ServoInstruction : std::uint8_t {
@@ -75,10 +96,17 @@ enum class ServoInstruction : std::uint8_t {
   InstSyncWrite = 0x83
 };
 
+enum class ServoMode : std::uint8_t {
+  PositionMode = 0x00,
+  WheelMode = 0x01,
+  PwmMode = 0x02,
+  StepMode = 0x03,
+};
+
 template <typename T>
-  requires std::is_enum_v<T>
-[[nodiscard]] constexpr auto operator+(T const reg) noexcept -> std::uint8_t {
-  return static_cast<std::uint8_t>(reg);
+  requires std::is_enum_v<T> || std::convertible_to<T, std::uint8_t>
+[[nodiscard]] constexpr auto as_byte(T const& value) noexcept -> std::uint8_t {
+  return static_cast<std::uint8_t>(value) & 0xFF;
 }
 
 template <class Driver, class PowerEnable, std::uint8_t const ServoId = 1>
@@ -97,13 +125,13 @@ class Servo {
 
   template <std::size_t PacketSize>
     requires(PacketSize >= 6)
-  [[nodiscard]] auto calculate_checksum_for_packet(std::array<std::uint8_t, PacketSize> const bytes) const noexcept -> std::uint8_t {
-    static constexpr std::size_t packet_size = PacketSize;
-    static constexpr std::size_t start_index = 2;
-    static constexpr std::size_t end_index = packet_size - 1;
+  [[nodiscard]] auto calculate_checksum_for_packet(std::array<std::uint8_t, PacketSize> const& bytes) const noexcept -> std::uint8_t {
+    static constexpr std::size_t start_index{2};
+    static constexpr std::size_t end_index{PacketSize - 1};
 
     std::uint32_t const sum = std::accumulate(bytes.begin() + start_index, bytes.begin() + end_index, 0U);
-    return static_cast<std::uint8_t>(~(sum & 0xFF));
+
+    return static_cast<std::uint8_t>(~sum);
   }
 
   template <std::size_t ParamSize>
@@ -111,20 +139,16 @@ class Servo {
     static constexpr std::size_t param_size = ParamSize;
     static constexpr std::size_t packet_size = param_size + 6;
 
-    std::array<std::uint8_t, packet_size> packet;
+    std::array<std::uint8_t, packet_size> packet{};
 
-    packet[0] = 0xFF;
-    packet[1] = 0xFF;
-    packet[2] = servo_id;
-    packet[3] = ParamSize + 2;
-    packet[4] = +instruction;
+    packet[0] = as_byte(0xFF);
+    packet[1] = as_byte(0xFF);
+    packet[2] = as_byte(servo_id);
+    packet[3] = as_byte(param_size + 2);
+    packet[4] = as_byte(instruction);
 
-    if constexpr (param_size > 0) {
-      [[likely]]
-      for (std::size_t i = 0; i < param_size; ++i) {
-        packet[5 + i] = parameters[i];
-      }
-    }
+    if constexpr (param_size > 0)
+      std::copy(parameters.begin(), parameters.end(), packet.begin() + 5);
 
     packet[5 + param_size] = calculate_checksum_for_packet(packet);
 
@@ -132,44 +156,60 @@ class Servo {
     std::ignore = m_driver_uart.template write<packet_size>(packet);
   }
 
-  template <std::size_t ParamSize>
-  [[nodiscard]] auto receive_packet(std::array<std::uint8_t, ParamSize>& payload) noexcept -> bool {
-    static constexpr std::size_t param_size = ParamSize;
-    static constexpr std::size_t package_size = param_size + 6;
+  template <std::size_t PayloadSize>
+  [[nodiscard]] auto receive_packet(std::array<std::uint8_t, PayloadSize>& payload) noexcept -> bool {
+    static constexpr std::size_t payload_size{PayloadSize};
+    // +6 включает: FF, FF, ID, LENGTH, ERROR, CHK. Плюс сам полезный груз.
+    static constexpr std::size_t package_size{payload_size + 6};
 
-    if (servo_id == 0xFE)
+    if (servo_id == 0xFE) [[unlikely]]
       return false;
 
     std::array<std::uint8_t, package_size> response;
 
-    if (int const read_bytes = m_driver_uart.template read<package_size>(response, 30); std::cmp_less(read_bytes, package_size)) {
-      [[unlikely]] return false;
-    }
+    int const read_bytes = m_driver_uart.template read<package_size>(response, 30);
+    if (std::cmp_less(read_bytes, package_size)) [[unlikely]]
+      return false;
 
-    if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servo_id) {
-      [[unlikely]] return false;
-    }
+    if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servo_id) [[unlikely]]
+      return false;
 
-    std::uint8_t const calculated_check_sum = calculate_checksum_for_packet(response);
+    if (response[4] != 0x00) [[unlikely]]
+      return false;
 
-    if (calculated_check_sum != response[package_size - 1]) {
-      [[unlikely]] return false;
-    }
+    if (calculate_checksum_for_packet(response) != response[package_size - 1]) [[unlikely]]
+      return false;
 
-    if constexpr (param_size > 0) {
-      [[likely]]
-      for (std::size_t i = 0; i < param_size; ++i) {
-        payload[i] = static_cast<std::uint8_t>(response[5 + i]);
-      }
+    if constexpr (payload_size > 0) {
+      std::copy(response.begin() + 5, response.begin() + 5 + payload_size, payload.begin());
     }
 
     return true;
   }
 
+  template <typename T>
+    requires std::is_trivial_v<T>
+  [[nodiscard]] auto read_value(ServoRegister const& reg, T& value) noexcept -> bool {
+    static constexpr std::size_t payload_size = sizeof(T);
+
+    std::array const params{
+        as_byte(reg),
+        static_cast<std::uint8_t>(payload_size),
+    };
+    send_packet(ServoInstruction::InstRead, params);
+
+    if (std::array<std::uint8_t, payload_size> payload{}; receive_packet(payload)) {
+      std::memcpy(&value, payload.data(), payload_size);
+      return true;
+    }
+
+    return false;
+  }
+
  public:
   constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
 
-  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_uart.init()) [[unlikely]]
       return type::SystemError::ServoInitError;
 
@@ -182,31 +222,41 @@ class Servo {
     return type::SystemError::None;
   }
 
-  constexpr auto set_position(type::Position const target_position) noexcept -> void {
-    type::ServoPosition const servo_position =
-        common::map_range(target_position, type::Position{type::Position::min_value}, type::Position{type::Position::max_value},
-                          m_calibration_data.position_minimal, m_calibration_data.position_maximal);
+  auto set_position(type::Position const target_position) noexcept -> void {
+    static constexpr std::size_t params_size{7};
+    static constexpr type::Position position_min{type::Position::value_min};
+    static constexpr type::Position position_max{type::Position::value_max};
 
-    std::array<std::uint8_t, 7> params{};
-    params[0] = +ServoRegister::RegTargetPosition;
-    params[1] = servo_position.value & 0xFF;
-    params[2] = (servo_position.value >> 8) & 0xFF;
-    params[3] = 0 & 0xFF;
-    params[4] = (0 >> 8) & 0xFF;
-    params[5] = 0 & 0xFF;
-    params[6] = (0 >> 8) & 0xFF;
+    type::ServoPosition const servo_position =
+        common::map_range(target_position, position_min, position_max, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
+
+    std::array<std::uint8_t, params_size> params{};
+    params[0] = as_byte(ServoRegister::TargetPosition);
+    params[1] = as_byte(servo_position.value);
+    params[2] = as_byte(servo_position.value >> 8);
+    params[3] = as_byte(0);
+    params[4] = as_byte(0 >> 8);
+    params[5] = as_byte(0);
+    params[6] = as_byte(0 >> 8);
     send_packet(ServoInstruction::InstWrite, params);
 
     std::array<std::uint8_t, 0> payload;
     std::ignore = receive_packet(payload);
   }
 
-  [[nodiscard]] constexpr auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
-    std::array<std::uint8_t, 2> constexpr params{+ServoRegister::RegPresentPosition, 15};
+  [[nodiscard]] auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
+    static constexpr std::size_t payload_size{30};
+    static constexpr std::array<std::uint8_t, 2> params{
+        as_byte(ServoRegister::TorqueEnable),
+        payload_size,
+    };
+
     send_packet(ServoInstruction::InstRead, params);
 
-    if (std::array<std::uint8_t, 15> payload{}; receive_packet(payload)) {
+    if (std::array<std::uint8_t, payload_size> payload{}; receive_packet(payload)) {
       telemetry.is_connected = true;
+      telemetry.is_enabled = payload[0];
+      telemetry.is_enabled = payload[0];
       telemetry.position = ((payload[1] << 8) | payload[0]) & 0x7FFF;
       telemetry.speed = ((payload[3] << 8) | payload[2]) & 0x7FFF;
       telemetry.voltage = payload[6];
@@ -220,58 +270,19 @@ class Servo {
     return false;
   }
 
-  constexpr auto set_mode(type::ServoMode const mode) noexcept -> void {
-    std::array const params{+ServoRegister::RegMode, +mode};
+  auto set_mode(ServoMode const mode) noexcept -> void {
+    std::array<std::uint8_t, 2> params{};
+    params[0] = as_byte(ServoRegister::OperationMode);
+    params[1] = as_byte(mode);
     send_packet(ServoInstruction::InstWrite, params);
 
     std::array<std::uint8_t, 0> payload;
     std::ignore = receive_packet(payload);
   }
 
-  constexpr auto set_speed(std::int16_t const speed) noexcept -> void {
-    auto const abs_speed = static_cast<int16_t>(std::abs(speed));
+  [[nodiscard]] auto read_current(type::Current& current) noexcept -> bool { return read_value(ServoRegister::CurrentCurrent, current); }
 
-    std::uint16_t reg_value = abs_speed;
-
-    if (speed < 0) {
-      reg_value |= 0x8000;
-    }
-
-    auto const low_byte = static_cast<std::uint8_t>(reg_value & 0xFF);
-    auto const high_byte = static_cast<std::uint8_t>((reg_value >> 8) & 0xFF);
-
-    std::array const params{+ServoRegister::RegTargetSpeed, low_byte, high_byte};
-    send_packet(ServoInstruction::InstWrite, params);
-
-    std::array<std::uint8_t, 0> payload;
-    std::ignore = receive_packet(payload);
-  }
-
-  [[nodiscard]] constexpr auto read_current(type::Current& current) noexcept -> bool {
-    std::array<std::uint8_t, 2> constexpr params{+ServoRegister::RegPresentCurrent, 2};
-    send_packet(ServoInstruction::InstRead, params);
-
-    if (std::array<std::uint8_t, 2> payload{}; receive_packet(payload)) {
-      current = ((payload[1] << 8) | payload[0]) & 0x7FFF;
-
-      return true;
-    }
-
-    return false;
-  }
-
-  [[nodiscard]] constexpr auto read_position(type::ServoPosition& position) noexcept -> bool {
-    std::array<std::uint8_t, 2> constexpr params{+ServoRegister::RegPresentPosition, 2};
-    send_packet(ServoInstruction::InstRead, params);
-
-    if (std::array<std::uint8_t, 2> payload{}; receive_packet(payload)) {
-      position = payload[0] | (payload[1] << 8);
-
-      return true;
-    }
-
-    return false;
-  }
+  [[nodiscard]] auto read_position(type::ServoPosition& position) noexcept -> bool { return read_value(ServoRegister::CurrentPosition, position); }
 };
 
 }  // namespace device

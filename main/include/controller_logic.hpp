@@ -24,7 +24,7 @@
 template <std::size_t LutSize>
 consteval auto generate_linear_lut() -> std::array<type::Position, LutSize> {
   static constexpr std::size_t lut_size{LutSize};
-  static constexpr auto max_servo_output = static_cast<float>(type::Position::max_value);
+  static constexpr auto max_servo_output = static_cast<float>(type::Position::value_max);
 
   std::array<type::Position, lut_size> lut{};
 
@@ -39,7 +39,7 @@ consteval auto generate_linear_lut() -> std::array<type::Position, LutSize> {
 }
 
 class Logic {
-  static constexpr std::size_t lut_size{type::Position::max_value + 1};
+  static constexpr std::size_t lut_size{type::Position::value_max + 1};
   static constexpr std::array<type::Position, lut_size> servo_lut_100pct{generate_linear_lut<lut_size>()};
 
   static constexpr type::Speed speed_start_fade_kmh{60};
@@ -47,7 +47,7 @@ class Logic {
   static constexpr type::Speed speed_diff{speed_end_fade_kmh - speed_start_fade_kmh};
   static constexpr float speed_diff_f = speed_diff.as<float>();
 
-  common::PidRegulator<static_cast<float>(type::Position::min_value), static_cast<float>(type::Position::max_value)> m_speed_regulator{common::PidCoefficients{
+  common::PidRegulator<static_cast<float>(type::Position::value_min), static_cast<float>(type::Position::value_max)> m_speed_regulator{common::PidCoefficients{
                                                                                                                                            .kp = 2.0f,
                                                                                                                                            .ki = 0.5f,
                                                                                                                                            .kd = 0.1f,

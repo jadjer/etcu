@@ -44,8 +44,8 @@ class Accelerator {
     .hall_b_maximal{690},
 };
 
-  type::Position m_current_min_position{type::Position::min_value};
-  type::Position m_current_max_position{type::Position::max_value};
+  type::Position m_current_min_position{type::Position::value_min};
+  type::Position m_current_max_position{type::Position::value_max};
 
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}

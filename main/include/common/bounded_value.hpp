@@ -22,17 +22,17 @@
 
 namespace common {
 
-template <typename T, T MinVal, T MaxVal>
-  requires std::is_convertible_v<T, std::int32_t> && std::is_arithmetic_v<T> && (MinVal <= MaxVal)
+template <typename T, T ValMin, T ValMax>
+  requires std::is_convertible_v<T, std::int32_t> && std::is_arithmetic_v<T> && (ValMin <= ValMax)
 
 struct BoundedValue {
-  static constexpr std::int32_t min_value{MinVal};
-  static constexpr std::int32_t max_value{MaxVal};
+  static constexpr std::int32_t value_min{ValMin};
+  static constexpr std::int32_t value_max{ValMax};
 
-  std::int32_t value{min_value};
+  std::int32_t value{value_min};
 
   constexpr BoundedValue() = default;
-  constexpr BoundedValue(std::int32_t const val) noexcept : value{std::clamp(val, min_value, max_value)} {}
+  constexpr BoundedValue(std::int32_t const val) noexcept : value{std::clamp(val, value_min, value_max)} {}
 
   constexpr auto get() const noexcept -> T { return static_cast<T>(value); }
 

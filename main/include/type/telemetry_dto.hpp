@@ -55,6 +55,7 @@ struct OTAChunk {
 
 struct ServoTelemetry {
   bool is_connected{false};
+  bool is_enabled{false};
   bool is_moved{false};
 
   primitive::Speed speed{0};

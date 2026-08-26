@@ -46,17 +46,20 @@ struct OTAChunk {
 
 struct ServoTelemetry {
   bool is_connected{false};
+  bool is_enabled{false};
   bool is_moved{false};
 
+  Load load{0};
   Speed speed{0};
-  Current current{0};
   Volt voltage{0};
+  Current current{0};
   ServoPosition position{0};
   Temperature temperature{0};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ServoTelemetry {
     return dto::ServoTelemetry{
         .is_connected = is_connected,
+        .is_enabled = is_enabled,
         .is_moved = is_moved,
 
         .speed = speed.get(),

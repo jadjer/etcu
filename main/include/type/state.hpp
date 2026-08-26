@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include "type/primitive.hpp"
-
 namespace type {
 
 enum class SystemState : std::uint8_t {
@@ -34,13 +32,6 @@ enum class OTAStatus : std::uint8_t {
   Busy = 0x01,
   ErrorOccurred = 0x02,
   Completed = 0x03,
-};
-
-enum class ServoMode : std::uint8_t {
-  PositionMode = 0x00,
-  WheelMode = 0x01,
-  PwmMode = 0x02,
-  StepMode = 0x03,
 };
 
 }

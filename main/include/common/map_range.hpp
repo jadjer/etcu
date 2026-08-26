@@ -25,8 +25,8 @@ namespace common {
 template <typename T>
 concept IsBoundedConcept = requires(T instance) {
   requires std::constructible_from<T, std::int32_t>;
-  { T::min_value } -> std::convertible_to<std::int32_t>;
-  { T::max_value } -> std::convertible_to<std::int32_t>;
+  { T::value_min } -> std::convertible_to<std::int32_t>;
+  { T::value_max } -> std::convertible_to<std::int32_t>;
   { instance.value } -> std::convertible_to<std::int32_t>;
   { instance = std::declval<std::int32_t>() } -> std::same_as<T&>;
 };
