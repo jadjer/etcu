@@ -57,7 +57,6 @@ struct ServoTelemetry {
   bool is_connected{false};
   bool is_moved{false};
 
-  primitive::Load load{0};
   primitive::Speed speed{0};
   primitive::Current current{0};
   primitive::Volt voltage{0};

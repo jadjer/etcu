@@ -27,7 +27,6 @@
 
 namespace type::primitive {
 
-using Load = std::uint16_t;
 using Time = std::uint16_t;
 using Volt = std::uint8_t;
 using MilliVolt = std::uint16_t;

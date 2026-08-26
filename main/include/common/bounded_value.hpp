@@ -36,6 +36,12 @@ struct BoundedValue {
 
   constexpr auto get() const noexcept -> T { return static_cast<T>(value); }
 
+  template <typename R>
+    requires std::is_convertible_v<R, std::int32_t> && std::is_arithmetic_v<R>
+  constexpr auto as() const noexcept -> R {
+    return static_cast<R>(value);
+  }
+
   constexpr auto operator<=>(BoundedValue const&) const = default;
 
   constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
