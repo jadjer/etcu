@@ -159,7 +159,6 @@ class Servo {
   template <std::size_t PayloadSize>
   [[nodiscard]] auto receive_packet(std::array<std::uint8_t, PayloadSize>& payload) noexcept -> bool {
     static constexpr std::size_t payload_size{PayloadSize};
-    // +6 включает: FF, FF, ID, LENGTH, ERROR, CHK. Плюс сам полезный груз.
     static constexpr std::size_t package_size{payload_size + 6};
 
     if (servo_id == 0xFE) [[unlikely]]
