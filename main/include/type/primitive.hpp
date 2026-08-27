@@ -30,7 +30,7 @@ namespace type::primitive {
 using Load = std::uint16_t;
 using Time = std::uint16_t;
 using Volt = std::uint8_t;
-using MilliVolt = std::uint16_t;
+using AccPosition = std::uint16_t;
 using Position = std::uint16_t;
 using ServoPosition = std::uint16_t;
 using ServoSpeed = std::uint16_t;

@@ -29,10 +29,10 @@ struct AcceleratorCalibrationData {
 
   std::uint32_t struct_version{current_version};
 
-  MilliVolt hall_a_minimal{0};
-  MilliVolt hall_a_maximal{0};
-  MilliVolt hall_b_minimal{0};
-  MilliVolt hall_b_maximal{0};
+  AccPosition hall_a_minimal{0};
+  AccPosition hall_a_maximal{0};
+  AccPosition hall_b_minimal{0};
+  AccPosition hall_b_maximal{0};
 };
 
 struct ServoCalibrationData {

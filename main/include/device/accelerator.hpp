@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include "common/map_range.hpp"
 #include "config/concepts.hpp"
 #include "type/calibration.hpp"
@@ -28,24 +27,23 @@
 namespace device {
 
 template <class Driver, int HallA, int HallB, type::Position Threshold>
-  requires concepts::ADC<Driver, type::MilliVolt>
+  requires concepts::ADC<Driver>
 
 class Accelerator {
   static constexpr int hall_a{HallA};
   static constexpr int hall_b{HallB};
   static constexpr type::Position threshold{Threshold};
+  static constexpr type::Position value_min{type::Position::value_min};
+  static constexpr type::Position value_max{type::Position::value_max};
 
   Driver& m_driver_adc;
 
   type::AcceleratorCalibrationData m_calibration_data{
-    .hall_a_minimal{650},
-    .hall_a_maximal{1350},
-    .hall_b_minimal{320},
-    .hall_b_maximal{690},
-};
-
-  type::Position m_current_min_position{type::Position::value_min};
-  type::Position m_current_max_position{type::Position::value_max};
+      .hall_a_minimal{650},
+      .hall_a_maximal{1350},
+      .hall_b_minimal{320},
+      .hall_b_maximal{690},
+  };
 
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
@@ -65,56 +63,22 @@ class Accelerator {
 
   auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
 
-  [[nodiscard]] auto calibrate(type::AcceleratorCalibrationData& calibration_data) noexcept -> type::SystemError {
-    type::MilliVolt voltage_a{0};
-    type::MilliVolt voltage_b{0};
-
-    if (!m_driver_adc.template get_voltage<hall_a>(voltage_a)) [[unlikely]]
-      return type::SystemError::AcceleratorReadFault;
-
-    if (!m_driver_adc.template get_voltage<hall_b>(voltage_b)) [[unlikely]]
-      return type::SystemError::AcceleratorReadFault;
-
-    auto const v_a = voltage_a.value;
-    auto const v_b = voltage_b.value;
-
-    auto const a_min = m_calibration_data.hall_a_minimal.value;
-    auto const a_max = m_calibration_data.hall_a_maximal.value;
-    auto const b_min = m_calibration_data.hall_b_minimal.value;
-    auto const b_max = m_calibration_data.hall_b_maximal.value;
-
-    m_calibration_data.hall_a_minimal = type::MilliVolt{std::min(a_min, v_a)};
-    m_calibration_data.hall_a_maximal = type::MilliVolt{std::max(a_max, v_a)};
-    m_calibration_data.hall_b_minimal = type::MilliVolt{std::min(b_min, v_b)};
-    m_calibration_data.hall_b_maximal = type::MilliVolt{std::max(b_max, v_b)};
-
-    calibration_data = m_calibration_data;
-
-    return type::SystemError::None;
-  }
-
-  auto set_minimal_position(type::Position const position) noexcept -> void { m_current_min_position = position; }
-
-  auto set_maximal_position(type::Position const position) noexcept -> void { m_current_max_position = position; }
-
   [[nodiscard]] auto get_position(type::Position& current_position) const noexcept -> type::SystemError {
-    type::MilliVolt voltage_a{0};
-    type::MilliVolt voltage_b{0};
+    type::AccPosition adc_value_a, adc_value_b;
 
-    if (!m_driver_adc.template get_voltage<hall_a>(voltage_a)) [[unlikely]]
+    if (!m_driver_adc.template get_value<hall_a>(adc_value_a)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    if (!m_driver_adc.template get_voltage<hall_b>(voltage_b)) [[unlikely]]
+    if (!m_driver_adc.template get_value<hall_b>(adc_value_b)) [[unlikely]]
       return type::SystemError::AcceleratorReadFault;
 
-    type::Position const pos_a =
-        common::map_range(voltage_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, m_current_min_position, m_current_max_position);
-    type::Position const pos_b =
-        common::map_range(voltage_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, m_current_min_position, m_current_max_position);
+    type::Position const pos_a = common::map_range(adc_value_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, value_min, value_max);
+    type::Position const pos_b = common::map_range(adc_value_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, value_min, value_max);
 
-    ESP_LOGI("ACC", "%d %d %d %d", voltage_a, voltage_b, pos_a, pos_b);
+    type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)};
 
-    type::Position const raw_diff = std::abs(pos_a.value - pos_b.value);
+    ESP_LOGI("ACC", "ADC:  [%" PRId32 " %" PRId32 "] POS: [%" PRId32 " %" PRId32 "] DIFF: %" PRId32, adc_value_a.value, adc_value_b.value, pos_a.value,
+             pos_b.value, raw_diff.value);
 
     if (raw_diff > threshold) [[unlikely]] {
       current_position = type::Position{0};

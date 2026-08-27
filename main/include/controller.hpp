@@ -36,9 +36,6 @@ concept AcceleratorConcept =
     requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const& position, type::Position& position_result) {
       { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
       { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
-      { accelerator.calibrate(calibration_data) } noexcept -> std::same_as<type::SystemError>;
-      { accelerator.set_minimal_position(position) } noexcept -> std::same_as<void>;
-      { accelerator.set_maximal_position(position) } noexcept -> std::same_as<void>;
       { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
     };
 
@@ -228,7 +225,7 @@ class Controller {
 
       case type::SystemState::Calibration: {
         type::AcceleratorCalibrationData accelerator_calibration_data;
-        m_system_errors.update(m_accelerator.calibrate(accelerator_calibration_data));
+        // m_system_errors.update(m_accelerator.calibrate(accelerator_calibration_data));
 
         if (m_mode_button.is_short_press()) {
           m_logger.log_info("Servo calibrate ...");

@@ -40,10 +40,11 @@ concept UART = requires(T uart, std::array<std::uint8_t, 10> buffer, type::primi
   { uart.template read<10>(buffer, timeout) } noexcept -> std::same_as<int>;
 };
 
-template <typename T, typename V>
-concept ADC = requires(T adc, T const const_adc, V& voltage) {
+template <typename T>
+concept ADC = requires(T adc, T const const_adc, std::uint16_t& voltage) {
   { adc.init() } noexcept -> std::same_as<bool>;
   { adc.template configure_channel<0>() } noexcept -> std::same_as<bool>;
+  { const_adc.template get_value<0>(voltage) } noexcept -> std::same_as<bool>;
   { const_adc.template get_voltage<0>(voltage) } noexcept -> std::same_as<bool>;
 };
 

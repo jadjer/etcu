@@ -89,12 +89,13 @@ class ADC {
 
   template <int ChannelId>
   [[nodiscard]] auto configure_channel() noexcept -> bool {
+    static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
+    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+
     if (m_handle == nullptr && !init()) [[unlikely]]
       return false;
 
-    constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
-
-    adc_oneshot_chan_cfg_t const channel_config = {
+    adc_oneshot_chan_cfg_t constexpr channel_config = {
         .atten = esp_attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
@@ -102,14 +103,12 @@ class ADC {
     if (esp_err_t const error = adc_oneshot_config_channel(m_handle, esp_channel, &channel_config); error != ESP_OK) [[unlikely]]
       return false;
 
-    adc_cali_curve_fitting_config_t const calibration_config = {
+    adc_cali_curve_fitting_config_t constexpr calibration_config = {
         .unit_id = esp_unit,
         .chan = esp_channel,
         .atten = esp_attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-
-    constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
 
     if (m_calibration_handles[channel_index] == nullptr) {
       if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK)
@@ -120,30 +119,52 @@ class ADC {
     return true;
   }
 
-  template <int ChannelId, typename T>
-  [[nodiscard]] auto get_voltage(T& value) const noexcept -> bool {
+template <int ChannelId, typename T>
+  [[nodiscard]] auto get_value(T &value) const noexcept -> bool {
+    static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
+    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
+    if (auto const calibration_handle = m_calibration_handles[channel_index]; calibration_handle == nullptr) [[unlikely]]
+      return false;
+
+    int raw_value{0};
+
+    if (esp_err_t const error = adc_oneshot_read(m_handle, esp_channel, &raw_value); error != ESP_OK) [[unlikely]]
+      return false;
+
+    value = static_cast<T>(raw_value);
+
+    return true;
+  }
+
+  template <int ChannelId, typename T>
+  [[nodiscard]] auto get_voltage(T& value) const noexcept -> bool {
     constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+
+    int raw_value = 0;
+
+    if (bool const is_success = get_value<ChannelId>(&raw_value); is_success == true) [[unlikely]]
+      return false;
 
     auto const calibration_handle = m_calibration_handles[channel_index];
     if (calibration_handle == nullptr) [[unlikely]]
       return false;
 
-    constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
-
-    int raw_value = 0;
-    if (esp_err_t const error = adc_oneshot_read(m_handle, esp_channel, &raw_value); error != ESP_OK) [[unlikely]]
-      return false;
-
     int voltage = 0;
+
     if (esp_err_t const error = adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage); error != ESP_OK) [[unlikely]]
       return false;
 
-    value = T{static_cast<std::uint16_t>(voltage)};
+    value = static_cast<T>(voltage);
 
     return true;
+
+
+
+    return get_value<ChannelId>(value);
   }
 };
 

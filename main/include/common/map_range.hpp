@@ -28,7 +28,7 @@ concept IsBoundedConcept = requires(T instance) {
   { T::value_min } -> std::convertible_to<std::int32_t>;
   { T::value_max } -> std::convertible_to<std::int32_t>;
   { instance.value } -> std::convertible_to<std::int32_t>;
-  { instance = std::declval<std::int32_t>() } -> std::same_as<T&>;
+  { instance = std::int32_t{} } -> std::same_as<T&>;
 };
 
 template <typename In, typename Out>

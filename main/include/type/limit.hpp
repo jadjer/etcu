@@ -28,14 +28,14 @@ inline constexpr primitive::Load load_max{1000};
 inline constexpr primitive::Volt volt_min{0};
 inline constexpr primitive::Volt volt_max{100};
 
-inline constexpr primitive::MilliVolt milli_volt_min{0};
-inline constexpr primitive::MilliVolt milli_volt_max{3100};
+inline constexpr primitive::AccPosition acc_pos_min{0};
+inline constexpr primitive::AccPosition acc_pos_max{3100};
 
-inline constexpr primitive::Position position_min{0};
-inline constexpr primitive::Position position_max{1000};
+inline constexpr primitive::Position pos_min{0};
+inline constexpr primitive::Position pos_max{1000};
 
-inline constexpr primitive::ServoPosition servo_position_min{0};
-inline constexpr primitive::ServoPosition servo_position_max{4100};
+inline constexpr primitive::ServoPosition servo_pos_min{0};
+inline constexpr primitive::ServoPosition servo_pos_max{4100};
 
 inline constexpr primitive::RPM rpm_min{0};
 inline constexpr primitive::RPM rpm_max{9000};

@@ -26,9 +26,9 @@ namespace type {
 
 using Load = common::BoundedValue<primitive::Load, limit::load_min, limit::load_max>;
 using Volt = common::BoundedValue<primitive::Volt, limit::volt_min, limit::volt_max>;
-using MilliVolt = common::BoundedValue<primitive::MilliVolt, limit::milli_volt_min, limit::milli_volt_max>;
-using Position = common::BoundedValue<primitive::Position, limit::position_min, limit::position_max>;
-using ServoPosition = common::BoundedValue<primitive::ServoPosition, limit::servo_position_min, limit::servo_position_max>;
+using Position = common::BoundedValue<primitive::Position, limit::pos_min, limit::pos_max>;
+using AccPosition = common::BoundedValue<primitive::AccPosition, limit::acc_pos_min, limit::acc_pos_max>;
+using ServoPosition = common::BoundedValue<primitive::ServoPosition, limit::servo_pos_min, limit::servo_pos_max>;
 using RPM = common::BoundedValue<primitive::RPM, limit::rpm_min, limit::rpm_max>;
 using Speed = common::BoundedValue<primitive::Speed, limit::speed_min, limit::speed_max>;
 using Current = common::BoundedValue<primitive::Current, limit::current_min, limit::current_max>;
