@@ -244,7 +244,7 @@ class Servo {
   }
 
   [[nodiscard]] auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
-    static constexpr std::size_t payload_size{30};
+    static constexpr std::size_t payload_size{31};
     static constexpr std::array<std::uint8_t, 2> params{
         as_byte(ServoRegister::TorqueEnable),
         payload_size,
@@ -255,12 +255,11 @@ class Servo {
     if (std::array<std::uint8_t, payload_size> payload{}; receive_packet(payload)) {
       telemetry.is_connected = true;
       telemetry.is_enabled = payload[0];
-      telemetry.is_enabled = payload[0];
-      telemetry.position = ((payload[1] << 8) | payload[0]) & 0x7FFF;
-      telemetry.voltage = payload[6];
-      telemetry.temperature = payload[7];
-      telemetry.is_moved = payload[10];
-      telemetry.current = ((payload[14] << 8) | payload[13]) & 0x7FFF;
+      telemetry.position = ((payload[17] << 8) | payload[16]) & 0x7FFF;
+      telemetry.voltage = payload[22] / 10;
+      telemetry.temperature = payload[23];
+      telemetry.is_moved = payload[26];
+      telemetry.current = (((payload[30] << 8) | payload[29]) & 0x7FFF) * 10;
 
       return true;
     }

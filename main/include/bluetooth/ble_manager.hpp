@@ -52,7 +52,7 @@ class BLEManager {
     if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data()))
       return type::SystemError::BluetoothInitFault;
 
-    if (!NimBLEDevice::setPower(ESP_PWR_LVL_P9))
+    if (!NimBLEDevice::setPower(ESP_PWR_LVL_N24))
       return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault;
 
     if (!NimBLEDevice::setMTU(517))
