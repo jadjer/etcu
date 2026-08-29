@@ -77,8 +77,8 @@ class Accelerator {
 
     type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)};
 
-    ESP_LOGI("ACC", "ADC:  [%" PRId32 " %" PRId32 "] POS: [%" PRId32 " %" PRId32 "] DIFF: %" PRId32, adc_value_a.value, adc_value_b.value, pos_a.value,
-             pos_b.value, raw_diff.value);
+    // ESP_LOGI("ACC", "ADC:  [%" PRId32 " %" PRId32 "] POS: [%" PRId32 " %" PRId32 "] DIFF: %" PRId32, adc_value_a.value, adc_value_b.value, pos_a.value,
+    //          pos_b.value, raw_diff.value);
 
     if (raw_diff > threshold) [[unlikely]] {
       current_position = type::Position{0};

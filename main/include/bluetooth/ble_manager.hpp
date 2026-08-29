@@ -19,10 +19,11 @@
 #pragma once
 
 #include <NimBLEDevice.h>
-#include "bluetooth/callbacks/characteristic_callback.hpp"
+#include "bluetooth/callbacks/ota_callback.hpp"
 #include "bluetooth/callbacks/server_callback.hpp"
 #include "bluetooth/callbacks/system_info_callback.hpp"
-#include "common/atomic_channel.hpp"
+#include "callbacks/control_callback.hpp"
+#include "common/atomic_container.hpp"
 #include "config/constants.hpp"
 #include "type/telemetry.hpp"
 
@@ -35,65 +36,55 @@ class BLEManager {
   NimBLECharacteristic* m_telemetry_characteristic{nullptr};
   NimBLECharacteristic* m_system_info_characteristic{nullptr};
 
+  callback::OTACallback m_ota_callback;
   callback::ServerCallback m_server_callback;
+  callback::ControlCallback m_control_callback;
   callback::SystemInfoCallback m_system_info_callback;
-  callback::CharacteristicCallback<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_callback;
-  callback::CharacteristicCallback<type::BluetoothControl> m_control_callback;
 
  public:
-  constexpr explicit BLEManager(common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>>& ota_chunk,
-                                common::AtomicChannel<type::BluetoothControl>& control)
+  constexpr explicit BLEManager(common::AtomicContainer<type::Control>& control,
+                                common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& ota_chunk)
       : m_ota_callback(ota_chunk), m_control_callback(control) {}
 
   [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data())) {
+    if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data()))
       return type::SystemError::BluetoothInitFault;
-    }
 
-    if (!NimBLEDevice::setPower(ESP_PWR_LVL_P9)) {
-      return (type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault);
-    }
+    if (!NimBLEDevice::setPower(ESP_PWR_LVL_P9))
+      return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault;
 
-    if (!NimBLEDevice::setMTU(512)) {
+    if (!NimBLEDevice::setMTU(517))
       return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetMTUFault;
-    }
 
     m_server = NimBLEDevice::createServer();
     m_server->setCallbacks(&m_server_callback);
 
     NimBLEService* service = m_server->createService(constants::bluetooth::ServiceUUID.data());
-    {
-      m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharacteristicUUID.data(), WRITE | NOTIFY);
-      m_ota_characteristic->setCallbacks(&m_ota_callback);
-    }
-    {
-      m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharacteristicUUID.data(), WRITE);
-      m_control_characteristic->setCallbacks(&m_control_callback);
-    }
-    {
-      m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharacteristicUUID.data(), READ | NOTIFY);
-    }
-    {
-      m_system_info_characteristic = service->createCharacteristic("qwe", READ);
-      m_system_info_characteristic->setCallbacks(&m_system_info_callback);
-    }
+    m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharUUID.data(), WRITE | NOTIFY);
+    m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharUUID.data(), READ | WRITE);
+    m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharUUID.data(), READ | NOTIFY);
+    m_system_info_characteristic = service->createCharacteristic(constants::bluetooth::SysInfoCharUUID.data(), READ);
+
+    m_ota_characteristic->setCallbacks(&m_ota_callback);
+    m_control_characteristic->setCallbacks(&m_control_callback);
+    m_system_info_characteristic->setCallbacks(&m_system_info_callback);
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();
     advertising->setName(constants::bluetooth::DeviceName.data());
     advertising->addServiceUUID(service->getUUID());
     advertising->enableScanResponse(true);
-    advertising->setMinInterval(32);  // 32 * 0.625ms = 20ms
-    advertising->setMaxInterval(64);  // 64 * 0.625ms = 40ms
+    advertising->setMinInterval(32);
+    advertising->setMaxInterval(64);
     advertising->start();
 
     return type::SystemError::None;
   }
 
-  [[nodiscard]] constexpr auto isConnected() const -> bool { return m_server_callback.isConnected(); }
+  [[nodiscard]] auto isConnected() const -> bool { return m_server_callback.isConnected(); }
 
-  [[nodiscard]] constexpr auto send_telemetry(type::SystemTelemetry const& data) const -> type::SystemError {
+  [[nodiscard]] auto send_telemetry(type::SystemTelemetry const& data) const -> type::SystemError {
     if (!isConnected())
       return type::SystemError::BluetoothConnectedFault;
 
@@ -102,22 +93,20 @@ class BLEManager {
 
     type::dto::SystemTelemetry const system_telemetry = data.to_dto();
 
-    m_telemetry_characteristic->setValue(reinterpret_cast<std::uint8_t const*>(&system_telemetry), sizeof(type::dto::SystemTelemetry));
-
+    m_telemetry_characteristic->setValue(system_telemetry);
     std::ignore = m_telemetry_characteristic->notify();
 
     return type::SystemError::None;
   }
 
-  [[nodiscard]] constexpr auto send_ota_notify(type::OTAStatus const status) const -> type::SystemError {
+  [[nodiscard]] auto send_ota_notify(type::OTAStatus const status) const -> type::SystemError {
     if (!isConnected())
       return type::SystemError::BluetoothConnectedFault;
 
     if (m_ota_characteristic == nullptr)
       return type::SystemError::BluetoothInitFault;
 
-    m_ota_characteristic->setValue(reinterpret_cast<std::uint8_t const*>(&status), sizeof(type::SystemTelemetry));
-    std::ignore = m_ota_characteristic->notify();
+    std::ignore = m_ota_characteristic->notify(status);
 
     return type::SystemError::None;
   }

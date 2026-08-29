@@ -23,15 +23,13 @@ namespace type {
 enum class SystemState : std::uint8_t {
   Off = 0,
   Normal,
-  Calibration,
   Update,
 };
 
 enum class OTAStatus : std::uint8_t {
-  ReadyForNext = 0x00,
-  Busy = 0x01,
-  ErrorOccurred = 0x02,
-  Completed = 0x03,
+  Error = 0,
+  ReadyForNext,
+  Completed,
 };
 
 }

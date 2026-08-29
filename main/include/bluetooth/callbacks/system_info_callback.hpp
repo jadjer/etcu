@@ -13,13 +13,13 @@ namespace bluetooth::callback {
 
 struct SystemInfoCallback : NimBLECharacteristicCallbacks {
   static constexpr type::dto::SystemInfo system_info{
-      .board_version{common::to_fixed_string<16>(BOARD_VERSION)},
       .build_date{common::to_fixed_string<16>(BUILD_DATE)},
+      .board_version{common::to_fixed_string<16>(BOARD_VERSION)},
       .firmware_version{common::to_fixed_string<16>(FW_VERSION)},
   };
 
-  void onRead(NimBLECharacteristic* pCharacteristic, NimBLEConnInfo& connInfo) override {
-    pCharacteristic->setValue(reinterpret_cast<uint8_t const*>(&system_info), sizeof(type::dto::SystemInfo));
+  void onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) override {
+    characteristic->setValue(reinterpret_cast<uint8_t const*>(&system_info), sizeof(system_info));
   }
 };
 

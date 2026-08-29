@@ -12,36 +12,29 @@
 
 namespace type {
 
-struct BluetoothControl {
-  bool sync_enabled{false};
-  Position accelerator_offset{0};
+struct Control {
+  Position accelerator_min{Position::value_min};
+  Position accelerator_max{Position::value_max};
+  Position servo_min{Position::value_min};
+  Position servo_max{Position::value_max};
 
-  constexpr BluetoothControl() noexcept = default;
-
-  constexpr explicit BluetoothControl(dto::BluetoothControl const& dto) noexcept : sync_enabled{dto.sync_enabled}, accelerator_offset(dto.accelerator_offset) {}
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::BluetoothControl {
-    return dto::BluetoothControl{
-        .sync_enabled = sync_enabled,
-        .accelerator_offset = accelerator_offset.get(),
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::Control {
+    return dto::Control{
+        .accelerator_min = accelerator_min.get(),
+        .accelerator_max = accelerator_max.get(),
+        .servo_min = servo_min.get(),
+        .servo_max = servo_max.get(),
     };
   }
 };
 
-template <std::uint8_t PackageSize>
+template <std::size_t PayloadSize>
 struct OTAChunk {
-  static constexpr std::uint8_t package_size{PackageSize};
-
-  std::array<std::uint8_t, package_size> chunk{};
-  std::uint16_t chunk_size{0};
-  std::uint16_t chunk_number{0};
-  std::uint16_t chunk_total{0};
   std::uint32_t firmware_size{0};
+  std::uint16_t chunk_total{0};
+  std::uint16_t chunk_index{0};
 
-  constexpr OTAChunk() noexcept = default;
-
-  constexpr explicit OTAChunk(dto::OTAChunk<PackageSize> const& dto) noexcept
-      : chunk{dto.chunk}, chunk_size(dto.chunk_size), chunk_number(dto.chunk_number), chunk_total(dto.chunk_total), firmware_size(dto.firmware_size) {}
+  std::array<std::uint8_t, PayloadSize> payload{};
 };
 
 struct ServoTelemetry {
@@ -49,8 +42,6 @@ struct ServoTelemetry {
   bool is_enabled{false};
   bool is_moved{false};
 
-  Load load{0};
-  Speed speed{0};
   Volt voltage{0};
   Current current{0};
   ServoPosition position{0};
@@ -62,9 +53,8 @@ struct ServoTelemetry {
         .is_enabled = is_enabled,
         .is_moved = is_moved,
 
-        .speed = speed.get(),
-        .current = current.get(),
         .voltage = voltage.get(),
+        .current = current.get(),
         .position = position.get(),
         .temperature = temperature.get(),
     };
@@ -101,7 +91,6 @@ struct SystemTelemetry {
   ECUTelemetry ecu_telemetry{};
 
   Position accelerator_position{0};
-  Position accelerator_offset{0};
   Position throttle_position{0};
   Speed target_speed{0};
 
@@ -116,15 +105,20 @@ struct SystemTelemetry {
         .ecu_telemetry = ecu_telemetry.to_dto(),
         .servo_telemetry = servo_telemetry.to_dto(),
 
-        .accelerator_position = accelerator_position.get(),
-        .accelerator_offset = accelerator_offset.get(),
-        .throttle_position = throttle_position.get(),
         .target_speed = target_speed.get(),
+        .throttle_position = throttle_position.get(),
+        .accelerator_position = accelerator_position.get(),
 
         .system_state = system_state,
         .system_errors = system_errors,
     };
   }
+};
+
+struct DriveTelemetry {
+  Position throttle_position{};
+  Position accelerator_position{};
+  ServoTelemetry servo_telemetry{};
 };
 
 }  // namespace type

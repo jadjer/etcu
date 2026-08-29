@@ -19,21 +19,29 @@
 #pragma once
 
 #include <NimBLECharacteristic.h>
-#include "common/atomic_channel.hpp"
+#include "common/atomic_container.hpp"
+#include "config/constants.hpp"
+#include "type/telemetry.hpp"
 
 namespace bluetooth::callback {
 
-template <typename DataType>
-class CharacteristicCallback : public NimBLECharacteristicCallbacks {
-  common::AtomicChannel<DataType>& m_channel;
+class OTACallback : public NimBLECharacteristicCallbacks {
+  common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& m_container;
 
  public:
-  constexpr explicit CharacteristicCallback(common::AtomicChannel<DataType>& channel) : m_channel(channel) {}
+  constexpr explicit OTACallback(common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& container) noexcept : m_container(container) {}
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
-    DataType const chunk = characteristic->getValue<DataType>();
+    auto const [firmware_size, total, index, data] = characteristic->getValue<type::dto::OTAChunk<constants::bluetooth::OTAPayloadSize>>();
 
-    std::ignore = m_channel.send(chunk);
+    auto const chunk = type::OTAChunk{
+        .firmware_size = firmware_size,
+        .chunk_total = total,
+        .chunk_index = index,
+        .payload = data,
+    };
+
+    m_container.store(chunk);
   }
 };
 

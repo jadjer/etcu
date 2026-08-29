@@ -19,10 +19,8 @@
 #pragma once
 
 #include "bluetooth/ble_manager.hpp"
-#include "common/atomic_channel.hpp"
-#include "common/atomic_value.hpp"
+#include "common/atomic_container.hpp"
 #include "common/storage.hpp"
-#include "config/concepts.hpp"
 #include "controller_logic.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
@@ -74,12 +72,6 @@ concept ServoConcept = requires(T servo, type::Position const& position, type::S
   { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
 };
 
-struct DriveTelemetry {
-  type::ServoTelemetry servo_telemetry{};
-  type::Position accelerator_position{};
-  type::Position throttle_position{};
-};
-
 template <class Accelerator, class Servo, class ECU, class ModeButton, class ModeIndicator, class Brake, class Guard>
   requires AcceleratorConcept<Accelerator> && ServoConcept<Servo> && ECUConcept<ECU> && ButtonConcept<ModeButton> && IndicatorConcept<ModeIndicator> &&
            SwitchConcept<Brake> && SwitchConcept<Guard>
@@ -93,21 +85,23 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicChannel<type::OTAChunk<constants::bluetooth::MaxBlePayloadSize>> m_ota_chunk;
-  common::AtomicChannel<type::ECUTelemetry> m_ecu_telemetry;
-  common::AtomicChannel<type::BluetoothControl> m_ble_control;
-  common::AtomicChannel<DriveTelemetry> m_driver_telemetry;
-
-  common::AtomicValue<type::Speed> m_target_speed{type::Speed{0}};
-  common::AtomicValue<type::Position> m_accelerator_offset{type::Position{0}};
-  common::AtomicValue<type::SystemState> m_system_state{type::SystemState::Normal};
+  common::AtomicContainer<type::Control> m_control;
+  common::AtomicContainer<type::Speed> m_target_speed;
+  common::AtomicContainer<type::SystemState> m_system_state;
+  common::AtomicContainer<type::SystemError> m_system_error;
+  common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry;
+  common::AtomicContainer<type::DriveTelemetry> m_driver_telemetry;
+  common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk;
 
   Logic m_logic;
   Logger m_logger;
+  OTAManager m_ota_manager;
   common::Storage m_storage;
   SystemErrors m_system_errors;
-  update::OTAManager m_ota_manager;
-  bluetooth::BLEManager m_ble_manager{m_ota_chunk, m_ble_control};
+
+  bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
+
+  std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
 
  public:
   constexpr explicit Controller(Accelerator& accelerator,
@@ -133,16 +127,6 @@ class Controller {
     m_system_errors.update(m_ble_manager.init());
     m_system_errors.update(m_mode_indicator.init());
 
-    m_logger.log_info("Load calibration...");
-
-    // TODO Load calibrations from storage
-
-    // if (AcceleratorCalibrationData accelerator_calibration_data; m_storage.load_calibration(accelerator_calibration_data))
-    //   m_accelerator.set_calibrate(accelerator_calibration_data);
-    //
-    // if (ServoCalibrationData servo_calibration_data; m_storage.load_calibration(servo_calibration_data))
-    //   m_servo.set_calibrate(servo_calibration_data);
-
     m_logger.log_info("Check guard...");
 
     if (m_guard.is_active()) {
@@ -150,8 +134,60 @@ class Controller {
     }
 
     m_logger.log_info("{}", m_system_errors.has_any() ? "Not ready" : "Ready");
+  }
 
-    // TODO Enable servo power
+  auto process_ota_loop() noexcept -> void {
+    auto const [size, total, index, data] = m_ota_chunk.load();
+
+    if (size == 0 || index == m_chunk_index) {
+      return;
+    }
+
+    if (!m_ota_manager.isActive()) {
+      if (!m_ota_manager.startUpdate(size)) {
+        m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
+        m_chunk_index = std::numeric_limits<std::size_t>::max();
+        return;
+      }
+
+      m_logger.log_info("Start OTA (Size: {} bytes, Chunks: {})", size, total);
+      m_system_state.store(type::SystemState::Update);
+    }
+
+    if (!m_ota_manager.writeChunk(data, index, size)) {
+      m_logger.log_error("Failed to write chunk {}", index);
+      m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
+      m_system_state.store(type::SystemState::Normal);
+      m_chunk_index = std::numeric_limits<std::size_t>::max();
+      return;
+    }
+
+    m_chunk_index = index;
+    m_logger.log_info("Written chunk [{}/{}]", index + 1, total);
+
+    if (index == total - 1) {
+      if (!m_ota_manager.endUpdate()) {
+        m_logger.log_error("Failed to finalize OTA update");
+        m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
+        m_system_state.store(type::SystemState::Normal);
+        m_chunk_index = std::numeric_limits<std::size_t>::max();
+        return;
+      }
+
+      m_logger.log_info("OTA successfully written. Rebooting...");
+      m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Completed));
+
+      m_system_state.store(type::SystemState::Normal);
+      m_chunk_index = std::numeric_limits<std::size_t>::max();
+
+      vTaskDelay(pdMS_TO_TICKS(500));
+
+      m_ota_manager.reboot();
+
+      return;
+    }
+
+    m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::ReadyForNext));
   }
 
   auto process_system_loop() noexcept -> void {
@@ -169,35 +205,18 @@ class Controller {
 
     bool const guard_active = m_guard.is_active();
     bool const brake_active = m_brake.is_active();
-    type::Speed const target_speed = m_target_speed.get();
-    type::Position const accelerator_offset = m_accelerator_offset.get();
-    type::SystemState const system_state = m_system_state.get();
-
-    type::Position throttle_position{0};
-    type::Position accelerator_position{0};
-    type::ECUTelemetry ecu_telemetry{};
-    type::ServoTelemetry servo_telemetry{};
+    type::Speed const target_speed = m_target_speed.load();
+    type::SystemState const system_state = m_system_state.load();
 
     // =========================================================================
     // Обновляем телеметрию по ECU и отправляем на исполнительное ядро
     // =========================================================================
 
+    type::ECUTelemetry ecu_telemetry{};
+
     {
       m_system_errors.update(m_ecu.get_telemetry(ecu_telemetry));
-      std::ignore = m_ecu_telemetry.send(ecu_telemetry);
-    }
-
-    // =========================================================================
-    // Проверяем контроль через BLE
-    // =========================================================================
-
-    if (type::BluetoothControl control; m_ble_control.receive(control)) {
-      if (control.sync_enabled) {
-        m_logger.log_info("Start calibrate...");
-        m_system_state.set(type::SystemState::Calibration);
-      }
-
-      m_accelerator_offset.set(control.accelerator_offset);
+      m_ecu_telemetry.store(ecu_telemetry);
     }
 
     // =========================================================================
@@ -213,62 +232,21 @@ class Controller {
     // =========================================================================
 
     switch (system_state) {
-      case type::SystemState::Off:
-        return;
-
       case type::SystemState::Normal: {
         if (m_mode_button.is_long_press()) {
-          m_target_speed.set(ecu_telemetry.speed);
-          m_logger.log_info("Set offset as %d", accelerator_position.value);
+          m_target_speed.store(ecu_telemetry.speed);
         }
       } break;
 
-      case type::SystemState::Calibration: {
-        type::AcceleratorCalibrationData accelerator_calibration_data;
-        // m_system_errors.update(m_accelerator.calibrate(accelerator_calibration_data));
-
-        if (m_mode_button.is_short_press()) {
-          m_logger.log_info("Servo calibrate ...");
-
-          // type::ServoCalibrationData servo_calibration_data;
-          // m_servo.calibrate(servo_calibration_data);
-
-          m_logger.log_info("Save calibration...");
-
-          std::ignore = m_storage.save_calibration(accelerator_calibration_data);
-          // std::ignore = m_storage.save_calibration(servo_calibration_data);
-
-          m_system_state.set(type::SystemState::Normal);
-
-          m_logger.log_info("Calibration finished. Returning to Normal.");
-        }
-      } break;
-
-      case type::SystemState::Update: {
-        type::OTAChunk<constants::bluetooth::MaxBlePayloadSize> chunk;
-
-        if (bool const is_received = m_ota_chunk.receive(chunk)) {
-          // if (!m_ota_manager.isActive())
-          //   m_ota_manager.startUpdate();
-          //
-          // if (m_ota_manager.writeChunk(chunk.chunk)) {
-          //   m_system_errors.update(m_ble_manager.send_ota_notify(OTAStatus::ReadyForNext));
-          // } else {
-          //   m_system_errors.update(m_ble_manager.send_ota_notify(OTAStatus::ErrorOccurred));
-          // }
-        }
-      } break;
+      default:
+        break;
     }
 
     // =========================================================================
     // Отправка телеметрии через BLE
     // =========================================================================
 
-    if (DriveTelemetry telemetry; m_driver_telemetry.receive(telemetry)) {
-      accelerator_position = telemetry.accelerator_position;
-      throttle_position = telemetry.throttle_position;
-      servo_telemetry = telemetry.servo_telemetry;
-    }
+    auto const [throttle_position, accelerator_position, servo_telemetry] = m_driver_telemetry.load();
 
     type::SystemTelemetry const system_telemetry{
         .is_guard_active = guard_active,
@@ -277,7 +255,6 @@ class Controller {
         .servo_telemetry = servo_telemetry,
         .ecu_telemetry = ecu_telemetry,
         .accelerator_position = accelerator_position,
-        .accelerator_offset = accelerator_offset,
         .throttle_position = throttle_position,
         .target_speed = target_speed,
 
@@ -288,35 +265,33 @@ class Controller {
   }
 
   auto process_critical_loop() noexcept -> void {
-    type::SystemState const system_state = m_system_state.get();
+    type::SystemState const system_state = m_system_state.load();
+    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
-    type::Speed target_speed{0};
-    type::Speed current_speed{0};
-    type::Position accelerator_offset{0};
+    type::Speed const target_speed = m_target_speed.load();
+    type::Speed const current_speed = ecu_telemetry.speed;
+
+    auto const [acc_min, acc_max, servo_min, servo_max] = m_control.load();
+
     type::Position accelerator_position{0};
-    type::ServoTelemetry servo_telemetry{};
 
     if (system_state == type::SystemState::Normal) {
-      if (type::ECUTelemetry ecu_telemetry; m_ecu_telemetry.receive(ecu_telemetry)) {
-        current_speed = ecu_telemetry.speed;
-      }
-
-      target_speed = m_target_speed.get();
-      accelerator_offset = m_accelerator_offset.get();
-
       m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }
 
-    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_position, accelerator_offset, current_speed, target_speed);
+    type::Position const throttle_position =
+        m_logic.calculate_servo_position(accelerator_position, acc_min, acc_max, servo_min, servo_max, current_speed, target_speed);
 
     m_servo.set_position(throttle_position);
+
+    type::ServoTelemetry servo_telemetry{};
     std::ignore = m_servo.get_telemetry(servo_telemetry);
 
-    DriveTelemetry const drive_telemetry{
-        .servo_telemetry = servo_telemetry,
-        .accelerator_position = accelerator_position,
+    type::DriveTelemetry const drive_telemetry{
         .throttle_position = throttle_position,
+        .accelerator_position = accelerator_position,
+        .servo_telemetry = servo_telemetry,
     };
-    std::ignore = m_driver_telemetry.send(drive_telemetry);
+    m_driver_telemetry.store(drive_telemetry);
   }
 };

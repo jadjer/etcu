@@ -257,7 +257,6 @@ class Servo {
       telemetry.is_enabled = payload[0];
       telemetry.is_enabled = payload[0];
       telemetry.position = ((payload[1] << 8) | payload[0]) & 0x7FFF;
-      telemetry.speed = ((payload[3] << 8) | payload[2]) & 0x7FFF;
       telemetry.voltage = payload[6];
       telemetry.temperature = payload[7];
       telemetry.is_moved = payload[10];

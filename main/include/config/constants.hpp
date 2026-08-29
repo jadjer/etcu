@@ -25,12 +25,13 @@
 namespace constants {
 
 namespace bluetooth {
-inline constexpr std::size_t MaxBlePayloadSize{244};
+inline constexpr std::size_t OTAPayloadSize{500};
 inline constexpr std::string_view DeviceName{"ETCU"};
 inline constexpr std::string_view ServiceUUID{"019fa351-08ac-76bf-b925-fe3ae2f765fb"};
-inline constexpr std::string_view OTACharacteristicUUID{"019fa351-08ac-7d45-8718-b4aa5af6756a"};
-inline constexpr std::string_view ControlCharacteristicUUID{"019fa351-08ac-7309-804b-ad328e7c1ef1"};
-inline constexpr std::string_view TelemetryCharacteristicUUID{"019fa351-08ac-7940-a519-6ef5087c0329"};
+inline constexpr std::string_view SysInfoCharUUID{"01a044f2-cf05-7494-aef5-a5298c878532"};
+inline constexpr std::string_view OTACharUUID{"019fa351-08ac-7d45-8718-b4aa5af6756a"};
+inline constexpr std::string_view ControlCharUUID{"019fa351-08ac-7309-804b-ad328e7c1ef1"};
+inline constexpr std::string_view TelemetryCharUUID{"019fa351-08ac-7940-a519-6ef5087c0329"};
 }  // namespace bluetooth
 
 namespace pin {

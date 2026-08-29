@@ -19,9 +19,6 @@
 #pragma once
 
 #include <esp_ota_ops.h>
-#include "config/constants.hpp"
-
-namespace update {
 
 class OTAManager {
   bool m_is_running{false};
@@ -41,32 +38,45 @@ class OTAManager {
       return false;
 
     m_is_running = true;
+
     return true;
   }
 
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, constants::bluetooth::MaxBlePayloadSize> const& data) const -> bool {
+  template <std::size_t PayloadSize>
+  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, PayloadSize> const& data, std::size_t const chunk_number, std::size_t const firmware_size) -> bool {
+    static constexpr auto payload_size{PayloadSize};
+
     if (!m_is_running)
       return false;
 
-    return esp_ota_write(m_update_handle, data.data(), data.size()) == ESP_OK;
+    std::size_t const offset = chunk_number * payload_size;
+
+    if (offset >= firmware_size) return false;
+
+    std::size_t const bytes_remaining = firmware_size - offset;
+    std::size_t const bytes_to_write = std::min(payload_size, bytes_remaining);
+
+    return esp_ota_write_with_offset(m_update_handle, data.data(), bytes_to_write, offset) == ESP_OK;
   }
 
-  auto endUpdate() -> void {
+  [[nodiscard]] auto endUpdate() -> bool {
     if (!m_is_running)
-      return;
+      return false;
 
     if (esp_err_t const error = esp_ota_end(m_update_handle); error != ESP_OK)
-      return;
+      return false;
 
     if (esp_err_t const error = esp_ota_set_boot_partition(m_update_partition); error != ESP_OK)
-      return;
+      return false;
 
     m_is_running = false;
 
+    return true;
+  }
+
+  [[noreturn]] auto reboot() -> void { // NOLINT
     esp_restart();
   }
 
   [[nodiscard]] auto isActive() const -> bool { return m_is_running; }
 };
-
-}  // namespace update

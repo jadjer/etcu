@@ -18,76 +18,73 @@
 
 #pragma once
 
+#include <array>
 #include "type/primitive.hpp"
 
 namespace type::dto {
 
-struct BluetoothControl {
-  bool sync_enabled{false};
-
-  primitive::Position accelerator_offset{0};
-
-} __attribute__((packed));
-
-struct ECUTelemetry {
-  bool is_connected{false};
-  bool is_started{false};
-  bool is_clutch_enabled{false};
-
-  primitive::RPM rpm{0};
-  primitive::Speed speed{0};
-  primitive::Position tps{0};
+struct Control {
+  primitive::Position accelerator_min{0};
+  primitive::Position accelerator_max{0};
+  primitive::Position servo_min{0};
+  primitive::Position servo_max{0};
 
 } __attribute__((packed));
 
-template <std::uint8_t PackageSize>
+template <std::size_t PayloadSize>
 struct OTAChunk {
-  static constexpr std::uint8_t package_size{PackageSize};
-
   std::uint32_t firmware_size{0};
   std::uint16_t chunk_total{0};
-  std::uint16_t chunk_number{0};
-  std::uint16_t chunk_size{0};
+  std::uint16_t chunk_index{0};
 
-  std::array<std::uint8_t, package_size> chunk{};
-
-} __attribute__((packed));
-
-struct ServoTelemetry {
-  bool is_connected{false};
-  bool is_enabled{false};
-  bool is_moved{false};
-
-  primitive::Speed speed{0};
-  primitive::Current current{0};
-  primitive::Volt voltage{0};
-  primitive::ServoPosition position{0};
-  primitive::Temperature temperature{0};
+  std::array<std::uint8_t, PayloadSize> chunk{};
 
 } __attribute__((packed));
 
 struct SystemInfo {
-  primitive::FixedString board_version{};
   primitive::FixedString build_date{};
+  primitive::FixedString board_version{};
   primitive::FixedString firmware_version{};
 
 } __attribute__((packed));
 
-struct SystemTelemetry {
-  bool is_guard_active{false};
-  bool is_brake_enabled{false};
+struct ECUTelemetry {
+  bool is_connected{false};       // 1
+  bool is_started{false};         // 1
+  bool is_clutch_enabled{false};  // 1
 
-  ECUTelemetry ecu_telemetry{};
-  ServoTelemetry servo_telemetry{};
-
-  primitive::Position accelerator_position{0};
-  primitive::Position accelerator_offset{0};
-  primitive::Position throttle_position{0};
-  primitive::Speed target_speed{0};
-
-  SystemState system_state{SystemState::Off};
-  SystemError system_errors{SystemError::None};
+  primitive::RPM rpm{0};       // 2
+  primitive::Speed speed{0};   // 1
+  primitive::Position tps{0};  // 2
 
 } __attribute__((packed));
 
-}
+struct ServoTelemetry {
+  bool is_connected{false};  // 1
+  bool is_enabled{false};    // 1
+  bool is_moved{false};      // 1
+
+  primitive::Volt voltage{0};             // 1
+  primitive::Current current{0};          // 2
+  primitive::ServoPosition position{0};   // 2
+  primitive::Temperature temperature{0};  // 1
+
+} __attribute__((packed));
+
+struct SystemTelemetry {
+  bool is_guard_active{false};   // 1
+  bool is_brake_enabled{false};  // 1
+
+  ECUTelemetry ecu_telemetry{};      // 8
+  ServoTelemetry servo_telemetry{};  // 10
+
+  primitive::Speed target_speed{0};             // 1
+  primitive::Position throttle_position{0};     // 2
+  primitive::Position accelerator_position{0};  // 2
+
+  SystemState system_state{SystemState::Off};    // 1
+  SystemError system_errors{SystemError::None};  // 4
+
+} __attribute__((packed));
+
+}  // namespace type::dto
