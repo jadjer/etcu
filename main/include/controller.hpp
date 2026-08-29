@@ -85,18 +85,16 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicContainer<type::Control> m_control;
-  common::AtomicContainer<type::Speed> m_target_speed;
-  common::AtomicContainer<type::SystemState> m_system_state;
-  common::AtomicContainer<type::SystemError> m_system_error;
-  common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry;
-  common::AtomicContainer<type::DriveTelemetry> m_driver_telemetry;
-  common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk;
+  common::AtomicContainer<type::Control> m_control{};
+  common::AtomicContainer<type::Speed> m_target_speed{0};
+  common::AtomicContainer<type::SystemState> m_system_state{type::SystemState::Normal};
+  common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry{};
+  common::AtomicContainer<type::DriveTelemetry> m_driver_telemetry{};
+  common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk{};
 
   Logic m_logic;
   Logger m_logger;
   OTAManager m_ota_manager;
-  common::Storage m_storage;
   SystemErrors m_system_errors;
 
   bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
@@ -213,34 +211,16 @@ class Controller {
     // =========================================================================
 
     type::ECUTelemetry ecu_telemetry{};
-
-    {
-      m_system_errors.update(m_ecu.get_telemetry(ecu_telemetry));
-      m_ecu_telemetry.store(ecu_telemetry);
-    }
-
-    // =========================================================================
-    // Отображаем ошибки
-    // =========================================================================
-
-    if (m_system_errors.has_any()) [[unlikely]] {
-      m_logger.log_active_errors(m_system_errors.get_all());
-    }
+    m_system_errors.update(m_ecu.get_telemetry(ecu_telemetry));
+    m_ecu_telemetry.store(ecu_telemetry);
 
     // =========================================================================
     // Обрабатываем в соответствии с режимом
     // =========================================================================
 
-    switch (system_state) {
-      case type::SystemState::Normal: {
-        if (m_mode_button.is_long_press()) {
-          m_target_speed.store(ecu_telemetry.speed);
-        }
-      } break;
-
-      default:
-        break;
-    }
+    if (system_state == type::SystemState::Normal)
+      if (m_mode_button.is_long_press())
+        m_target_speed.store(ecu_telemetry.speed);
 
     // =========================================================================
     // Отправка телеметрии через BLE
