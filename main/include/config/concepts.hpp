@@ -33,11 +33,12 @@ concept GPIO = requires(T const const_gpio, bool const level) {
 };
 
 template <typename T>
-concept UART = requires(T uart, std::array<std::uint8_t, 10> buffer, type::primitive::Time timeout) {
+concept UART = requires(T uart, std::array<std::uint8_t, 1> buffer, type::primitive::Time timeout) {
   { uart.init() } noexcept -> std::same_as<bool>;
+  { uart.deinit() } noexcept -> std::same_as<bool>;
   { uart.flush() } noexcept -> std::same_as<bool>;
-  { uart.template write<10>(buffer) } noexcept -> std::same_as<bool>;
-  { uart.template read<10>(buffer, timeout) } noexcept -> std::same_as<int>;
+  { uart.template write<1>(buffer) } noexcept -> std::same_as<bool>;
+  { uart.template read<1>(buffer, timeout) } noexcept -> std::same_as<int>;
 };
 
 template <typename T>

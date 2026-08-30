@@ -13,74 +13,70 @@ enum class GPIOConfigMode : std::uint8_t {
   Input = 1,
   Output = 2,
   InputOutput = 3,
-
   OutputOpenDrain = 6,
   InputOutputOpedDrain = 7,
 };
-static_assert(static_cast<int>(GPIOConfigMode::Disable) == static_cast<int>(GPIO_MODE_DISABLE),
-              "CRITICAL: driver::GPIOConfigMode::Disable value mismatch with GPIO_MODE_DISABLE!");
-static_assert(static_cast<int>(GPIOConfigMode::Input) == static_cast<int>(GPIO_MODE_INPUT),
-              "CRITICAL: driver::GPIOConfigMode::Input value mismatch with GPIO_MODE_INPUT!");
-static_assert(static_cast<int>(GPIOConfigMode::Output) == static_cast<int>(GPIO_MODE_OUTPUT),
-              "CRITICAL: driver::GPIOConfigMode::Output value mismatch with GPIO_MODE_INPUT!");
-static_assert(static_cast<int>(GPIOConfigMode::InputOutput) == static_cast<int>(GPIO_MODE_INPUT_OUTPUT),
-              "CRITICAL: driver::GPIOConfigMode::InputOutput value mismatch with GPIO_MODE_INPUT_OUTPUT!");
-static_assert(static_cast<int>(GPIOConfigMode::OutputOpenDrain) == static_cast<int>(GPIO_MODE_OUTPUT_OD),
-              "CRITICAL: driver::GPIOConfigMode::OutputOpenDrain value mismatch with GPIO_MODE_OUTPUT_OD!");
-static_assert(static_cast<int>(GPIOConfigMode::InputOutputOpedDrain) == static_cast<int>(GPIO_MODE_INPUT_OUTPUT_OD),
-              "CRITICAL: driver::GPIOConfigMode::InputOutputOpedDrain value mismatch with GPIO_MODE_INPUT_OUTPUT_OD!");
 
-template <int Pin, GPIOConfigMode Mode, bool Inverse = false>
-struct GPIO {
+static_assert(static_cast<int>(GPIOConfigMode::Disable) == static_cast<int>(GPIO_MODE_DISABLE));
+static_assert(static_cast<int>(GPIOConfigMode::Input) == static_cast<int>(GPIO_MODE_INPUT));
+static_assert(static_cast<int>(GPIOConfigMode::Output) == static_cast<int>(GPIO_MODE_OUTPUT));
+static_assert(static_cast<int>(GPIOConfigMode::InputOutput) == static_cast<int>(GPIO_MODE_INPUT_OUTPUT));
+static_assert(static_cast<int>(GPIOConfigMode::OutputOpenDrain) == static_cast<int>(GPIO_MODE_OUTPUT_OD));
+static_assert(static_cast<int>(GPIOConfigMode::InputOutputOpedDrain) == static_cast<int>(GPIO_MODE_INPUT_OUTPUT_OD));
+
+template <std::uint8_t Pin, GPIOConfigMode Mode, bool Inverse = false>
+  requires (Pin < GPIO_NUM_MAX)
+class GPIO {
+  static constexpr bool inverse{Inverse};
   static constexpr auto esp_pin{static_cast<gpio_num_t>(Pin)};
 
   static constexpr gpio_mode_t get_esp_mode() noexcept {
-    if constexpr (Mode == GPIOConfigMode::Input)
-      return GPIO_MODE_INPUT;
-    if constexpr (Mode == GPIOConfigMode::Output)
-      return GPIO_MODE_OUTPUT;
-    if constexpr (Mode == GPIOConfigMode::InputOutput)
-      return GPIO_MODE_INPUT_OUTPUT;
-    if constexpr (Mode == GPIOConfigMode::OutputOpenDrain)
-      return GPIO_MODE_OUTPUT_OD;
-    if constexpr (Mode == GPIOConfigMode::InputOutputOpedDrain)
-      return GPIO_MODE_INPUT_OUTPUT_OD;
-
-    return GPIO_MODE_DISABLE;
+    switch (Mode) {
+      case GPIOConfigMode::Input:                return GPIO_MODE_INPUT;
+      case GPIOConfigMode::Output:               return GPIO_MODE_OUTPUT;
+      case GPIOConfigMode::InputOutput:          return GPIO_MODE_INPUT_OUTPUT;
+      case GPIOConfigMode::OutputOpenDrain:      return GPIO_MODE_OUTPUT_OD;
+      case GPIOConfigMode::InputOutputOpedDrain: return GPIO_MODE_INPUT_OUTPUT_OD;
+      default:                                   return GPIO_MODE_DISABLE;
+    }
   }
 
-  [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
+  static constexpr bool is_input() noexcept {
+    return Mode == GPIOConfigMode::Input || Mode == GPIOConfigMode::InputOutput || Mode == GPIOConfigMode::InputOutputOpedDrain;
+  }
+
+  static constexpr bool need_pull_up = is_input() && inverse;
+  static constexpr bool need_pull_down = is_input() && !inverse;
+
+
+public:
+  static auto init() noexcept -> bool {
     gpio_config_t const config = {
         .pin_bit_mask = 1ULL << esp_pin,
         .mode = get_esp_mode(),
-        .pull_up_en = Inverse ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
-        .pull_down_en = Inverse ? GPIO_PULLDOWN_DISABLE : GPIO_PULLDOWN_ENABLE,
+        .pull_up_en = need_pull_up ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,
+        .pull_down_en = need_pull_down ? GPIO_PULLDOWN_ENABLE : GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
 
-    if (esp_err_t const err = gpio_config(&config); err != ESP_OK) [[unlikely]]
-      return false;
-
-    return true;
+    return gpio_config(&config) == ESP_OK;
   }
 
-  [[nodiscard]] auto get_level() const noexcept -> bool {  // NOLINT
+  [[nodiscard]] static auto get_level() noexcept -> bool {
     int const level = gpio_get_level(esp_pin);
-    return Inverse ? level == 0 : level == 1;
+    return inverse ? level == 0 : level == 1;
   }
 
-  [[nodiscard]] auto set_level(bool const level) const noexcept -> bool {  // NOLINT
-    return gpio_set_level(esp_pin, level) == ESP_OK;
+  static auto set_level(bool const level) noexcept -> bool {
+    return gpio_set_level(esp_pin, level ^ inverse) == ESP_OK;
   }
 
-  [[nodiscard]] auto enable() const noexcept -> bool {  // NOLINT
-    auto const level = Inverse ? 0 : 1;
-    return set_level(level);
+  static auto enable() noexcept -> bool {
+    return set_level(true);
   }
 
-  [[nodiscard]] auto disable() const noexcept -> bool {  // NOLINT
-    auto const level = Inverse ? 1 : 0;
-    return set_level(level);
+  static auto disable() noexcept -> bool {
+    return set_level(false);
   }
 };
 

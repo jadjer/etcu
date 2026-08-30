@@ -27,13 +27,8 @@
 
 namespace driver {
 
-enum class UartPort : std::uint8_t {
-  Uart0 = 0,
-  Uart1 = 1,
-  Uart2 = 2,
-};
-
-template <UartPort Port, int TxPin, int RxPin, int BaudRate, std::size_t BufferSize = 4096>
+template <std::uint8_t Port, std::uint8_t TxPin, std::uint8_t RxPin, std::size_t BaudRate, std::size_t BufferSize = 4096>
+requires (Port < UART_NUM_MAX) && (TxPin < GPIO_NUM_MAX) && (RxPin < GPIO_NUM_MAX)
 class UART {
   static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
   static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
@@ -41,12 +36,13 @@ class UART {
   static constexpr auto esp_baud_rate{static_cast<uint32_t>(BaudRate)};
 
  public:
-  constexpr UART() noexcept = default;
+  static auto init() noexcept -> bool {
+    if (uart_is_driver_installed(esp_port))
+      return true;
 
-  UART(UART const&) = delete;
-  auto operator=(UART const&) -> UART& = delete;
+    if (esp_err_t const error = uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0); error != ESP_OK) [[unlikely]]
+      return false;
 
-  [[nodiscard]] auto init() const noexcept -> bool {  // NOLINT
     uart_config_t const config = {
         .baud_rate = BaudRate,
         .data_bits = UART_DATA_8_BITS,
@@ -58,28 +54,35 @@ class UART {
         .flags = {},
     };
 
-    if (esp_err_t const error = uart_param_config(esp_port, &config); error != ESP_OK) [[unlikely]]
+    if (esp_err_t const error = uart_param_config(esp_port, &config); error != ESP_OK) [[unlikely]] {
+      uart_driver_delete(esp_port);
       return false;
+    }
 
-    if (esp_err_t const error = uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); error != ESP_OK) [[unlikely]]
+    if (esp_err_t const error = uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); error != ESP_OK) [[unlikely]] {
+      uart_driver_delete(esp_port);
       return false;
-
-    if (esp_err_t const error = uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0); error != ESP_OK) [[unlikely]]
-      return false;
+    }
 
     return true;
   }
 
-  [[nodiscard]] auto flush() const noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }  // NOLINT
+  static auto deinit() noexcept -> bool {  // NOLINT
+    return uart_driver_delete(esp_port) == ESP_OK;
+  }
+
+  static auto flush() noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }
 
   template <std::size_t PackageSize>
-  [[nodiscard]] auto write(std::array<std::uint8_t, PackageSize> const& data) const noexcept -> bool {  // NOLINT
+  requires (PackageSize > 0)
+  static auto write(std::array<std::uint8_t, PackageSize> const& data) noexcept -> bool {
     auto const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
     return write_bytes == static_cast<int>(data.size());
   }
 
   template <std::size_t PackageSize>
-  [[nodiscard]] auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) const noexcept -> int {  // NOLINT
+  requires (PackageSize > 0)
+  static auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) noexcept -> int {
     return uart_read_bytes(esp_port, data.data(), data.size(), pdMS_TO_TICKS(timeout_ms));
   }
 };

@@ -23,7 +23,6 @@
 #include <esp_adc/adc_oneshot.h>
 #include <array>
 #include <cstddef>
-#include <tuple>
 
 namespace driver {
 
@@ -31,23 +30,21 @@ enum class ADCUnit : std::uint8_t {
   Unit1 = 0,
   Unit2 = 1,
 };
-static_assert(static_cast<int>(ADCUnit::Unit1) == static_cast<int>(ADC_UNIT_1), "CRITICAL: driver::ADCUnit::Unit1 value mismatch with ESP-IDF ADC_UNIT_1!");
-static_assert(static_cast<int>(ADCUnit::Unit2) == static_cast<int>(ADC_UNIT_2), "CRITICAL: driver::ADCUnit::Unit2 value mismatch with ESP-IDF ADC_UNIT_2!");
+
+static_assert(static_cast<int>(ADCUnit::Unit1) == static_cast<int>(ADC_UNIT_1));
+static_assert(static_cast<int>(ADCUnit::Unit2) == static_cast<int>(ADC_UNIT_2));
 
 enum class ADCAttenuation : std::uint8_t {
-  Db0 = ADC_ATTEN_DB_0,
-  Db2_5 = ADC_ATTEN_DB_2_5,
-  Db6 = ADC_ATTEN_DB_6,
-  Db12 = ADC_ATTEN_DB_12,
+  Db0 = 0,
+  Db2_5 = 1,
+  Db6 = 2,
+  Db12 = 3,
 };
-static_assert(static_cast<int>(ADCAttenuation::Db0) == static_cast<int>(ADC_ATTEN_DB_0),
-              "CRITICAL: driver::ADCAttenuation::Db0 value mismatch with ESP-IDF ADC_ATTEN_DB_0!");
-static_assert(static_cast<int>(ADCAttenuation::Db2_5) == static_cast<int>(ADC_ATTEN_DB_2_5),
-              "CRITICAL: driver::ADCAttenuation::Db2_5 value mismatch with ESP-IDF ADC_ATTEN_DB_2_5!");
-static_assert(static_cast<int>(ADCAttenuation::Db6) == static_cast<int>(ADC_ATTEN_DB_6),
-              "CRITICAL: driver::ADCAttenuation::Db6 value mismatch with ESP-IDF ADC_ATTEN_DB_6!");
-static_assert(static_cast<int>(ADCAttenuation::Db12) == static_cast<int>(ADC_ATTEN_DB_12),
-              "CRITICAL: driver::ADCAttenuation::Db12 value mismatch with ESP-IDF ADC_ATTEN_DB_12!");
+
+static_assert(static_cast<int>(ADCAttenuation::Db0) == static_cast<int>(ADC_ATTEN_DB_0));
+static_assert(static_cast<int>(ADCAttenuation::Db2_5) == static_cast<int>(ADC_ATTEN_DB_2_5));
+static_assert(static_cast<int>(ADCAttenuation::Db6) == static_cast<int>(ADC_ATTEN_DB_6));
+static_assert(static_cast<int>(ADCAttenuation::Db12) == static_cast<int>(ADC_ATTEN_DB_12));
 
 template <ADCUnit UnitId, ADCAttenuation Attenuation = ADCAttenuation::Db12>
 class ADC {
@@ -64,17 +61,9 @@ class ADC {
   ADC(ADC const&) noexcept = delete;
   auto operator=(ADC const&) noexcept -> ADC& = delete;
 
-  ~ADC() noexcept {
-    for (auto const handle : m_calibration_handles) {
-      if (handle != nullptr)
-        std::ignore = adc_cali_delete_scheme_curve_fitting(handle);
-    }
+  ~ADC() noexcept { deinit(); }
 
-    if (m_handle != nullptr)
-      std::ignore = adc_oneshot_del_unit(m_handle);
-  }
-
-  [[nodiscard]] auto init() noexcept -> bool {
+  auto init() noexcept -> bool {
     if (m_handle != nullptr) [[unlikely]]
       return true;
 
@@ -87,8 +76,31 @@ class ADC {
     return adc_oneshot_new_unit(&handle_config, &m_handle) == ESP_OK;
   }
 
-  template <int ChannelId>
-  [[nodiscard]] auto configure_channel() noexcept -> bool {
+  auto deinit() -> bool {     // NOLINT
+    bool is_uninited = true;  // NOLINT
+
+    for (auto& handle : m_calibration_handles) {
+      if (handle == nullptr)
+        continue;
+
+      if (esp_err_t const error = adc_cali_delete_scheme_curve_fitting(handle); error == ESP_OK)
+        handle = nullptr;
+      else
+        is_uninited = false;
+    }
+
+    if (m_handle != nullptr) {
+      if (esp_err_t const error = adc_oneshot_del_unit(m_handle); error == ESP_OK)
+        m_handle = nullptr;
+      else
+        is_uninited = false;
+    }
+
+    return is_uninited;
+  }
+
+  template <std::uint8_t ChannelId>
+  auto configure_channel() noexcept -> bool {
     static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
     static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
 
@@ -119,15 +131,12 @@ class ADC {
     return true;
   }
 
-template <int ChannelId, typename T>
-  [[nodiscard]] auto get_value(T &value) const noexcept -> bool {
+  template <std::uint8_t ChannelId, typename T>
+    requires std::is_convertible_v<int, T>
+  auto get_value(T& value) const noexcept -> bool {
     static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
-    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
 
     if (m_handle == nullptr) [[unlikely]]
-      return false;
-
-    if (auto const calibration_handle = m_calibration_handles[channel_index]; calibration_handle == nullptr) [[unlikely]]
       return false;
 
     int raw_value{0};
@@ -140,13 +149,14 @@ template <int ChannelId, typename T>
     return true;
   }
 
-  template <int ChannelId, typename T>
-  [[nodiscard]] auto get_voltage(T& value) const noexcept -> bool {
-    constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+  template <std::uint8_t ChannelId, typename T>
+    requires std::is_convertible_v<int, T>
+  auto get_voltage(T& value) const noexcept -> bool {
+    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
 
     int raw_value = 0;
 
-    if (bool const is_success = get_value<ChannelId>(&raw_value); is_success == true) [[unlikely]]
+    if (bool const is_success = get_value<ChannelId>(raw_value); !is_success) [[unlikely]]
       return false;
 
     auto const calibration_handle = m_calibration_handles[channel_index];
@@ -161,10 +171,6 @@ template <int ChannelId, typename T>
     value = static_cast<T>(voltage);
 
     return true;
-
-
-
-    return get_value<ChannelId>(value);
   }
 };
 

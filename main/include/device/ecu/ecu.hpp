@@ -23,6 +23,86 @@
 
 namespace device {
 
+// struct EngineData {
+//   std::uint16_t rpm;
+//   std::uint16_t fuelInject;
+//   std::uint8_t ignitionAdvance;
+//   std::uint8_t unkData1;
+//   std::uint8_t unkData2;
+//   std::uint8_t unkData3;
+// } __attribute__((packed));
+//
+// struct ErrorData {};
+//
+// struct SensorsData {
+//   float tpsPercent;
+//   float tpsVolts;
+//   std::uint8_t ectTemp;
+//   float ectVolts;
+//   std::uint8_t iatTemp;
+//   float iatVolts;
+//   std::uint8_t mapPressure;
+//   float mapVolts;
+// } __attribute__((packed));
+//
+// struct UnknownData {
+//   std::uint8_t unkData1;
+//   std::uint8_t unkData2;
+//   std::uint8_t unkData3;
+//   std::uint8_t unkData4;
+//   std::uint8_t unkData5;
+//   std::uint8_t unkData6;
+//   std::uint8_t unkData7;
+//   std::uint8_t unkData8;
+//   std::uint8_t unkData9;
+//   std::uint8_t unkData10;
+//   std::uint8_t unkData11;
+//   std::uint8_t unkData12;
+//   std::uint8_t unkData13;
+//   std::uint8_t unkData14;
+//   std::uint8_t unkData15;
+//   std::uint8_t unkData16;
+//   std::uint8_t unkData17;
+//   std::uint8_t unkData18;
+//   std::uint8_t unkData19;
+//   std::uint8_t unkData20;
+//   std::uint8_t unkData21;
+//   std::uint8_t unkData22;
+//   std::uint8_t unkData23;
+//   std::uint8_t unkData24;
+//   std::uint8_t unkData25;
+//   std::uint8_t unkData26;
+//   std::uint8_t unkData27;
+//   std::uint8_t unkData28;
+//   std::uint8_t unkData29;
+//   std::uint8_t unkData30;
+//   std::uint8_t unkData31;
+//   std::uint8_t unkData32;
+//   std::uint8_t unkData33;
+//   std::uint8_t unkData34;
+//   std::uint8_t unkData35;
+//   std::uint8_t unkData36;
+//   std::uint8_t unkData37;
+//   std::uint8_t unkData38;
+//   std::uint8_t unkData39;
+//   std::uint8_t unkData40;
+// } __attribute__((packed));
+//
+// struct VehicleData {
+//   std::string id;
+//   float batteryVolts;
+//   std::uint8_t speed;
+//   std::uint8_t state;
+// } __attribute__((packed));
+//
+// struct CommandResult {
+//   std::uint8_t code;
+//   std::uint8_t command;
+//   std::uint8_t length;
+//   std::uint8_t checksum;
+//   std::uint8_t* data;
+// } __attribute__((packed));
+
 template <class DriverUart, class DriverGPIO>
   requires concepts::UART<DriverUart> && concepts::GPIO<DriverGPIO>
 
@@ -34,11 +114,17 @@ class ECU {
   constexpr explicit ECU(DriverUart& driver_uart, DriverGPIO& driver_gpio) noexcept : m_driver_uart{driver_uart}, m_driver_gpio{driver_gpio} {}
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver_uart.init()) [[unlikely]]
-      return type::SystemError::ECUInitFault;
+    m_driver_uart.deinit();
+    m_driver_gpio.init();
 
-    if (!m_driver_gpio.init()) [[unlikely]]
-      return type::SystemError::ECUInitFault;
+    m_driver_gpio.enable();
+    vTaskDelay(pdMS_TO_TICKS(300));
+
+    m_driver_gpio.disable();
+    vTaskDelay(pdMS_TO_TICKS(25));
+
+    m_driver_gpio.enable();
+    vTaskDelay(pdMS_TO_TICKS(25));
 
     return type::SystemError::None;
   }

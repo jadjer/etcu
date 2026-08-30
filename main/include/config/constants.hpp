@@ -40,28 +40,28 @@ inline constexpr int SwitchBrake{14};
 inline constexpr int SwitchGuard{15};
 inline constexpr int LedMode{16};
 inline constexpr int PowerEnable{18};
-inline constexpr int ECUWakeUp{21};
+inline constexpr int ECUWakeUp{17};
 }  // namespace pin
 
 namespace uart {
 namespace servo {
-inline constexpr auto Port{driver::UartPort::Uart1};
+inline constexpr auto Port{1};
 inline constexpr int Tx{5};
 inline constexpr int Rx{4};
 inline constexpr std::size_t BaudRate{1'000'000};
 }  // namespace servo
 namespace ecu {
-inline constexpr auto Port{driver::UartPort::Uart2};
-inline constexpr int Tx{19};
-inline constexpr int Rx{20};
+inline constexpr auto Port{2};
+inline constexpr int Tx{17};
+inline constexpr int Rx{18};
 inline constexpr std::size_t BaudRate{10'400};
 }  // namespace ecu
 }  // namespace uart
 
 namespace adc {
 inline constexpr auto Unit{driver::ADCUnit::Unit1};
-inline constexpr int ChannelA{8};
-inline constexpr int ChannelB{9};
+inline constexpr auto ChannelA{8};
+inline constexpr auto ChannelB{9};
 }  // namespace adc
 
 namespace system {

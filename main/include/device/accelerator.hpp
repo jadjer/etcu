@@ -26,12 +26,12 @@
 
 namespace device {
 
-template <class Driver, int HallA, int HallB, type::Position Threshold>
+template <class Driver, std::uint8_t HallA, std::uint8_t HallB, type::Position Threshold>
   requires concepts::ADC<Driver>
 
 class Accelerator {
-  static constexpr int hall_a{HallA};
-  static constexpr int hall_b{HallB};
+  static constexpr std::uint8_t hall_a{HallA};
+  static constexpr std::uint8_t hall_b{HallB};
   static constexpr type::Position threshold{Threshold};
   static constexpr type::Position value_min{type::Position::value_min};
   static constexpr type::Position value_max{type::Position::value_max};
