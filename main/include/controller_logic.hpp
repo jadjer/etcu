@@ -28,41 +28,37 @@ class Logic {
   static constexpr type::Speed speed_end_fade_kmh{100};
   static constexpr type::Speed speed_diff{speed_end_fade_kmh - speed_start_fade_kmh};
   static constexpr float speed_diff_f{speed_diff.as<float>()};
+  static constexpr float regulator_value_min{type::Position::value_min};
+  static constexpr float regulator_value_max{type::Position::value_max};
 
-  common::PidRegulator<static_cast<float>(type::Position::value_min), static_cast<float>(type::Position::value_max)> m_speed_regulator{common::PidCoefficients{
-                                                                                                                                           .kp = 2.0f,
-                                                                                                                                           .ki = 0.5f,
-                                                                                                                                           .kd = 0.1f,
-                                                                                                                                       },
-                                                                                                                                       0.01f};
+  common::PidRegulator<regulator_value_min, regulator_value_max> m_speed_regulator{
+      common::PidCoefficients{
+          .kp = 2.0f,
+          .ki = 0.5f,
+          .kd = 0.1f,
+      },
+      0.01f,
+  };
 
  public:
   [[nodiscard]] auto calculate_servo_position(type::Position const accelerator_position,
-                                              type::Position const accelerator_min,
-                                              type::Position const accelerator_max,
-                                              type::Position const servo_min,
-                                              type::Position const servo_max,
                                               type::Speed const current_speed,
-                                              type::Speed const target_speed) noexcept -> type::Position {
-    std::int32_t const input_range = accelerator_max.value - accelerator_min.value;
-    std::int32_t const output_range = servo_max.value - servo_min.value;
+                                              type::Speed const target_speed,
+                                              type::Control const& control) noexcept -> type::Position {
+    std::int32_t const input_range = control.accelerator_max.value - control.accelerator_min.value;
+    std::int32_t const output_range = control.servo_max.value - control.servo_min.value;
 
-    type::Position driver_proposal = servo_min;
+    type::Position driver_proposal = control.servo_min;
 
-    if (input_range > 0) {
-      // accelerator_position.value гарантированно валиден, но если он вне калиброванных
-      // min/max (например, педаль не до конца отпущена), делаем clamp
-      std::int32_t const clamped_input = std::clamp(accelerator_position.value, accelerator_min.value, accelerator_max.value);
+    if (input_range > 0 && output_range > 0) {
+      std::int32_t const clamped_input = std::clamp(accelerator_position.value, control.accelerator_min.value, control.accelerator_dead_max.value);
 
-      // Интерполяция
-      float const ratio = static_cast<float>(clamped_input - accelerator_min.value) / static_cast<float>(input_range);
-      float const interpolated = (ratio * static_cast<float>(output_range)) + static_cast<float>(servo_min.value);
+      float const ratio = static_cast<float>(clamped_input - control.accelerator_dead_min.value) / static_cast<float>(input_range);
+      float const interpolated = (ratio * static_cast<float>(output_range)) + static_cast<float>(control.servo_min.value);
 
-      // Конструктор type::Position сам сделает clamp к физическим границам типа, если мы вышли за них
       driver_proposal = type::Position{static_cast<std::int32_t>(std::roundf(interpolated))};
     }
 
-    // 2. Логика круиз-контроля
     if (target_speed.value < 60) {
       m_speed_regulator.reset();
       return driver_proposal;
@@ -70,9 +66,9 @@ class Logic {
 
     float const pid_value = m_speed_regulator.calculate(target_speed.value, current_speed.value);
 
-    type::Position const pid_servo_proposal{static_cast<std::int32_t>(std::roundf(pid_value))};
+    type::Position const pid_servo_proposal = static_cast<std::int32_t>(std::roundf(pid_value));
 
-    type::Position target_servo_position = servo_min;
+    type::Position target_servo_position = control.servo_min;
     bool freeze_integral = false;
 
     if (driver_proposal >= pid_servo_proposal) {

@@ -259,7 +259,7 @@ class Controller {
     type::Speed const target_speed = m_target_speed.load();
     type::Speed const current_speed = ecu_telemetry.speed;
 
-    auto const [acc_min, acc_max, servo_min, servo_max] = m_control.load();
+    auto const control = m_control.load();
 
     type::Position accelerator_position{0};
 
@@ -267,8 +267,7 @@ class Controller {
       m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }
 
-    type::Position const throttle_position =
-        m_logic.calculate_servo_position(accelerator_position, acc_min, acc_max, servo_min, servo_max, current_speed, target_speed);
+    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_position, current_speed, target_speed, control);
 
     m_servo.set_position(throttle_position);
 
