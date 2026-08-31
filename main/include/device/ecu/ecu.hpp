@@ -113,6 +113,16 @@ class ECU {
  public:
   constexpr explicit ECU(DriverUart& driver_uart, DriverGPIO& driver_gpio) noexcept : m_driver_uart{driver_uart}, m_driver_gpio{driver_gpio} {}
 
+  constexpr ECU() noexcept = delete;
+
+  ECU(ECU const&) noexcept = delete;
+  auto operator=(ECU const&) noexcept -> ECU& = delete;
+
+  ECU(ECU&&) noexcept = delete;
+  auto operator=(ECU&&) noexcept -> ECU& = delete;
+
+  constexpr ~ECU() noexcept = default;
+
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     m_driver_uart.deinit();
     m_driver_gpio.init();

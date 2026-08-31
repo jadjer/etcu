@@ -111,6 +111,16 @@ class Controller {
                                 Guard& guard) noexcept
       : m_ecu(ecu), m_servo(servo), m_brake(brake), m_guard(guard), m_mode_button(mode_button), m_accelerator(accelerator), m_mode_indicator(mode_indicator) {}
 
+  constexpr Controller() noexcept = delete;
+
+  Controller(Controller const&) noexcept = delete;
+  auto operator=(Controller const&) noexcept -> Controller& = delete;
+
+  Controller(Controller&&) noexcept = delete;
+  auto operator=(Controller&&) noexcept -> Controller& = delete;
+
+  constexpr ~Controller() noexcept = default;
+
   auto init() noexcept -> void {
     m_logger.init();
 

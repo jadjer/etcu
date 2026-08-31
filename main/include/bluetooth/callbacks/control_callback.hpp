@@ -30,6 +30,14 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
  public:
   constexpr explicit ControlCallback(common::AtomicContainer<type::Control>& control) : m_container(control) {}
 
+  ControlCallback(ControlCallback const&) noexcept = delete;
+  auto operator=(ControlCallback const&) noexcept -> ControlCallback& = delete;
+
+  ControlCallback(ControlCallback&&) noexcept = delete;
+  auto operator=(ControlCallback&&) noexcept -> ControlCallback& = delete;
+
+  ~ControlCallback() noexcept override = default;
+
   auto onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
     type::Control const control = m_container.load();
     type::dto::Control const control_dto = control.to_dto();

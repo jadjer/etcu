@@ -26,6 +26,16 @@ class OTAManager {
   esp_partition_t const* m_update_partition{nullptr};
 
  public:
+  constexpr OTAManager() noexcept = default;
+
+  OTAManager(OTAManager const&) noexcept = delete;
+  auto operator=(OTAManager const&) noexcept -> OTAManager& = delete;
+
+  OTAManager(OTAManager&&) noexcept = delete;
+  auto operator=(OTAManager&&) noexcept -> OTAManager& = delete;
+
+  constexpr ~OTAManager() noexcept = default;
+
   [[nodiscard]] auto startUpdate(std::size_t const total_size) -> bool {
     if (m_is_running)
       return false;
@@ -51,7 +61,8 @@ class OTAManager {
 
     std::size_t const offset = chunk_number * payload_size;
 
-    if (offset >= firmware_size) return false;
+    if (offset >= firmware_size)
+      return false;
 
     std::size_t const bytes_remaining = firmware_size - offset;
     std::size_t const bytes_to_write = std::min(payload_size, bytes_remaining);
@@ -74,7 +85,7 @@ class OTAManager {
     return true;
   }
 
-  [[noreturn]] auto reboot() -> void { // NOLINT
+  [[noreturn]] auto reboot() -> void {  // NOLINT
     esp_restart();
   }
 

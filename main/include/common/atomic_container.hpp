@@ -32,12 +32,22 @@ class AtomicContainer {
   std::atomic<T*> m_active_ptr{&m_buffer_a};
 
  public:
-  constexpr explicit AtomicContainer() noexcept = default;
   constexpr explicit AtomicContainer(T const& initial_data) noexcept {
     m_buffer_a = initial_data;
     m_buffer_b = initial_data;
     m_active_ptr.store(&m_buffer_a, std::memory_order_release);
   }
+
+  constexpr AtomicContainer() noexcept = default;
+
+  AtomicContainer(AtomicContainer const&) noexcept = delete;
+  auto operator=(AtomicContainer const&) noexcept -> AtomicContainer& = delete;
+
+  AtomicContainer(AtomicContainer&&) noexcept = delete;
+  auto operator=(AtomicContainer&&) noexcept -> AtomicContainer& = delete;
+
+  constexpr ~AtomicContainer() noexcept = default;
+
 
   [[nodiscard]] auto load() const noexcept -> T {
     T* const active = m_active_ptr.load(std::memory_order_acquire);

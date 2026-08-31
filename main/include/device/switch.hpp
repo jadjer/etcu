@@ -17,6 +17,16 @@ class Switch {
  public:
   constexpr explicit Switch(Driver& driver) : m_driver{driver} {}
 
+  constexpr Switch() noexcept = delete;
+
+  Switch(Switch const&) noexcept = delete;
+  auto operator=(Switch const&) noexcept -> Switch& = delete;
+
+  Switch(Switch&&) noexcept = delete;
+  auto operator=(Switch&&) noexcept -> Switch& = delete;
+
+  constexpr ~Switch() noexcept = default;
+
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]]
       return type::SystemError::ButtonInitFault;

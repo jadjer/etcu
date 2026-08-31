@@ -31,6 +31,14 @@ class OTACallback : public NimBLECharacteristicCallbacks {
  public:
   constexpr explicit OTACallback(common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& container) noexcept : m_container(container) {}
 
+  OTACallback(OTACallback const&) noexcept = delete;
+  auto operator=(OTACallback const&) noexcept -> OTACallback& = delete;
+
+  OTACallback(OTACallback&&) noexcept = delete;
+  auto operator=(OTACallback&&) noexcept -> OTACallback& = delete;
+
+  ~OTACallback() noexcept override = default;
+
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
     auto const [firmware_size, total, index, data] = characteristic->getValue<type::dto::OTAChunk<constants::bluetooth::OTAPayloadSize>>();
 

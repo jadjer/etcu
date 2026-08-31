@@ -27,6 +27,16 @@ class ServerCallback : public NimBLEServerCallbacks {
   std::atomic<bool> m_connected{false};
 
  public:
+  constexpr ServerCallback() noexcept = default;
+
+  ServerCallback(ServerCallback const&) noexcept = delete;
+  auto operator=(ServerCallback const&) noexcept -> ServerCallback& = delete;
+
+  ServerCallback(ServerCallback&&) noexcept = delete;
+  auto operator=(ServerCallback&&) noexcept -> ServerCallback& = delete;
+
+  ~ServerCallback() noexcept override = default;
+
   auto onConnect(NimBLEServer*, NimBLEConnInfo&) -> void override { m_connected.store(true, std::memory_order_relaxed); }
 
   auto onDisconnect(NimBLEServer* server, NimBLEConnInfo&, int) -> void override {

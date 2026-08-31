@@ -37,7 +37,6 @@ enum class ButtonState : std::uint8_t {
 
 template <class Driver, std::uint16_t Debounce = 1, std::uint16_t LongPress = 20>
   requires concepts::GPIO<Driver>
-
 class Button {
   Driver& m_driver;
 
@@ -47,6 +46,16 @@ class Button {
 
  public:
   constexpr explicit Button(Driver& driver) noexcept : m_driver{driver} {}
+
+  constexpr Button() noexcept = delete;
+
+  Button(Button const&) noexcept = delete;
+  auto operator=(Button const&) noexcept -> Button& = delete;
+
+  Button(Button&&) noexcept = delete;
+  auto operator=(Button&&) noexcept -> Button& = delete;
+
+  constexpr ~Button() noexcept = default;
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]]
@@ -61,40 +70,36 @@ class Button {
     switch (m_state) {
       case ButtonState::Idle: {
         if (!is_pressed) {
-          m_current_event = ButtonEvent::None;
           return;
         }
-
         m_ticks_count = 0;
-
         m_state = ButtonState::Debounce;
       } break;
+
       case ButtonState::Debounce: {
         if (!is_pressed) {
           m_state = ButtonState::Idle;
           return;
         }
-
         m_ticks_count++;
-
         if (m_ticks_count >= Debounce) {
           m_state = ButtonState::Pressed;
         }
       } break;
+
       case ButtonState::Pressed: {
         if (!is_pressed) {
           m_state = ButtonState::Idle;
           m_current_event = ButtonEvent::ShortPress;
           return;
         }
-
         m_ticks_count++;
-
         if (m_ticks_count >= LongPress) {
           m_state = ButtonState::WaitRelease;
           m_current_event = ButtonEvent::LongPress;
         }
       } break;
+
       case ButtonState::WaitRelease: {
         if (!is_pressed) {
           m_state = ButtonState::Idle;
@@ -105,9 +110,21 @@ class Button {
 
   [[nodiscard]] auto is_active() noexcept -> bool { return m_driver.get_level(); }
 
-  [[nodiscard]] auto is_short_press() const noexcept -> bool { return m_current_event == ButtonEvent::ShortPress; }
+  [[nodiscard]] auto is_short_press() noexcept -> bool {
+    if (m_current_event == ButtonEvent::ShortPress) {
+      m_current_event = ButtonEvent::None;
+      return true;
+    }
+    return false;
+  }
 
-  [[nodiscard]] auto is_long_press() const noexcept -> bool { return m_current_event == ButtonEvent::LongPress; }
+  [[nodiscard]] auto is_long_press() noexcept -> bool {
+    if (m_current_event == ButtonEvent::LongPress) {
+      m_current_event = ButtonEvent::None;
+      return true;
+    }
+    return false;
+  }
 };
 
 }  // namespace device

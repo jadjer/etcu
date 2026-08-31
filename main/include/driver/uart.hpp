@@ -36,6 +36,16 @@ class UART {
   static constexpr auto esp_baud_rate{static_cast<uint32_t>(BaudRate)};
 
  public:
+  constexpr UART() noexcept = default;
+
+  UART(UART const&) noexcept = delete;
+  auto operator=(UART const&) noexcept -> UART& = delete;
+
+  UART(UART&&) noexcept = delete;
+  auto operator=(UART&&) noexcept -> UART& = delete;
+
+  ~UART() noexcept { deinit(); }
+
   static auto init() noexcept -> bool {
     if (uart_is_driver_installed(esp_port))
       return true;

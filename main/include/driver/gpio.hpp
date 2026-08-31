@@ -50,6 +50,16 @@ class GPIO {
 
 
 public:
+  constexpr GPIO() noexcept = default;
+
+  GPIO(GPIO const&) noexcept = delete;
+  auto operator=(GPIO const&) noexcept -> GPIO& = delete;
+
+  GPIO(GPIO&&) noexcept = delete;
+  auto operator=(GPIO&&) noexcept -> GPIO& = delete;
+
+  constexpr ~GPIO() noexcept = default;
+
   static auto init() noexcept -> bool {
     gpio_config_t const config = {
         .pin_bit_mask = 1ULL << esp_pin,

@@ -58,6 +58,16 @@ class SystemHost {
  public:
   constexpr explicit SystemHost(Controller& controller) noexcept : m_controller(controller) {}
 
+  constexpr SystemHost() noexcept = delete;
+
+  SystemHost(SystemHost const&) noexcept = delete;
+  auto operator=(SystemHost const&) noexcept -> SystemHost& = delete;
+
+  SystemHost(SystemHost&&) noexcept = delete;
+  auto operator=(SystemHost&&) noexcept -> SystemHost& = delete;
+
+  constexpr ~SystemHost() noexcept = default;
+
   auto run() -> void {
     xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 1, nullptr, SystemCore);
     xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, CriticalCore);

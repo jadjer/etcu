@@ -46,6 +46,16 @@ class BLEManager {
                                 common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& ota_chunk)
       : m_ota_callback(ota_chunk), m_control_callback(control) {}
 
+  constexpr BLEManager() noexcept = delete;
+
+  BLEManager(BLEManager const&) noexcept = delete;
+  auto operator=(BLEManager const&) noexcept -> BLEManager& = delete;
+
+  BLEManager(BLEManager&&) noexcept = delete;
+  auto operator=(BLEManager&&) noexcept -> BLEManager& = delete;
+
+  ~BLEManager() noexcept = default;
+
   [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 

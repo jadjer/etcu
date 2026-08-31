@@ -27,6 +27,16 @@ class SystemErrors {
   std::atomic<std::uint32_t> m_errors_mask{0};
 
  public:
+  constexpr SystemErrors() noexcept = default;
+
+  SystemErrors(SystemErrors const&) noexcept = delete;
+  auto operator=(SystemErrors const&) noexcept -> SystemErrors& = delete;
+
+  SystemErrors(SystemErrors&&) noexcept = delete;
+  auto operator=(SystemErrors&&) noexcept -> SystemErrors& = delete;
+
+  constexpr ~SystemErrors() noexcept = default;
+
   auto add(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_or(to_underlying(err), std::memory_order_relaxed); }
   auto update(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_and(~to_underlying(err), std::memory_order_relaxed); }
   auto reset() noexcept -> void { m_errors_mask.store(0, std::memory_order_relaxed); }

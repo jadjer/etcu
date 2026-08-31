@@ -31,6 +31,16 @@ class Indicator {
  public:
   constexpr explicit Indicator(Driver& driver) : m_driver(driver) {}
 
+  constexpr Indicator() noexcept = delete;
+
+  Indicator(Indicator const&) noexcept = delete;
+  auto operator=(Indicator const&) noexcept -> Indicator& = delete;
+
+  Indicator(Indicator&&) noexcept = delete;
+  auto operator=(Indicator&&) noexcept -> Indicator& = delete;
+
+  constexpr ~Indicator() noexcept = default;
+
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]]
       return type::SystemError::IndicatorInitFault;

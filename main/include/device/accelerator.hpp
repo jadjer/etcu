@@ -48,6 +48,16 @@ class Accelerator {
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
 
+  constexpr Accelerator() noexcept = delete;
+
+  Accelerator(Accelerator const&) noexcept = delete;
+  auto operator=(Accelerator const&) noexcept -> Accelerator& = delete;
+
+  Accelerator(Accelerator&&) noexcept = delete;
+  auto operator=(Accelerator&&) noexcept -> Accelerator& = delete;
+
+  constexpr ~Accelerator() noexcept = default;
+
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_adc.init()) [[unlikely]]
       return type::SystemError::AcceleratorInitFault;
@@ -63,7 +73,7 @@ class Accelerator {
 
   auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
 
-  [[nodiscard]] auto get_position(type::Position& current_position) const noexcept -> type::SystemError {
+  [[nodiscard]] auto get_position(type::Position& current_position) noexcept -> type::SystemError {
     type::AccPosition adc_value_a, adc_value_b;
 
     if (!m_driver_adc.template get_value<hall_a>(adc_value_a)) [[unlikely]]

@@ -208,6 +208,16 @@ class Servo {
  public:
   constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
 
+  constexpr Servo() noexcept = delete;
+
+  Servo(Servo const&) noexcept = delete;
+  auto operator=(Servo const&) noexcept -> Servo& = delete;
+
+  Servo(Servo&&) noexcept = delete;
+  auto operator=(Servo&&) noexcept -> Servo& = delete;
+
+  constexpr ~Servo() noexcept = default;
+
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_uart.init()) [[unlikely]]
       return type::SystemError::ServoInitError;
