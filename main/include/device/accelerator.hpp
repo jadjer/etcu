@@ -75,12 +75,7 @@ class Accelerator {
     type::Position const pos_a = common::map_range(adc_value_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, value_min, value_max);
     type::Position const pos_b = common::map_range(adc_value_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, value_min, value_max);
 
-    type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)};
-
-    // ESP_LOGI("ACC", "ADC:  [%" PRId32 " %" PRId32 "] POS: [%" PRId32 " %" PRId32 "] DIFF: %" PRId32, adc_value_a.value, adc_value_b.value, pos_a.value,
-    //          pos_b.value, raw_diff.value);
-
-    if (raw_diff > threshold) [[unlikely]] {
+    if (type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)}; raw_diff > threshold) [[unlikely]] {
       current_position = type::Position{0};
 
       return type::SystemError::AcceleratorMismatch;

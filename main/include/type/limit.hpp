@@ -35,7 +35,7 @@ inline constexpr primitive::Position pos_min{0};
 inline constexpr primitive::Position pos_max{1000};
 
 inline constexpr primitive::ServoPosition servo_pos_min{0};
-inline constexpr primitive::ServoPosition servo_pos_max{4100};
+inline constexpr primitive::ServoPosition servo_pos_max{4095};
 
 inline constexpr primitive::RPM rpm_min{0};
 inline constexpr primitive::RPM rpm_max{9000};
