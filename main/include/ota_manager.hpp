@@ -44,7 +44,7 @@ class OTAManager {
     if (m_update_partition == nullptr)
       return false;
 
-    if (esp_err_t const error = esp_ota_begin(m_update_partition, total_size, &m_update_handle); error != ESP_OK)
+    if (esp_ota_begin(m_update_partition, total_size, &m_update_handle) != ESP_OK)
       return false;
 
     m_is_running = true;
@@ -53,8 +53,9 @@ class OTAManager {
   }
 
   template <std::size_t PayloadSize>
+    requires(PayloadSize > 0)
   [[nodiscard]] auto writeChunk(std::array<std::uint8_t, PayloadSize> const& data, std::size_t const chunk_number, std::size_t const firmware_size) -> bool {
-    static constexpr auto payload_size{PayloadSize};
+    static constexpr std::size_t payload_size{PayloadSize};
 
     if (!m_is_running)
       return false;
@@ -74,10 +75,10 @@ class OTAManager {
     if (!m_is_running)
       return false;
 
-    if (esp_err_t const error = esp_ota_end(m_update_handle); error != ESP_OK)
+    if (esp_ota_end(m_update_handle) != ESP_OK)
       return false;
 
-    if (esp_err_t const error = esp_ota_set_boot_partition(m_update_partition); error != ESP_OK)
+    if (esp_ota_set_boot_partition(m_update_partition) != ESP_OK)
       return false;
 
     m_is_running = false;
@@ -85,9 +86,7 @@ class OTAManager {
     return true;
   }
 
-  [[noreturn]] auto reboot() -> void {  // NOLINT
-    esp_restart();
-  }
+  [[noreturn]] static auto reboot() -> void { esp_restart(); }
 
   [[nodiscard]] auto isActive() const -> bool { return m_is_running; }
 };

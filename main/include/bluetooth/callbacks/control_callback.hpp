@@ -42,7 +42,7 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
     type::Control const control = m_container.load();
     type::dto::Control const control_dto = control.to_dto();
 
-    characteristic->setValue(reinterpret_cast<std::uint8_t const*>(&control_dto), sizeof(control_dto));
+    characteristic->setValue(control_dto);
   }
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {

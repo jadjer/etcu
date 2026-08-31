@@ -29,9 +29,7 @@ class SystemInfoCallback : public NimBLECharacteristicCallbacks {
 
   ~SystemInfoCallback() noexcept override = default;
 
-  void onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) override {
-    characteristic->setValue(reinterpret_cast<uint8_t const*>(&system_info), sizeof(system_info));
-  }
+  void onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo& connInfo) override { characteristic->setValue(system_info); }
 };
 
 }  // namespace bluetooth::callback

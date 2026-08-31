@@ -27,7 +27,7 @@ class Logic {
   static constexpr type::Speed speed_start_fade_kmh{60};
   static constexpr type::Speed speed_end_fade_kmh{100};
   static constexpr type::Speed speed_diff{speed_end_fade_kmh - speed_start_fade_kmh};
-  static constexpr float speed_diff_f = speed_diff.as<float>();
+  static constexpr float speed_diff_f{speed_diff.as<float>()};
 
   common::PidRegulator<static_cast<float>(type::Position::value_min), static_cast<float>(type::Position::value_max)> m_speed_regulator{common::PidCoefficients{
                                                                                                                                            .kp = 2.0f,
@@ -44,7 +44,6 @@ class Logic {
                                               type::Position const servo_max,
                                               type::Speed const current_speed,
                                               type::Speed const target_speed) noexcept -> type::Position {
-    // 1. Диапазоны (благодаря оператору '-' возвращают чистый int32_t)
     std::int32_t const input_range = accelerator_max.value - accelerator_min.value;
     std::int32_t const output_range = servo_max.value - servo_min.value;
 

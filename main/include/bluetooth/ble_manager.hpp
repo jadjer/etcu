@@ -37,9 +37,9 @@ class BLEManager {
   NimBLECharacteristic* m_system_info_characteristic{nullptr};
 
   callback::OTACallback m_ota_callback;
-  callback::ServerCallback m_server_callback;
+  callback::ServerCallback m_server_callback{};
   callback::ControlCallback m_control_callback;
-  callback::SystemInfoCallback m_system_info_callback;
+  callback::SystemInfoCallback m_system_info_callback{};
 
  public:
   constexpr explicit BLEManager(common::AtomicContainer<type::Control>& control,

@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include "type/primitive.hpp"
-
 namespace type {
 
 enum class ServoError : std::uint8_t {
@@ -91,5 +89,4 @@ enum class SystemError : std::uint32_t {
   return (static_cast<std::uint32_t>(mask) & static_cast<std::uint32_t>(err)) != 0;
 }
 
-}
-
+}  // namespace type

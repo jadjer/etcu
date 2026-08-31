@@ -18,9 +18,9 @@
 
 #pragma once
 
-#include "type/type.hpp"
 #include "driver/adc.hpp"
 #include "driver/uart.hpp"
+#include "type/type.hpp"
 
 namespace constants {
 

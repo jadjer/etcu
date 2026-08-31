@@ -18,17 +18,16 @@
 
 #pragma once
 
-#include <array>
-#include <cstddef>
-
 #include <driver/gpio.h>
 #include <driver/uart.h>
 #include <freertos/FreeRTOS.h>
+#include <array>
+#include <cstddef>
 
 namespace driver {
 
 template <std::uint8_t Port, std::uint8_t TxPin, std::uint8_t RxPin, std::size_t BaudRate, std::size_t BufferSize = 4096>
-requires (Port < UART_NUM_MAX) && (TxPin < GPIO_NUM_MAX) && (RxPin < GPIO_NUM_MAX)
+  requires(Port < UART_NUM_MAX) && (TxPin < GPIO_NUM_MAX) && (RxPin < GPIO_NUM_MAX)
 class UART {
   static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
   static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
@@ -50,10 +49,10 @@ class UART {
     if (uart_is_driver_installed(esp_port))
       return true;
 
-    if (esp_err_t const error = uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0); error != ESP_OK) [[unlikely]]
+    if (uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0) != ESP_OK) [[unlikely]]
       return false;
 
-    uart_config_t const config = {
+    static constexpr uart_config_t config = {
         .baud_rate = BaudRate,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
@@ -64,12 +63,12 @@ class UART {
         .flags = {},
     };
 
-    if (esp_err_t const error = uart_param_config(esp_port, &config); error != ESP_OK) [[unlikely]] {
+    if (uart_param_config(esp_port, &config) != ESP_OK) [[unlikely]] {
       uart_driver_delete(esp_port);
       return false;
     }
 
-    if (esp_err_t const error = uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); error != ESP_OK) [[unlikely]] {
+    if (uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK) [[unlikely]] {
       uart_driver_delete(esp_port);
       return false;
     }
@@ -84,14 +83,14 @@ class UART {
   static auto flush() noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }
 
   template <std::size_t PackageSize>
-  requires (PackageSize > 0)
+    requires(PackageSize > 0)
   static auto write(std::array<std::uint8_t, PackageSize> const& data) noexcept -> bool {
-    auto const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
+    int const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
     return write_bytes == static_cast<int>(data.size());
   }
 
   template <std::size_t PackageSize>
-  requires (PackageSize > 0)
+    requires(PackageSize > 0)
   static auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) noexcept -> int {
     return uart_read_bytes(esp_port, data.data(), data.size(), pdMS_TO_TICKS(timeout_ms));
   }

@@ -19,6 +19,7 @@
 #pragma once
 
 #include "config/concepts.hpp"
+#include "device/ecu/common.hpp"
 #include "type/type.hpp"
 
 namespace device {
@@ -105,7 +106,6 @@ namespace device {
 
 template <class DriverUart, class DriverGPIO>
   requires concepts::UART<DriverUart> && concepts::GPIO<DriverGPIO>
-
 class ECU {
   DriverUart& m_driver_uart;
   DriverGPIO& m_driver_gpio;
@@ -142,7 +142,7 @@ class ECU {
   [[nodiscard]] auto update() noexcept -> type::SystemError { return type::SystemError::None; }  // NOLINT
 
   [[nodiscard]] auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {  // NOLINT
-    std::ignore = m_driver_gpio.enable();
+    m_driver_gpio.enable();
 
     telemetry.is_connected = false;
     telemetry.rpm = type::RPM{0};

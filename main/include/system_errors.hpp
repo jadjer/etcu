@@ -42,21 +42,21 @@ class SystemErrors {
   auto reset() noexcept -> void { m_errors_mask.store(0, std::memory_order_relaxed); }
 
   [[nodiscard]] auto has(type::SystemError const err) const noexcept -> bool {
-    auto const error_mask = m_errors_mask.load(std::memory_order_relaxed);
+    std::uint32_t const error_mask = m_errors_mask.load(std::memory_order_relaxed);
     auto const errors = static_cast<type::SystemError>(error_mask);
 
     return type::has_error(errors, err);
   }
 
   [[nodiscard]] auto has_any() const noexcept -> bool {
-    auto const error_mask = m_errors_mask.load(std::memory_order_relaxed);
+    std::uint32_t const error_mask = m_errors_mask.load(std::memory_order_relaxed);
     auto const errors = static_cast<type::SystemError>(error_mask);
 
     return type::has_error(errors);
   }
 
   [[nodiscard]] auto get_all() const noexcept -> type::SystemError {
-    auto const error_mask = m_errors_mask.load(std::memory_order_relaxed);
+    std::uint32_t const error_mask = m_errors_mask.load(std::memory_order_relaxed);
     auto const errors = static_cast<type::SystemError>(error_mask);
 
     return errors;

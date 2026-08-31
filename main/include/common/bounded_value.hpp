@@ -19,37 +19,39 @@
 #pragma once
 
 #include <algorithm>
+#include <concepts>
 
 namespace common {
 
 template <typename T, T MinVal, T MaxVal>
-  requires std::is_convertible_v<T, std::int32_t> && std::is_arithmetic_v<T> && (MinVal <= MaxVal)
-
+  requires std::integral<T> && (MinVal <= MaxVal)
 struct BoundedValue {
-  static constexpr std::int32_t value_min{MinVal};
-  static constexpr std::int32_t value_max{MaxVal};
+  static constexpr T value_min{MinVal};
+  static constexpr T value_max{MaxVal};
 
-  std::int32_t value{value_min};
+  T value{value_min};
+
+  constexpr BoundedValue(std::int32_t const val) noexcept  // NOLINT
+      : value{static_cast<T>(std::clamp(val, static_cast<std::int32_t>(value_min), static_cast<std::int32_t>(value_max)))} {}
 
   constexpr BoundedValue() = default;
-  constexpr BoundedValue(std::int32_t const val) noexcept : value{std::clamp(val, value_min, value_max)} {}
 
-  constexpr auto get() const noexcept -> T { return static_cast<T>(value); }
+  constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
+
+  constexpr auto get() const noexcept -> T { return value; }
 
   template <typename R>
-    requires std::is_convertible_v<R, std::int32_t> && std::is_arithmetic_v<R>
+    requires std::convertible_to<T, R>
   constexpr auto as() const noexcept -> R {
     return static_cast<R>(value);
   }
 
   constexpr auto operator<=>(BoundedValue const&) const = default;
 
-  constexpr auto operator=(BoundedValue const& other) noexcept -> BoundedValue& = default;
-
-  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value * other.value}; }
-  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value / other.value}; }
-  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value + other.value}; }
-  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{value - other.value}; }
+  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) * other.value}; }
+  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) / other.value}; }
+  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) + other.value}; }
+  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) - other.value}; }
 };
 
 }  // namespace common

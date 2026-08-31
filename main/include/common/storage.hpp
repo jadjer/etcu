@@ -60,7 +60,7 @@ struct Storage {
     if (nvs_open(constants::system::NVSNamespace.data(), NVS_READWRITE, &nvs_handle) != ESP_OK) [[unlikely]]
       return false;
 
-    if (esp_err_t const error = nvs_set_blob(nvs_handle, T::struct_name.data(), &data, sizeof(T)); error != ESP_OK) [[unlikely]] {
+    if (nvs_set_blob(nvs_handle, T::struct_name.data(), &data, sizeof(T)) != ESP_OK) [[unlikely]] {
       nvs_close(nvs_handle);
       return false;
     }

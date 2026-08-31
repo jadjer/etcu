@@ -10,7 +10,6 @@ namespace device {
 
 template <class Driver>
   requires concepts::GPIO<Driver>
-
 class Switch {
   Driver& m_driver;
 

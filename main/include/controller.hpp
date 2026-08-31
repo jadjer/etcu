@@ -85,9 +85,10 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicContainer<type::Control> m_control{};
   common::AtomicContainer<type::Speed> m_target_speed{0};
   common::AtomicContainer<type::SystemState> m_system_state{type::SystemState::Normal};
+
+  common::AtomicContainer<type::Control> m_control{};
   common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry{};
   common::AtomicContainer<type::DriveTelemetry> m_driver_telemetry{};
   common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk{};
@@ -96,7 +97,6 @@ class Controller {
   Logger m_logger;
   OTAManager m_ota_manager;
   SystemErrors m_system_errors;
-
   bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
 
   std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
@@ -188,9 +188,7 @@ class Controller {
       m_system_state.store(type::SystemState::Normal);
       m_chunk_index = std::numeric_limits<std::size_t>::max();
 
-      vTaskDelay(pdMS_TO_TICKS(500));
-
-      m_ota_manager.reboot();
+      OTAManager::reboot();
 
       return;
     }
@@ -275,7 +273,7 @@ class Controller {
     m_servo.set_position(throttle_position);
 
     type::ServoTelemetry servo_telemetry{};
-    std::ignore = m_servo.get_telemetry(servo_telemetry);
+    m_servo.get_telemetry(servo_telemetry);
 
     type::DriveTelemetry const drive_telemetry{
         .throttle_position = throttle_position,

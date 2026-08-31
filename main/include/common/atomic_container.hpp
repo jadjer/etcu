@@ -19,12 +19,12 @@
 #pragma once
 
 #include <atomic>
-#include <type_traits>
+#include <concepts>
 
 namespace common {
 
 template <typename T>
-  requires std::is_trivially_copyable_v<T> && std::is_default_constructible_v<T>
+  requires std::is_trivially_copyable_v<T> && std::default_initializable<T>
 class AtomicContainer {
   T m_buffer_a{};
   T m_buffer_b{};
@@ -40,23 +40,23 @@ class AtomicContainer {
 
   constexpr AtomicContainer() noexcept = default;
 
-  AtomicContainer(AtomicContainer const&) noexcept = delete;
-  auto operator=(AtomicContainer const&) noexcept -> AtomicContainer& = delete;
+  AtomicContainer(AtomicContainer const&) = delete;
+  auto operator=(AtomicContainer const&) -> AtomicContainer& = delete;
 
-  AtomicContainer(AtomicContainer&&) noexcept = delete;
-  auto operator=(AtomicContainer&&) noexcept -> AtomicContainer& = delete;
+  AtomicContainer(AtomicContainer&&) = delete;
+  auto operator=(AtomicContainer&&) -> AtomicContainer& = delete;
 
-  constexpr ~AtomicContainer() noexcept = default;
-
+  ~AtomicContainer() = default;
 
   [[nodiscard]] auto load() const noexcept -> T {
     T* const active = m_active_ptr.load(std::memory_order_acquire);
+
     return *active;
   }
 
   auto store(T const& data) noexcept -> void {
-    T* const active = m_active_ptr.load(std::memory_order_relaxed);
-    T* const shadow = active == &m_buffer_a ? &m_buffer_b : &m_buffer_a;
+    T* const active = m_active_ptr.load(std::memory_order_acquire);
+    T* const shadow = (active == &m_buffer_a) ? &m_buffer_b : &m_buffer_a;
 
     *shadow = data;
 

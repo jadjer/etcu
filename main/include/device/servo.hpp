@@ -109,9 +109,8 @@ template <typename T>
   return static_cast<std::uint8_t>(value) & 0xFF;
 }
 
-template <class Driver, class PowerEnable, std::uint8_t const ServoId = 1>
-  requires concepts::UART<Driver> && concepts::GPIO<PowerEnable>
-
+template <class Driver, class PowerEnable, std::uint8_t ServoId = 1>
+  requires concepts::UART<Driver> && concepts::GPIO<PowerEnable> && (ServoId > 0)
 class Servo {
   static constexpr std::uint8_t servo_id{ServoId};
 
@@ -136,8 +135,8 @@ class Servo {
 
   template <std::size_t ParamSize>
   auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> void {
-    static constexpr std::size_t param_size = ParamSize;
-    static constexpr std::size_t packet_size = param_size + 6;
+    static constexpr std::size_t param_size{ParamSize};
+    static constexpr std::size_t packet_size{param_size + 6};
 
     std::array<std::uint8_t, packet_size> packet{};
 
@@ -152,22 +151,22 @@ class Servo {
 
     packet[5 + param_size] = calculate_checksum_for_packet(packet);
 
-    std::ignore = m_driver_uart.flush();
-    std::ignore = m_driver_uart.template write<packet_size>(packet);
+    m_driver_uart.flush();
+    m_driver_uart.write(packet);
   }
 
   template <std::size_t PayloadSize>
-  [[nodiscard]] auto receive_packet(std::array<std::uint8_t, PayloadSize>& payload) noexcept -> bool {
+  auto receive_packet(std::array<std::uint8_t, PayloadSize>& payload) noexcept -> bool {
     static constexpr std::size_t payload_size{PayloadSize};
     static constexpr std::size_t package_size{payload_size + 6};
+    static constexpr std::uint16_t timeout_ms{30};
 
     if (servo_id == 0xFE) [[unlikely]]
       return false;
 
     std::array<std::uint8_t, package_size> response;
 
-    int const read_bytes = m_driver_uart.template read<package_size>(response, 30);
-    if (std::cmp_less(read_bytes, package_size)) [[unlikely]]
+    if (int const read_bytes = m_driver_uart.read(response, timeout_ms); std::cmp_less(read_bytes, package_size)) [[unlikely]]
       return false;
 
     if (response[0] != 0xFF || response[1] != 0xFF || response[2] != servo_id) [[unlikely]]
@@ -188,8 +187,8 @@ class Servo {
 
   template <typename T>
     requires std::is_trivial_v<T>
-  [[nodiscard]] auto read_value(ServoRegister const& reg, T& value) noexcept -> bool {
-    static constexpr std::size_t payload_size = sizeof(T);
+  auto read_value(ServoRegister const& reg, T& value) noexcept -> bool {
+    static constexpr std::size_t payload_size{sizeof(T)};
 
     std::array const params{
         as_byte(reg),
@@ -250,10 +249,10 @@ class Servo {
     send_packet(ServoInstruction::InstWrite, params);
 
     std::array<std::uint8_t, 0> payload;
-    std::ignore = receive_packet(payload);
+    receive_packet(payload);
   }
 
-  [[nodiscard]] auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
+  auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
     static constexpr std::size_t payload_size{31};
     static constexpr std::array<std::uint8_t, 2> params{
         as_byte(ServoRegister::TorqueEnable),
@@ -284,12 +283,12 @@ class Servo {
     send_packet(ServoInstruction::InstWrite, params);
 
     std::array<std::uint8_t, 0> payload;
-    std::ignore = receive_packet(payload);
+    receive_packet(payload);
   }
 
-  [[nodiscard]] auto read_current(type::Current& current) noexcept -> bool { return read_value(ServoRegister::CurrentCurrent, current); }
+  auto read_current(type::Current& current) noexcept -> bool { return read_value(ServoRegister::CurrentCurrent, current); }
 
-  [[nodiscard]] auto read_position(type::ServoPosition& position) noexcept -> bool { return read_value(ServoRegister::CurrentPosition, position); }
+  auto read_position(type::ServoPosition& position) noexcept -> bool { return read_value(ServoRegister::CurrentPosition, position); }
 };
 
 }  // namespace device

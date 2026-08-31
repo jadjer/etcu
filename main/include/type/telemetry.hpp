@@ -13,17 +13,21 @@
 namespace type {
 
 struct Control {
-  Position accelerator_min{Position::value_min};
-  Position accelerator_max{Position::value_max};
   Position servo_min{Position::value_min};
   Position servo_max{Position::value_max};
+  Position accelerator_min{Position::value_min};
+  Position accelerator_max{Position::value_max};
+  Position accelerator_dead_min{Position::value_min};
+  Position accelerator_dead_max{Position::value_max};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::Control {
     return dto::Control{
-        .accelerator_min = accelerator_min.get(),
-        .accelerator_max = accelerator_max.get(),
         .servo_min = servo_min.get(),
         .servo_max = servo_max.get(),
+        .accelerator_min = accelerator_min.get(),
+        .accelerator_max = accelerator_max.get(),
+        .accelerator_dead_min = accelerator_dead_min.get(),
+        .accelerator_dead_max = accelerator_dead_max.get(),
     };
   }
 };

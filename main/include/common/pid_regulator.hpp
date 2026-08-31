@@ -22,15 +22,13 @@ class PidRegulator {
   float m_dt{0.0f};
   float m_integral{0.0f};
   float m_last_error{0.0f};
-  PidCoefficients m_coefficients;
+  PidCoefficients m_coefficients{};
 
  public:
   constexpr explicit PidRegulator(PidCoefficients const& coefficients, float const dt_sec) noexcept : m_dt(dt_sec), m_coefficients(coefficients) {}
 
-  template <typename T>
-    requires std::is_convertible_v<T, float>
-  [[nodiscard]] auto calculate(T const target, T const current) const noexcept -> float {
-    auto const error = static_cast<float>(target) - static_cast<float>(current);
+  [[nodiscard]] auto calculate(float const target, float const current) const noexcept -> float {
+    float const error = target - current;
 
     float const p_term = m_coefficients.kp * error;
     float const i_term = m_coefficients.ki * m_integral;
@@ -39,13 +37,11 @@ class PidRegulator {
     return p_term + i_term + d_term;
   }
 
-  template <typename T>
-    requires std::is_convertible_v<T, float>
-  auto update(T const target, T const current, bool const freeze_integral = false) noexcept -> void {
-    auto const error = static_cast<float>(target) - static_cast<float>(current);
+  auto update(float const target, float const current, bool const freeze_integral = false) noexcept -> void {
+    float const error = target - current;
 
     if (!freeze_integral) {
-      m_integral += static_cast<float>(error) * m_dt;
+      m_integral += error * m_dt;
       m_integral = std::clamp(m_integral, min_limit, max_limit);
     }
 

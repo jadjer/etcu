@@ -24,7 +24,6 @@ namespace device {
 
 template <class Driver>
   requires concepts::GPIO<Driver>
-
 class Indicator {
   Driver& m_driver;
 

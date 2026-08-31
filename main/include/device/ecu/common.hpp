@@ -8,44 +8,44 @@ namespace common {
 
 /**
  * @brief
- * @param val
+ * @param value
  * @return
  */
-float calcValueDivide256(uint8_t val) {
+inline float calcValueDivide256(std::uint8_t const value) {
   // convert to dec, multiple by 5, then divide result by 256
   // used for TPS Volt, ECT Volt, IAT Volt, MAP Volt
-  return static_cast<float>(val) * 5 / 256;
+  return static_cast<float>(value) * 5 / 256;
 }
 
 /**
  * @brief
- * @param val
+ * @param value
  * @return
  */
-uint8_t calcValueMinus40(uint8_t val) {
+inline uint8_t calcValueMinus40(std::uint8_t const value) {
   // value minus 40
   // used for ECT Temp, IAT Temp
-  return val - 40;
+  return value - 40;
 }
 
 /**
  * @brief
- * @param val
+ * @param value
  * @return
  */
-float calcValueDivide16(uint8_t val) {
+inline float calcValueDivide16(std::uint8_t const value) {
   // value divided by 16 and times 10
   // used for TPS%
-  return static_cast<float>(val) * 10 / 16;
+  return static_cast<float>(value) * 10 / 16;
 }
 
 /**
  * @brief
- * @param val
+ * @param value
  * @return
  */
-float calcValueDivide10(uint8_t val) {
-  return static_cast<float>(val) / 10;
+inline float calcValueDivide10(std::uint8_t const value) {
+  return static_cast<float>(value) / 10;
 }
 
 /**
@@ -54,7 +54,7 @@ float calcValueDivide10(uint8_t val) {
  * @param len
  * @return
  */
-uint16_t calcChecksum(uint8_t const* data, size_t len) {
+inline std::uint16_t calcChecksum(std::uint8_t const* data, std::size_t const len) {
   uint16_t checkSum = 0;
 
   for (size_t i = 0; i < len; i++) {

@@ -52,25 +52,10 @@ class ADC {
   static constexpr std::uint8_t calibration_size{11};
   static constexpr auto esp_unit{static_cast<adc_unit_t>(UnitId)};
   static constexpr auto esp_attenuation{static_cast<adc_atten_t>(Attenuation)};
-  static constexpr float m_ema_alpha{0.3f};
 
   adc_oneshot_unit_handle_t m_handle{nullptr};
 
-  std::array<float, calibration_size> m_filtered_states{0.0};
-  std::array<bool, calibration_size> m_filter_initialized{false};
   std::array<adc_cali_handle_t, calibration_size> m_calibration_handles{nullptr};
-
-  auto apply_filter(std::size_t const channel, int const raw_value) noexcept -> int {
-    if (!m_filter_initialized[channel]) [[unlikely]] {
-      m_filtered_states[channel] = static_cast<float>(raw_value);
-      m_filter_initialized[channel] = true;
-      return raw_value;
-    }
-
-    m_filtered_states[channel] = m_ema_alpha * static_cast<float>(raw_value) + (1.0f - m_ema_alpha) * m_filtered_states[channel];
-
-    return static_cast<int>(m_filtered_states[channel]);
-  }
 
  public:
   constexpr ADC() noexcept = default;
@@ -87,7 +72,7 @@ class ADC {
     if (m_handle != nullptr) [[unlikely]]
       return true;
 
-    adc_oneshot_unit_init_cfg_t const handle_config = {
+    static constexpr adc_oneshot_unit_init_cfg_t handle_config = {
         .unit_id = esp_unit,
         .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
@@ -121,8 +106,8 @@ class ADC {
 
   template <std::uint8_t ChannelId>
   auto configure_channel() noexcept -> bool {
-    static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
-    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+    static constexpr auto esp_channel{static_cast<adc_channel_t>(ChannelId)};
+    static constexpr auto channel_index{static_cast<std::size_t>(ChannelId)};
 
     if (m_handle == nullptr && !init()) [[unlikely]]
       return false;
@@ -138,7 +123,7 @@ class ADC {
     if (m_calibration_handles[channel_index] == nullptr) [[unlikely]]
       return true;
 
-    adc_cali_curve_fitting_config_t constexpr calibration_config = {
+    static constexpr adc_cali_curve_fitting_config_t calibration_config = {
         .unit_id = esp_unit,
         .chan = esp_channel,
         .atten = esp_attenuation,
@@ -151,18 +136,10 @@ class ADC {
     return true;
   }
 
-  template <std::uint8_t ChannelId>
-  auto reset_filter() noexcept -> void {
-    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
-    m_filter_initialized[channel_index] = false;
-    m_filtered_states[channel_index] = 0.0f;
-  }
-
   template <std::uint8_t ChannelId, typename T>
     requires std::is_convertible_v<int, T>
-  auto get_value(T& value) noexcept -> bool {
-    static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
-    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+  auto get_value(T& value) const noexcept -> bool {
+    static constexpr auto esp_channel{static_cast<adc_channel_t>(ChannelId)};
 
     if (m_handle == nullptr) [[unlikely]]
       return false;
@@ -172,21 +149,19 @@ class ADC {
     if (adc_oneshot_read(m_handle, esp_channel, &raw_value) != ESP_OK) [[unlikely]]
       return false;
 
-    int const filtered = apply_filter(channel_index, raw_value);
-
-    value = static_cast<T>(filtered);
+    value = static_cast<T>(raw_value);
 
     return true;
   }
 
   template <std::uint8_t ChannelId, typename T>
     requires std::is_convertible_v<int, T>
-  auto get_voltage(T& value) noexcept -> bool {
-    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+  auto get_voltage(T& value) const noexcept -> bool {
+    static constexpr auto channel_index{static_cast<std::size_t>(ChannelId)};
 
-    int filtered_raw = 0;
+    int raw_value = 0;
 
-    if (!get_value<ChannelId>(filtered_raw)) [[unlikely]]
+    if (!get_value<ChannelId>(raw_value)) [[unlikely]]
       return false;
 
     auto const calibration_handle = m_calibration_handles[channel_index];
@@ -195,7 +170,7 @@ class ADC {
 
     int voltage = 0;
 
-    if (adc_cali_raw_to_voltage(calibration_handle, filtered_raw, &voltage) != ESP_OK) [[unlikely]]
+    if (adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage) != ESP_OK) [[unlikely]]
       return false;
 
     value = static_cast<T>(voltage);
