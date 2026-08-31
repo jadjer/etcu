@@ -19,7 +19,6 @@
 #pragma once
 
 #include <concepts>
-#include "type/telemetry.hpp"
 
 namespace concepts {
 
@@ -42,11 +41,11 @@ concept UART = requires(T uart, std::array<std::uint8_t, 1> buffer, type::primit
 };
 
 template <typename T>
-concept ADC = requires(T adc, T const const_adc, std::uint16_t& voltage) {
+concept ADC = requires(T adc, std::uint16_t& voltage) {
   { adc.init() } noexcept -> std::same_as<bool>;
   { adc.template configure_channel<0>() } noexcept -> std::same_as<bool>;
-  { const_adc.template get_value<0>(voltage) } noexcept -> std::same_as<bool>;
-  { const_adc.template get_voltage<0>(voltage) } noexcept -> std::same_as<bool>;
+  { adc.template get_value<0>(voltage) } noexcept -> std::same_as<bool>;
+  { adc.template get_voltage<0>(voltage) } noexcept -> std::same_as<bool>;
 };
 
 }  // namespace concepts

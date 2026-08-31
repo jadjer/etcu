@@ -22,7 +22,8 @@
 #include <esp_adc/adc_cali_scheme.h>
 #include <esp_adc/adc_oneshot.h>
 #include <array>
-#include <cstddef>
+#include <cmath>
+#include <type_traits>
 
 namespace driver {
 
@@ -51,15 +52,34 @@ class ADC {
   static constexpr std::uint8_t calibration_size{11};
   static constexpr auto esp_unit{static_cast<adc_unit_t>(UnitId)};
   static constexpr auto esp_attenuation{static_cast<adc_atten_t>(Attenuation)};
+  static constexpr float m_ema_alpha{0.3f};
 
   adc_oneshot_unit_handle_t m_handle{nullptr};
-  std::array<adc_cali_handle_t, calibration_size> m_calibration_handles{};
+
+  std::array<float, calibration_size> m_filtered_states{0.0};
+  std::array<bool, calibration_size> m_filter_initialized{false};
+  std::array<adc_cali_handle_t, calibration_size> m_calibration_handles{nullptr};
+
+  auto apply_filter(std::size_t const channel, int const raw_value) noexcept -> int {
+    if (!m_filter_initialized[channel]) [[unlikely]] {
+      m_filtered_states[channel] = static_cast<float>(raw_value);
+      m_filter_initialized[channel] = true;
+      return raw_value;
+    }
+
+    m_filtered_states[channel] = m_ema_alpha * static_cast<float>(raw_value) + (1.0f - m_ema_alpha) * m_filtered_states[channel];
+
+    return static_cast<int>(m_filtered_states[channel]);
+  }
 
  public:
   constexpr ADC() noexcept = default;
 
   ADC(ADC const&) noexcept = delete;
   auto operator=(ADC const&) noexcept -> ADC& = delete;
+
+  ADC(ADC&&) noexcept = delete;
+  auto operator=(ADC&&) noexcept -> ADC& = delete;
 
   ~ADC() noexcept { deinit(); }
 
@@ -83,14 +103,14 @@ class ADC {
       if (handle == nullptr)
         continue;
 
-      if (esp_err_t const error = adc_cali_delete_scheme_curve_fitting(handle); error == ESP_OK)
+      if (adc_cali_delete_scheme_curve_fitting(handle) == ESP_OK)
         handle = nullptr;
       else
         is_uninited = false;
     }
 
     if (m_handle != nullptr) {
-      if (esp_err_t const error = adc_oneshot_del_unit(m_handle); error == ESP_OK)
+      if (adc_oneshot_del_unit(m_handle) == ESP_OK)
         m_handle = nullptr;
       else
         is_uninited = false;
@@ -112,8 +132,11 @@ class ADC {
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
-    if (esp_err_t const error = adc_oneshot_config_channel(m_handle, esp_channel, &channel_config); error != ESP_OK) [[unlikely]]
+    if (adc_oneshot_config_channel(m_handle, esp_channel, &channel_config) != ESP_OK) [[unlikely]]
       return false;
+
+    if (m_calibration_handles[channel_index] == nullptr) [[unlikely]]
+      return true;
 
     adc_cali_curve_fitting_config_t constexpr calibration_config = {
         .unit_id = esp_unit,
@@ -122,41 +145,48 @@ class ADC {
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
-    if (m_calibration_handles[channel_index] == nullptr) {
-      if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK)
-          [[unlikely]]
-        return false;
-    }
+    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK) [[unlikely]]
+      return false;
 
     return true;
   }
 
+  template <std::uint8_t ChannelId>
+  auto reset_filter() noexcept -> void {
+    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
+    m_filter_initialized[channel_index] = false;
+    m_filtered_states[channel_index] = 0.0f;
+  }
+
   template <std::uint8_t ChannelId, typename T>
     requires std::is_convertible_v<int, T>
-  auto get_value(T& value) const noexcept -> bool {
+  auto get_value(T& value) noexcept -> bool {
     static constexpr auto esp_channel = static_cast<adc_channel_t>(ChannelId);
+    static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
 
     if (m_handle == nullptr) [[unlikely]]
       return false;
 
     int raw_value{0};
 
-    if (esp_err_t const error = adc_oneshot_read(m_handle, esp_channel, &raw_value); error != ESP_OK) [[unlikely]]
+    if (adc_oneshot_read(m_handle, esp_channel, &raw_value) != ESP_OK) [[unlikely]]
       return false;
 
-    value = static_cast<T>(raw_value);
+    int const filtered = apply_filter(channel_index, raw_value);
+
+    value = static_cast<T>(filtered);
 
     return true;
   }
 
   template <std::uint8_t ChannelId, typename T>
     requires std::is_convertible_v<int, T>
-  auto get_voltage(T& value) const noexcept -> bool {
+  auto get_voltage(T& value) noexcept -> bool {
     static constexpr auto channel_index = static_cast<std::size_t>(ChannelId);
 
-    int raw_value = 0;
+    int filtered_raw = 0;
 
-    if (bool const is_success = get_value<ChannelId>(raw_value); !is_success) [[unlikely]]
+    if (!get_value<ChannelId>(filtered_raw)) [[unlikely]]
       return false;
 
     auto const calibration_handle = m_calibration_handles[channel_index];
@@ -165,7 +195,7 @@ class ADC {
 
     int voltage = 0;
 
-    if (esp_err_t const error = adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage); error != ESP_OK) [[unlikely]]
+    if (adc_cali_raw_to_voltage(calibration_handle, filtered_raw, &voltage) != ESP_OK) [[unlikely]]
       return false;
 
     value = static_cast<T>(voltage);
