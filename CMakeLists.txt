@@ -10,6 +10,6 @@ project(
         ETCU
         DESCRIPTION "Electronic throttle control unit for Honda Varadero based on esp32-s3"
         HOMEPAGE_URL https://github.com/jadjer/etcu
-        VERSION 1.0.4
+        VERSION 1.0.5
         LANGUAGES CXX
 )

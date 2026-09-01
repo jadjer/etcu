@@ -185,9 +185,6 @@ class Controller {
       m_logger.log_info("OTA successfully written. Rebooting...");
       m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Completed));
 
-      m_system_state.store(type::SystemState::Normal);
-      m_chunk_index = std::numeric_limits<std::size_t>::max();
-
       OTAManager::reboot();
 
       return;
