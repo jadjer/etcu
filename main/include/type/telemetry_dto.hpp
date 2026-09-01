@@ -28,8 +28,6 @@ struct Control {
   primitive::Position servo_max{0};
   primitive::Position accelerator_min{0};
   primitive::Position accelerator_max{0};
-  primitive::Position accelerator_dead_min{0};
-  primitive::Position accelerator_dead_max{0};
 
 } __attribute__((packed));
 

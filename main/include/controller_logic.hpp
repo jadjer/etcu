@@ -45,16 +45,13 @@ class Logic {
                                               type::Speed const current_speed,
                                               type::Speed const target_speed,
                                               type::Control const& control) noexcept -> type::Position {
-    std::int32_t const input_range = control.accelerator_max.value - control.accelerator_min.value;
-    std::int32_t const output_range = control.servo_max.value - control.servo_min.value;
-
     type::Position driver_proposal = control.servo_min;
 
-    if (input_range > 0 && output_range > 0) {
-      std::int32_t const clamped_input = std::clamp(accelerator_position.value, control.accelerator_min.value, control.accelerator_dead_max.value);
-
-      float const ratio = static_cast<float>(clamped_input - control.accelerator_dead_min.value) / static_cast<float>(input_range);
-      float const interpolated = (ratio * static_cast<float>(output_range)) + static_cast<float>(control.servo_min.value);
+    if (auto const input_range = static_cast<float>(control.accelerator_max.as<int>() - control.accelerator_min.as<int>()); input_range > 0) {
+      type::Position const clamped_input = std::clamp(accelerator_position.value, control.accelerator_min.value, control.accelerator_max.value);
+      float const ratio = (clamped_input - control.accelerator_min).as<float>() / input_range;
+      auto const output_range = (control.servo_max - control.servo_min).as<float>();
+      float const interpolated = ratio * output_range + control.servo_min.as<float>();
 
       driver_proposal = type::Position{static_cast<std::int32_t>(std::roundf(interpolated))};
     }
@@ -66,12 +63,10 @@ class Logic {
 
     float const pid_value = m_speed_regulator.calculate(target_speed.value, current_speed.value);
 
-    type::Position const pid_servo_proposal = static_cast<std::int32_t>(std::roundf(pid_value));
-
     type::Position target_servo_position = control.servo_min;
     bool freeze_integral = false;
 
-    if (driver_proposal >= pid_servo_proposal) {
+    if (type::Position const pid_servo_proposal{static_cast<std::int32_t>(std::roundf(pid_value))}; driver_proposal >= pid_servo_proposal) {
       target_servo_position = driver_proposal;
       freeze_integral = true;
     } else {
