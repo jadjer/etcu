@@ -24,7 +24,6 @@
 template <typename T>
 concept ControllerConcept = requires(T controller) {
   { controller.init() } noexcept -> std::same_as<void>;
-  { controller.process_ota_loop() } noexcept -> std::same_as<void>;
   { controller.process_system_loop() } noexcept -> std::same_as<void>;
   { controller.process_critical_loop() } noexcept -> std::same_as<void>;
 };
@@ -40,7 +39,6 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_system_loop();
-      host->m_controller.process_ota_loop();
       vTaskDelay(pdMS_TO_TICKS(RateMS));
     }
   }

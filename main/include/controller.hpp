@@ -144,7 +144,7 @@ class Controller {
     m_logger.log_info("{}", m_system_errors.has_any() ? "Not ready" : "Ready");
   }
 
-  auto process_ota_loop() noexcept -> void {
+  auto process_ota() noexcept -> void {
     auto const [size, total, index, data] = m_ota_chunk.load();
 
     if (size == 0 || index == m_chunk_index) {
@@ -193,10 +193,7 @@ class Controller {
     m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::ReadyForNext));
   }
 
-  auto process_system_loop() noexcept -> void {
-    if (m_ota_manager.isActive())
-      return;
-
+  auto process_system() noexcept -> void {
     // =========================================================================
     // Обновляем информацию по устройствам
     // =========================================================================
@@ -250,6 +247,14 @@ class Controller {
         .system_errors = m_system_errors.get_all(),
     };
     m_system_errors.update(m_ble_manager.send_telemetry(system_telemetry));
+  }
+
+  auto process_system_loop() noexcept -> void {
+    process_ota();
+
+    if (!m_ota_manager.isActive()) {
+      process_system();
+    }
   }
 
   auto process_critical_loop() noexcept -> void {
