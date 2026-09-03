@@ -30,9 +30,9 @@ namespace driver {
 template <std::uint8_t Port, std::uint8_t TxPin, std::uint8_t RxPin, std::size_t BaudRate, std::size_t BufferSize = 4096>
   requires(Port < UART_NUM_MAX) && (TxPin < GPIO_NUM_MAX) && (RxPin < GPIO_NUM_MAX)
 class UART {
-  static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
-  static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
   static constexpr auto esp_rx{static_cast<gpio_num_t>(RxPin)};
+  static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
+  static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
   static constexpr auto esp_baud_rate{static_cast<uint32_t>(BaudRate)};
 
  public:
@@ -72,11 +72,6 @@ class UART {
       return false;
     }
 
-    if (uart_set_mode(esp_port, UART_MODE_RS485_COLLISION_DETECT) != ESP_OK) [[unlikely]] {
-      uart_driver_delete(esp_port);
-      return false;
-    }
-
     return true;
   }
 
@@ -88,22 +83,14 @@ class UART {
 
   template <std::size_t PackageSize>
     requires(PackageSize > 0)
-  static auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) noexcept -> bool {
-    static constexpr std::size_t package_size{PackageSize};
-
-    int const read_bytes = uart_read_bytes(esp_port, data.data(), data.size(), pdMS_TO_TICKS(timeout_ms));
-
-    return std::cmp_equal(read_bytes, package_size);
+  static auto read(std::array<std::uint8_t, PackageSize>& packet, std::uint16_t const timeout_ms) noexcept -> int {
+    return uart_read_bytes(esp_port, packet.data(), packet.size(), pdMS_TO_TICKS(timeout_ms));
   }
 
   template <std::size_t PackageSize>
     requires(PackageSize > 0)
-  static auto write(std::array<std::uint8_t, PackageSize> const& data) noexcept -> bool {
-    static constexpr std::size_t package_size{PackageSize};
-
-    int const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
-
-    return std::cmp_equal(write_bytes, package_size);
+  static auto write(std::array<std::uint8_t, PackageSize> const& packet) noexcept -> int {
+    return uart_write_bytes(esp_port, packet.data(), packet.size());
   }
 };
 

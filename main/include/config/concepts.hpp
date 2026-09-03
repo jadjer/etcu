@@ -37,8 +37,8 @@ concept UART = requires(T uart, std::array<std::uint8_t, 1> buffer, std::uint16_
   { uart.flush() } noexcept -> std::same_as<bool>;
   { uart.flush_input() } noexcept -> std::same_as<bool>;
   { uart.wait_send_done(timeout_ms) } noexcept -> std::same_as<bool>;
-  { uart.template read<1>(buffer, timeout_ms) } noexcept -> std::same_as<bool>;
-  { uart.template write<1>(buffer) } noexcept -> std::same_as<bool>;
+  { uart.template read<1>(buffer, timeout_ms) } noexcept -> std::same_as<int>;
+  { uart.template write<1>(buffer) } noexcept -> std::same_as<int>;
 };
 
 template <typename T>

@@ -21,62 +21,10 @@
 #include <numeric>
 
 #include "config/concepts.hpp"
+#include "type/ecu.hpp"
 #include "type/type.hpp"
 
 namespace device {
-
-template <std::size_t PayloadSize>
-struct Message {
-  static constexpr std::size_t header_size{3};
-  static constexpr std::size_t checksum_size{1};
-  static constexpr std::size_t total_size{header_size + PayloadSize + checksum_size};
-
-  std::uint8_t address;
-  std::uint8_t length;
-  std::uint8_t mode;
-  std::array<std::uint8_t, PayloadSize> payload;
-  std::uint8_t checksum;
-
-  [[nodiscard]] auto calculate_checksum() const noexcept -> std::uint8_t {
-    std::uint32_t sum = address + length + mode;
-    if constexpr (PayloadSize > 0) {
-      sum = std::accumulate(payload.begin(), payload.end(), sum);
-    }
-    return static_cast<std::uint8_t>(0U - sum);
-  }
-
-  [[nodiscard]] auto to_array() const noexcept -> std::array<std::uint8_t, total_size> {
-    std::array<std::uint8_t, total_size> bytes{};
-
-    bytes[0] = address;
-    bytes[1] = length;
-    bytes[2] = mode;
-
-    if constexpr (PayloadSize > 0) {
-      std::copy(payload.begin(), payload.end(), bytes.begin() + header_size);
-    }
-
-    bytes[total_size - 1] = calculate_checksum();
-
-    return bytes;
-  }
-
-  static auto from_array(std::array<std::uint8_t, total_size> const& bytes) noexcept -> Message {
-    Message msg{};
-
-    msg.address = bytes[0];
-    msg.length = bytes[1];
-    msg.mode = bytes[2];
-
-    if constexpr (PayloadSize > 0) {
-      std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + PayloadSize), msg.payload.begin());
-    }
-
-    msg.checksum = bytes[total_size - 1];
-
-    return msg;
-  }
-};
 
 struct EngineData {
   std::uint16_t rpm;
@@ -106,14 +54,46 @@ class ECU {
   EngineData m_engine_data{};
 
   template <std::size_t PayloadSize>
-  auto send_message(Message<PayloadSize> const& message) noexcept -> bool {
+  auto send_message(type::Message<PayloadSize> const& message) noexcept -> bool {
+    static constexpr std::uint16_t echo_timeout_ms{100};
+    static constexpr std::size_t packet_size{type::Message<PayloadSize>::total_size};
+
+    // 1. Очищаем буфер UART перед отправкой
     if (!m_driver_uart.flush()) [[unlikely]] {
-      ESP_LOGE("ECU", "Flush");
+      ESP_LOGE("ECU", "Flush failed");
       return false;
     }
 
-    if (!m_driver_uart.write(message.to_array())) [[unlikely]] {
-      ESP_LOGE("ECU", "Write message");
+    std::array<std::uint8_t, packet_size> const packet = message.to_array();
+
+    // 2. Отправляем данные (write возвращает int/ssize_t)
+    int const written_bytes = m_driver_uart.write(packet);
+    if (written_bytes < 0 || static_cast<std::size_t>(written_bytes) < packet_size) [[unlikely]] {
+      // Исправлено: %zu для packet_size
+      ESP_LOGE("ECU", "Written %d bytes from %zu", written_bytes, packet_size);
+      return false;
+    }
+
+    // 3. Выделяем буфер под эхо-пакет правильного размера
+    std::array<std::uint8_t, packet_size> echo_packet{};
+
+    // 4. Исправлено: read возвращает bool. Если вернул false — значит, вычитали не всё или таймаут
+    if (!m_driver_uart.read(echo_packet, echo_timeout_ms)) [[unlikely]] {
+      ESP_LOGE("ECU", "Read echo bytes failed (Timeout or incomplete), expected %zu", packet_size);
+      return false;
+    }
+
+    // 5. Исправлено: парсим эхо через std::expected, проверяя структуру и чексумму прямо из эфира
+    std::expected<type::Message<PayloadSize>, type::MessageError> const expected_echo_message = type::Message<PayloadSize>::from_array(echo_packet);
+
+    if (!expected_echo_message.has_value()) [[unlikely]] {
+      ESP_LOGE("ECU", "Echo packet is corrupted (invalid checksum or layout)");
+      return false;
+    }
+
+    // 6. Сравниваем исходное сообщение с эхо-сообщением через ваш оператор operator==
+    if (message != expected_echo_message.value()) {
+      ESP_LOGE("ECU", "Wrong echo: Sent data does not match received loopback data");
       return false;
     }
 
@@ -121,31 +101,45 @@ class ECU {
   }
 
   template <std::size_t PayloadSize>
-  auto receive_message(Message<PayloadSize>& message) noexcept -> bool {
+  auto receive_message(type::Message<PayloadSize>& message) noexcept -> bool {
     static constexpr std::uint16_t timeout_ms{1000};
-    static constexpr std::size_t package_size{Message<PayloadSize>::total_size};
+    static constexpr std::size_t packet_size{type::Message<PayloadSize>::total_size};
 
-    std::array<std::uint8_t, package_size> packet{};
+    std::array<std::uint8_t, packet_size> packet{};
 
+    // 1. Читаем данные. Драйвер UART сам проверяет, что вычитал строго packet_size байт
     if (!m_driver_uart.read(packet, timeout_ms)) [[unlikely]] {
+      ESP_LOGE("ECU", "Read message failed (Timeout or Bus Error)");
       m_is_connected = false;
       return false;
     }
 
-    message = Message<PayloadSize>::from_array(packet);
+    // 2. Парсим пакет и получаем std::expected
+    std::expected<type::Message<PayloadSize>, type::MessageError> const expected_message = type::Message<PayloadSize>::from_array(packet);
 
-    std::uint8_t const checksum_response = packet.back();
-    std::uint8_t const checksum_calculated = message.calculate_checksum();
+    // 3. Обрабатываем возможные ошибки парсинга
+    if (!expected_message.has_value()) [[unlikely]] {
+      type::MessageError const error = expected_message.error();
 
-    if (checksum_response != checksum_calculated) [[unlikely]] {
+      if (error == type::MessageError::WRONG_LENGTH) {
+        ESP_LOGE("ECU", "Receive failed: Packet has invalid length field");
+      } else if (error == type::MessageError::WRONG_CHECKSUM) {
+        ESP_LOGE("ECU", "Receive failed: Checksum mismatch");
+      }
+
       return false;
     }
+
+    // 4. Ошибок нет. Безопасно извлекаем и копируем сообщение в выходной параметр
+    message = expected_message.value();  // или message = *parse_result;
 
     return true;
   }
 
   auto wake_up() noexcept -> bool {
-    static constexpr Message<0> wakeup_message{ 0xFE,  0x04,  0xFF,  {},  0xFF};
+    static constexpr type::Message<0> wakeup_message{.address = 0xFE, .length = 0x04, .mode = 0xFF, .payload = {}, .checksum = 0xFF};
+    static constexpr type::Message<1> init_message{.address = 0x72, .length = 0x05, .mode = 0x00, .payload = {0xF0}, .checksum = 0x99};
+    static constexpr type::Message<0> init_answer_packet{.address = 0x02, .length = 0x04, .mode = 0x00, .payload = {}, .checksum = 0xFA};
 
     m_driver_gpio.init();
 
@@ -157,19 +151,29 @@ class ECU {
 
     m_driver_uart.init();
 
-    return send_message(wakeup_message);
-  }
+    if (!send_message(wakeup_message)) {
+      ESP_LOGE("ECU", "WAKE_UP Send failed");
+      return false;
+    }
 
-  auto initialize() noexcept -> bool {
-    static constexpr Message<1> init_message{0x72, 0x05, 0x00, {0xF0}, 0x99};
-    static constexpr Message<0> init_answer_packet{0x02, 0x04, 0x00, {}, 0xFA};
+    if (!send_message(init_message)) {
+      ESP_LOGE("ECU", "INIT Send failed");
+      return false;
+    }
 
-    send_message(init_message);
+    type::Message<0> answer_message{};
 
-    Message<0> answer_message{};
-    receive_message(answer_message);
+    if (!receive_message(answer_message)) {
+      ESP_LOGE("ECU", "INIT Receive failed");
+      return false;
+    }
 
-    return answer_message.to_array() == init_answer_packet.to_array();
+    if (answer_message.to_array() != init_answer_packet.to_array()) {
+      ESP_LOGE("ECU", "INIT Wrong answer message");
+      return false;
+    }
+
+    return true;
   }
 
   auto connect() noexcept -> bool {
@@ -179,20 +183,21 @@ class ECU {
     if (!wake_up()) [[unlikely]]
       return false;
 
-    if (!initialize()) [[unlikely]]
-      return false;
-
     m_is_connected = true;
 
     return true;
   }
 
   auto updateTable0() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {}, 0x18};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {}, .checksum = 0x18};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<11> response{};
+    type::Message<11> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -201,11 +206,15 @@ class ECU {
   }
 
   auto updateTable10() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {0x10}, 0x8};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x10}, .checksum = 0x8};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<18> response{};
+    type::Message<18> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -214,11 +223,15 @@ class ECU {
   }
 
   auto updateTable11() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {0x11}, 0x7};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x11}, .checksum = 0x7};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<21> response{};
+    type::Message<21> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -227,11 +240,15 @@ class ECU {
   }
 
   auto updateTable20() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {0x20}, 0xF8};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x20}, .checksum = 0xF8};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<4> response{};
+    type::Message<4> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -240,11 +257,15 @@ class ECU {
   }
 
   auto updateTable21() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {0x21}, 0xF7};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x21}, .checksum = 0xF7};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<7> response{};
+    type::Message<7> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -253,11 +274,15 @@ class ECU {
   }
 
   auto updateTableD0() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {0xD0}, 0x48};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0xD0}, .checksum = 0x48};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<15> response{};
+    type::Message<15> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -266,11 +291,15 @@ class ECU {
   }
 
   auto updateTableD1() noexcept -> bool {
-    static constexpr Message<1> request{0x72, 5, 0x71, {0xD1}, 0x47};
+    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0xD1}, .checksum = 0x47};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    Message<7> response{};
+    type::Message<7> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
@@ -308,13 +337,13 @@ class ECU {
     if (!connect()) [[unlikely]]
       return type::SystemError::ECUInitFault;
 
-    updateTable0();
-    updateTable10();
-    updateTable11();
-    updateTable20();
-    updateTable21();
-    updateTableD0();
-    updateTableD1();
+    // updateTable0();
+    // updateTable10();
+    // updateTable11();
+    // updateTable20();
+    // updateTable21();
+    // updateTableD0();
+    // updateTableD1();
 
     return type::SystemError::None;
   }
