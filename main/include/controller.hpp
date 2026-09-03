@@ -144,7 +144,16 @@ class Controller {
     m_logger.log_info("{}", m_system_errors.has_any() ? "Not ready" : "Ready");
   }
 
-  auto process_ota() noexcept -> void {
+  auto process_ecu_loop() noexcept -> void {
+    type::ECUTelemetry ecu_telemetry{};
+
+    m_system_errors.update(m_ecu.update());
+    m_system_errors.update(m_ecu.get_telemetry(ecu_telemetry));
+
+    m_ecu_telemetry.store(ecu_telemetry);
+  }
+
+  auto process_ota_loop() noexcept -> void {
     auto const [size, total, index, data] = m_ota_chunk.load();
 
     if (size == 0 || index == m_chunk_index) {
@@ -193,78 +202,25 @@ class Controller {
     m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::ReadyForNext));
   }
 
-  auto process_system() noexcept -> void {
-    // =========================================================================
-    // Обновляем информацию по устройствам
-    // =========================================================================
-
+  auto process_system_loop() noexcept -> void {
     m_mode_button.update();
-    m_system_errors.update(m_ecu.update());
     m_system_errors.update(m_mode_indicator.update());
 
-    // =========================================================================
-    // Собираем данные по устройствам
-    // =========================================================================
-
-    bool const guard_active = m_guard.is_active();
-    bool const brake_active = m_brake.is_active();
-    type::Speed const target_speed = m_target_speed.load();
     type::SystemState const system_state = m_system_state.load();
-
-    // =========================================================================
-    // Обновляем телеметрию по ECU и отправляем на исполнительное ядро
-    // =========================================================================
-
-    type::ECUTelemetry ecu_telemetry{};
-    m_system_errors.update(m_ecu.get_telemetry(ecu_telemetry));
-    m_ecu_telemetry.store(ecu_telemetry);
-
-    // =========================================================================
-    // Обрабатываем в соответствии с режимом
-    // =========================================================================
+    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
     if (system_state == type::SystemState::Normal)
       if (m_mode_button.is_long_press())
         m_target_speed.store(ecu_telemetry.speed);
-
-    // =========================================================================
-    // Отправка телеметрии через BLE
-    // =========================================================================
-
-    auto const [throttle_position, accelerator_position, servo_telemetry] = m_driver_telemetry.load();
-
-    type::SystemTelemetry const system_telemetry{
-        .is_guard_active = guard_active,
-        .is_brake_enabled = brake_active,
-
-        .servo_telemetry = servo_telemetry,
-        .ecu_telemetry = ecu_telemetry,
-        .accelerator_position = accelerator_position,
-        .throttle_position = throttle_position,
-        .target_speed = target_speed,
-
-        .system_state = system_state,
-        .system_errors = m_system_errors.get_all(),
-    };
-    m_system_errors.update(m_ble_manager.send_telemetry(system_telemetry));
-  }
-
-  auto process_system_loop() noexcept -> void {
-    process_ota();
-
-    if (!m_ota_manager.isActive()) {
-      process_system();
-    }
   }
 
   auto process_critical_loop() noexcept -> void {
+    type::Control const control = m_control.load();
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
     type::Speed const target_speed = m_target_speed.load();
     type::Speed const current_speed = ecu_telemetry.speed;
-
-    auto const control = m_control.load();
 
     type::Position accelerator_position{0};
 
@@ -285,5 +241,31 @@ class Controller {
         .servo_telemetry = servo_telemetry,
     };
     m_driver_telemetry.store(drive_telemetry);
+  }
+
+  auto process_telemetry_loop() noexcept -> void {
+    type::Speed const target_speed = m_target_speed.load();
+    type::SystemState const system_state = m_system_state.load();
+    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
+
+    bool const guard_active = m_guard.is_active();
+    bool const brake_active = m_brake.is_active();
+
+    auto const [throttle_position, accelerator_position, servo_telemetry] = m_driver_telemetry.load();
+
+    type::SystemTelemetry const system_telemetry{
+        .is_guard_active = guard_active,
+        .is_brake_enabled = brake_active,
+
+        .servo_telemetry = servo_telemetry,
+        .ecu_telemetry = ecu_telemetry,
+        .accelerator_position = accelerator_position,
+        .throttle_position = throttle_position,
+        .target_speed = target_speed,
+
+        .system_state = system_state,
+        .system_errors = m_system_errors.get_all(),
+    };
+    m_system_errors.update(m_ble_manager.send_telemetry(system_telemetry));
   }
 };

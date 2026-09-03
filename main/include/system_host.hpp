@@ -24,8 +24,11 @@
 template <typename T>
 concept ControllerConcept = requires(T controller) {
   { controller.init() } noexcept -> std::same_as<void>;
+  { controller.process_ecu_loop() } noexcept -> std::same_as<void>;
+  { controller.process_ota_loop() } noexcept -> std::same_as<void>;
   { controller.process_system_loop() } noexcept -> std::same_as<void>;
   { controller.process_critical_loop() } noexcept -> std::same_as<void>;
+  { controller.process_telemetry_loop() } noexcept -> std::same_as<void>;
 };
 
 template <class Controller, std::uint8_t SystemCore = 0, std::uint8_t CriticalCore = 1, std::uint16_t RateMS = 10>
@@ -33,6 +36,24 @@ template <class Controller, std::uint8_t SystemCore = 0, std::uint8_t CriticalCo
 
 class SystemHost {
   Controller& m_controller;
+
+  [[noreturn]] static auto ecu_task_adapter(void* parameters) -> void {
+    auto* host = static_cast<SystemHost*>(parameters);
+
+    while (true) {
+      host->m_controller.process_ecu_loop();
+      vTaskDelay(pdMS_TO_TICKS(RateMS));
+    }
+  }
+
+  [[noreturn]] static auto ota_task_adapter(void* parameters) -> void {
+    auto* host = static_cast<SystemHost*>(parameters);
+
+    while (true) {
+      host->m_controller.process_ota_loop();
+      vTaskDelay(pdMS_TO_TICKS(RateMS));
+    }
+  }
 
   [[noreturn]] static auto system_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
@@ -53,6 +74,15 @@ class SystemHost {
     }
   }
 
+  [[noreturn]] static auto telemetry_task_adapter(void* parameters) -> void {
+    auto* host = static_cast<SystemHost*>(parameters);
+
+    while (true) {
+      host->m_controller.process_telemetry_loop();
+      vTaskDelay(pdMS_TO_TICKS(RateMS));
+    }
+  }
+
  public:
   constexpr explicit SystemHost(Controller& controller) noexcept : m_controller(controller) {}
 
@@ -67,7 +97,10 @@ class SystemHost {
   constexpr ~SystemHost() noexcept = default;
 
   auto run() -> void {
-    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 1, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::ecu_task_adapter, "ECUTask", 4096, this, 3, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::ota_task_adapter, "OTATask", 4096, this, 2, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 4, nullptr, SystemCore);
     xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, CriticalCore);
+    xTaskCreatePinnedToCore(&SystemHost::telemetry_task_adapter, "TelemetryTask", 4096, this, 1, nullptr, SystemCore);
   }
 };

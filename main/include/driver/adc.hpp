@@ -66,7 +66,7 @@ class ADC {
   ADC(ADC&&) noexcept = delete;
   auto operator=(ADC&&) noexcept -> ADC& = delete;
 
-  ~ADC() noexcept { deinit(); }
+  constexpr ~ADC() noexcept = default;
 
   auto init() noexcept -> bool {
     if (m_handle != nullptr) [[unlikely]]
@@ -79,29 +79,6 @@ class ADC {
     };
 
     return adc_oneshot_new_unit(&handle_config, &m_handle) == ESP_OK;
-  }
-
-  auto deinit() -> bool {     // NOLINT
-    bool is_uninited = true;  // NOLINT
-
-    for (auto& handle : m_calibration_handles) {
-      if (handle == nullptr)
-        continue;
-
-      if (adc_cali_delete_scheme_curve_fitting(handle) == ESP_OK)
-        handle = nullptr;
-      else
-        is_uninited = false;
-    }
-
-    if (m_handle != nullptr) {
-      if (adc_oneshot_del_unit(m_handle) == ESP_OK)
-        m_handle = nullptr;
-      else
-        is_uninited = false;
-    }
-
-    return is_uninited;
   }
 
   template <std::uint8_t ChannelId>

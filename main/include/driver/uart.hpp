@@ -23,6 +23,7 @@
 #include <freertos/FreeRTOS.h>
 #include <array>
 #include <cstddef>
+#include <utility>
 
 namespace driver {
 
@@ -43,14 +44,12 @@ class UART {
   UART(UART&&) noexcept = delete;
   auto operator=(UART&&) noexcept -> UART& = delete;
 
-  ~UART() noexcept { deinit(); }
+  constexpr ~UART() noexcept = default;
 
   static auto init() noexcept -> bool {
-    if (uart_is_driver_installed(esp_port))
-      return true;
-
-    if (uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0) != ESP_OK) [[unlikely]]
-      return false;
+    if (!uart_is_driver_installed(esp_port))
+      if (uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0) != ESP_OK) [[unlikely]]
+        return false;
 
     static constexpr uart_config_t config = {
         .baud_rate = BaudRate,
@@ -73,26 +72,38 @@ class UART {
       return false;
     }
 
+    if (uart_set_mode(esp_port, UART_MODE_RS485_COLLISION_DETECT) != ESP_OK) [[unlikely]] {
+      uart_driver_delete(esp_port);
+      return false;
+    }
+
     return true;
   }
 
-  static auto deinit() noexcept -> bool {  // NOLINT
-    return uart_driver_delete(esp_port) == ESP_OK;
-  }
+  static auto flush() noexcept -> bool { return uart_flush(esp_port) == ESP_OK; }
 
-  static auto flush() noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }
+  static auto flush_input() noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }
+
+  static auto wait_send_done(std::uint16_t const timeout_ms) noexcept -> bool { return uart_wait_tx_done(esp_port, pdMS_TO_TICKS(timeout_ms)) == ESP_OK; }
+
+  template <std::size_t PackageSize>
+    requires(PackageSize > 0)
+  static auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) noexcept -> bool {
+    static constexpr std::size_t package_size{PackageSize};
+
+    int const read_bytes = uart_read_bytes(esp_port, data.data(), data.size(), pdMS_TO_TICKS(timeout_ms));
+
+    return std::cmp_equal(read_bytes, package_size);
+  }
 
   template <std::size_t PackageSize>
     requires(PackageSize > 0)
   static auto write(std::array<std::uint8_t, PackageSize> const& data) noexcept -> bool {
-    int const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
-    return write_bytes == static_cast<int>(data.size());
-  }
+    static constexpr std::size_t package_size{PackageSize};
 
-  template <std::size_t PackageSize>
-    requires(PackageSize > 0)
-  static auto read(std::array<std::uint8_t, PackageSize>& data, std::uint16_t const timeout_ms) noexcept -> int {
-    return uart_read_bytes(esp_port, data.data(), data.size(), pdMS_TO_TICKS(timeout_ms));
+    int const write_bytes = uart_write_bytes(esp_port, data.data(), data.size());
+
+    return std::cmp_equal(write_bytes, package_size);
   }
 };
 

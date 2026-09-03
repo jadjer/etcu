@@ -18,10 +18,10 @@
 
 #pragma once
 
+#include "../device/ecu.hpp"
 #include "config/constants.hpp"
 #include "device/accelerator.hpp"
 #include "device/button.hpp"
-#include "device/ecu/ecu.hpp"
 #include "device/indicator.hpp"
 #include "device/servo.hpp"
 #include "device/switch.hpp"
