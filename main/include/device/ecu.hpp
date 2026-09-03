@@ -19,7 +19,7 @@
 #pragma once
 
 #include <numeric>
-
+#include "common/convert.hpp"
 #include "config/concepts.hpp"
 #include "type/ecu.hpp"
 #include "type/type.hpp"
@@ -40,7 +40,8 @@ struct EngineData {
   std::uint16_t mapVolts;
   std::uint16_t batteryVolts;
   std::uint8_t speed;
-  std::uint8_t state;
+  bool is_clutch;
+  bool is_running;
 };
 
 template <class DriverUart, class DriverGPIO>
@@ -93,8 +94,10 @@ class ECU {
       return false;
     }
 
+    type::Message<PayloadSize> echo_message = expected_echo_message.value();
+
     // 6. Сравниваем исходное сообщение с эхо-сообщением через ваш оператор operator==
-    if (message != expected_echo_message.value()) {
+    if (message != echo_message) {
       ESP_LOGE("ECU", "Wrong echo: Sent data does not match received loopback data");
       return false;
     }
@@ -192,42 +195,8 @@ class ECU {
     return true;
   }
 
-  auto updateTable0() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {}, .checksum = 0x18};
-
-    if (!connect()) [[unlikely]]
-      return false;
-
-    if (!send_message(request)) [[unlikely]]
-      return false;
-
-    type::Message<11> response{};
-
-    if (!receive_message(response)) [[unlikely]]
-      return false;
-
-    return true;
-  }
-
-  auto updateTable10() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x10}, .checksum = 0x8};
-
-    if (!connect()) [[unlikely]]
-      return false;
-
-    if (!send_message(request)) [[unlikely]]
-      return false;
-
-    type::Message<18> response{};
-
-    if (!receive_message(response)) [[unlikely]]
-      return false;
-
-    return true;
-  }
-
   auto updateTable11() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x11}, .checksum = 0x7};
+    static constexpr type::Message<3> request{.address = 0x72, .length = 0x07, .mode = 0x72, .payload = {0x11, 0x00, 0x17}, .checksum = 0xED};
 
     if (!connect()) [[unlikely]]
       return false;
@@ -235,67 +204,32 @@ class ECU {
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    type::Message<21> response{};
+    type::Message<25> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
 
-    return true;
-  }
+    m_engine_data.rpm = (response.payload[2] << 8) + response.payload[3];
+    m_engine_data.tpsVolts = common::calcValueDivide256(response.payload[4]);
+    m_engine_data.tpsPercent = common::calcValueDivide16(response.payload[5]);
+    m_engine_data.ectVolts = common::calcValueDivide256(response.payload[6]);
+    m_engine_data.ectTemp = common::calcValueMinus40(response.payload[7]);
+    m_engine_data.iatVolts = common::calcValueDivide256(response.payload[8]);
+    m_engine_data.iatTemp = common::calcValueMinus40(response.payload[9]);
+    m_engine_data.mapVolts = common::calcValueDivide256(response.payload[10]);
+    m_engine_data.mapPressure = response.payload[11];
+    m_engine_data.batteryVolts = common::calcValueDivide10(response.payload[14]);
+    m_engine_data.speed = response.payload[15];
+    m_engine_data.fuelInject = (response.payload[16] << 8) + response.payload[17];
+    m_engine_data.ignitionAdvance = response.payload[18];
 
-  auto updateTable20() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x20}, .checksum = 0xF8};
-
-    if (!connect()) [[unlikely]]
-      return false;
-
-    if (!send_message(request)) [[unlikely]]
-      return false;
-
-    type::Message<4> response{};
-
-    if (!receive_message(response)) [[unlikely]]
-      return false;
-
-    return true;
-  }
-
-  auto updateTable21() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0x21}, .checksum = 0xF7};
-
-    if (!connect()) [[unlikely]]
-      return false;
-
-    if (!send_message(request)) [[unlikely]]
-      return false;
-
-    type::Message<7> response{};
-
-    if (!receive_message(response)) [[unlikely]]
-      return false;
-
-    return true;
-  }
-
-  auto updateTableD0() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0xD0}, .checksum = 0x48};
-
-    if (!connect()) [[unlikely]]
-      return false;
-
-    if (!send_message(request)) [[unlikely]]
-      return false;
-
-    type::Message<15> response{};
-
-    if (!receive_message(response)) [[unlikely]]
-      return false;
+    ESP_LOG_BUFFER_HEX("ECU", response.payload.data(), response.payload.size());
 
     return true;
   }
 
   auto updateTableD1() noexcept -> bool {
-    static constexpr type::Message<1> request{.address = 0x72, .length = 5, .mode = 0x71, .payload = {0xD1}, .checksum = 0x47};
+    static constexpr type::Message<3> request{.address = 0x72, .length = 0x07, .mode = 0x72, .payload = {0xD1, 0x00, 0x06}, .checksum = 0x3E};
 
     if (!connect()) [[unlikely]]
       return false;
@@ -303,10 +237,13 @@ class ECU {
     if (!send_message(request)) [[unlikely]]
       return false;
 
-    type::Message<7> response{};
+    type::Message<8> response{};
 
     if (!receive_message(response)) [[unlikely]]
       return false;
+
+    m_engine_data.is_clutch = response.payload[2];
+    m_engine_data.is_running = response.payload[6];
 
     return true;
   }
