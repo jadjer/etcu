@@ -19,30 +19,70 @@
 #pragma once
 
 #include <array>
-#include <expected>
+#include <numeric>
 
-namespace type {
+namespace device {
 
-enum class MessageError {
+enum class ECUMode : std::uint8_t {
+  INIT = 0x00,
+  WAKE_UP = 0xFF,
+  READ_TABLE = 0x71,
+  READ_RANGE = 0x72,
+};
+
+enum class ECUMessageError {
+  NONE,
   WRONG_LENGTH,
   WRONG_CHECKSUM,
 };
 
 template <std::size_t PayloadSize>
-struct Message {
+struct ECUMessage {
   static constexpr std::size_t header_size{3};
   static constexpr std::size_t checksum_size{1};
   static constexpr std::size_t total_size{header_size + PayloadSize + checksum_size};
-  static constexpr std::uint8_t calculated_length = static_cast<std::uint8_t>(1U + PayloadSize);
 
   std::uint8_t address{};
   std::uint8_t length{static_cast<std::uint8_t>(total_size)};
-  std::uint8_t mode{};
+  ECUMode mode{ECUMode::INIT};
   std::array<std::uint8_t, PayloadSize> payload{};
   std::uint8_t checksum{};
 
+  ECUMessageError error{ECUMessageError::NONE};
+
+  constexpr ECUMessage() noexcept = default;
+
+  constexpr explicit ECUMessage(std::uint8_t const address, ECUMode const mode, std::array<std::uint8_t, PayloadSize> const& payload = {}) noexcept
+      : address{address}, mode{mode}, payload{payload} {}
+
+  constexpr explicit ECUMessage(std::array<std::uint8_t, total_size> const& bytes) noexcept {
+    if (bytes[1] != total_size) [[unlikely]] {
+      error = ECUMessageError::WRONG_LENGTH;
+      return;
+    }
+
+    address = bytes[0];
+    length = bytes[1];
+    mode = static_cast<ECUMode>(bytes[2]);
+
+    if constexpr (PayloadSize > 0) {
+      std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + PayloadSize), payload.begin());
+    }
+
+    checksum = bytes[total_size - 1];
+
+    if (checksum != calculate_checksum()) [[unlikely]] {
+      error = ECUMessageError::WRONG_CHECKSUM;
+      return;
+    }
+  }
+
+  [[nodiscard]] constexpr auto is_valid() const noexcept -> bool { return error == ECUMessageError::NONE; }
+
+  [[nodiscard]] constexpr auto get_error() const noexcept -> ECUMessageError { return error; }
+
   [[nodiscard]] auto calculate_checksum() const noexcept -> std::uint8_t {
-    std::uint32_t sum = address + length + mode;
+    std::uint32_t sum = address + length + static_cast<std::uint8_t>(mode);
     if constexpr (PayloadSize > 0) {
       sum = std::accumulate(payload.begin(), payload.end(), sum);
     }
@@ -54,7 +94,7 @@ struct Message {
 
     bytes[0] = address;
     bytes[1] = length;
-    bytes[2] = mode;
+    bytes[2] = static_cast<std::uint8_t>(mode);
 
     if constexpr (PayloadSize > 0) {
       std::copy(payload.begin(), payload.end(), bytes.begin() + header_size);
@@ -65,34 +105,7 @@ struct Message {
     return bytes;
   }
 
-  [[nodiscard]] static auto from_array(std::array<std::uint8_t, total_size> const& bytes) noexcept -> std::expected<Message, MessageError> {
-    if (bytes[1] != total_size) [[unlikely]] {
-      ESP_LOGE("MSG", "Length mismatch in packet: got %d, expected %zu", bytes[1], total_size);
-      return std::unexpected(MessageError::WRONG_LENGTH);
-    }
-
-    Message msg{};
-
-    msg.address = bytes[0];
-    msg.length = bytes[1];
-    msg.mode = bytes[2];
-
-    if constexpr (PayloadSize > 0) {
-      std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + PayloadSize), msg.payload.begin());
-    }
-
-    msg.checksum = bytes[total_size - 1];
-
-    std::uint8_t const calculated_checksum = msg.calculate_checksum();
-    if (msg.checksum != calculated_checksum) [[unlikely]] {
-      ESP_LOGE("MSG", "Checksum mismatch: expected 0x%02X, calculated 0x%02X", msg.checksum, calculated_checksum);
-      return std::unexpected(MessageError::WRONG_CHECKSUM);
-    }
-
-    return msg;
-  }
-
-  [[nodiscard]] auto operator==(Message const&) const noexcept -> bool = default;
+  [[nodiscard]] auto operator==(ECUMessage const&) const noexcept -> bool = default;
 };
 
 }  // namespace type

@@ -36,7 +36,7 @@ class OTAManager {
 
   constexpr ~OTAManager() noexcept = default;
 
-  [[nodiscard]] auto startUpdate(std::size_t const total_size) -> bool {
+  [[nodiscard]] auto start_update(std::size_t const total_size) -> bool {
     if (m_is_running)
       return false;
 
@@ -54,7 +54,7 @@ class OTAManager {
 
   template <std::size_t PayloadSize>
     requires(PayloadSize > 0)
-  [[nodiscard]] auto writeChunk(std::array<std::uint8_t, PayloadSize> const& data, std::size_t const chunk_number, std::size_t const firmware_size) -> bool {
+  [[nodiscard]] auto write_chunk(std::array<std::uint8_t, PayloadSize> const& data, std::size_t const chunk_number, std::size_t const firmware_size) -> bool {
     static constexpr std::size_t payload_size{PayloadSize};
 
     if (!m_is_running)
@@ -71,7 +71,7 @@ class OTAManager {
     return esp_ota_write_with_offset(m_update_handle, data.data(), bytes_to_write, offset) == ESP_OK;
   }
 
-  [[nodiscard]] auto endUpdate() -> bool {
+  [[nodiscard]] auto end_update() -> bool {
     if (!m_is_running)
       return false;
 
@@ -88,5 +88,5 @@ class OTAManager {
 
   [[noreturn]] static auto reboot() -> void { esp_restart(); }
 
-  [[nodiscard]] auto isActive() const -> bool { return m_is_running; }
+  [[nodiscard]] auto is_active() const -> bool { return m_is_running; }
 };

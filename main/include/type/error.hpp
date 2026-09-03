@@ -62,11 +62,12 @@ enum class SystemError : std::uint32_t {
   ButtonInitFault = 1 << 20,
   ButtonReadFault = 1 << 21,
   ECUInitFault = 1 << 22,
-  IndicatorInitFault = 1 << 23,
-  BluetoothInitFault = 1 << 24,
-  BluetoothSetPowerFault = 1 << 25,
-  BluetoothSetMTUFault = 1 << 26,
-  BluetoothConnectedFault = 1 << 27,
+  ECUReadFault = 1 << 23,
+  IndicatorInitFault = 1 << 24,
+  BluetoothInitFault = 1 << 25,
+  BluetoothSetPowerFault = 1 << 26,
+  BluetoothSetMTUFault = 1 << 27,
+  BluetoothConnectedFault = 1 << 28,
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {

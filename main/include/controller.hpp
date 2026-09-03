@@ -160,8 +160,8 @@ class Controller {
       return;
     }
 
-    if (!m_ota_manager.isActive()) {
-      if (!m_ota_manager.startUpdate(size)) {
+    if (!m_ota_manager.is_active()) {
+      if (!m_ota_manager.start_update(size)) {
         m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
         m_chunk_index = std::numeric_limits<std::size_t>::max();
         return;
@@ -171,7 +171,7 @@ class Controller {
       m_system_state.store(type::SystemState::Update);
     }
 
-    if (!m_ota_manager.writeChunk(data, index, size)) {
+    if (!m_ota_manager.write_chunk(data, index, size)) {
       m_logger.log_error("Failed to write chunk {}", index);
       m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
       m_system_state.store(type::SystemState::Normal);
@@ -183,7 +183,7 @@ class Controller {
     m_logger.log_info("Written chunk [{}/{}]", index + 1, total);
 
     if (index == total - 1) {
-      if (!m_ota_manager.endUpdate()) {
+      if (!m_ota_manager.end_update()) {
         m_logger.log_error("Failed to finalize OTA update");
         m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
         m_system_state.store(type::SystemState::Normal);
