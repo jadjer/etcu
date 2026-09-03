@@ -30,6 +30,7 @@ namespace driver {
 template <std::uint8_t Port, std::uint8_t TxPin, std::uint8_t RxPin, std::size_t BaudRate, std::size_t BufferSize = 4096>
   requires(Port < UART_NUM_MAX) && (TxPin < GPIO_NUM_MAX) && (RxPin < GPIO_NUM_MAX)
 class UART {
+  static constexpr std::size_t buffer_size{BufferSize};
   static constexpr auto esp_rx{static_cast<gpio_num_t>(RxPin)};
   static constexpr auto esp_tx{static_cast<gpio_num_t>(TxPin)};
   static constexpr auto esp_port{static_cast<uart_port_t>(Port)};
@@ -48,11 +49,11 @@ class UART {
 
   static auto init() noexcept -> bool {
     if (!uart_is_driver_installed(esp_port))
-      if (uart_driver_install(esp_port, BufferSize, BufferSize, 0, nullptr, 0) != ESP_OK) [[unlikely]]
+      if (uart_driver_install(esp_port, buffer_size, buffer_size, 0, nullptr, 0) != ESP_OK) [[unlikely]]
         return false;
 
     static constexpr uart_config_t config = {
-        .baud_rate = BaudRate,
+        .baud_rate = esp_baud_rate,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,

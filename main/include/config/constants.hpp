@@ -39,8 +39,7 @@ inline constexpr int ButtonMode{0};
 inline constexpr int SwitchBrake{14};
 inline constexpr int SwitchGuard{15};
 inline constexpr int LedMode{16};
-inline constexpr int PowerEnable{18};
-inline constexpr int ECUWakeUp{17};
+inline constexpr int PowerEnable{19};
 }  // namespace pin
 
 namespace uart {

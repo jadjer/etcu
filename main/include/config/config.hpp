@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "../device/ecu.hpp"
+#include "device/ecu.hpp"
 #include "config/constants.hpp"
 #include "device/accelerator.hpp"
 #include "device/button.hpp"
@@ -36,7 +36,7 @@ using ADC = ::driver::ADC<constants::adc::Unit>;
 using UARTServo = ::driver::UART<constants::uart::servo::Port, constants::uart::servo::Tx, constants::uart::servo::Rx, constants::uart::servo::BaudRate>;
 using PowerEnable = ::driver::GPIO<constants::pin::PowerEnable, ::driver::GPIOConfigMode::Output>;
 using UARTEcu = ::driver::UART<constants::uart::ecu::Port, constants::uart::ecu::Tx, constants::uart::ecu::Rx, constants::uart::ecu::BaudRate>;
-using ECUWakeUp = ::driver::GPIO<constants::pin::ECUWakeUp, ::driver::GPIOConfigMode::Output>;
+using ECUWakeUp = ::driver::GPIO<constants::uart::ecu::Tx, ::driver::GPIOConfigMode::Output>;
 using ButtonMode = ::driver::GPIO<constants::pin::ButtonMode, ::driver::GPIOConfigMode::Input, true>;
 using LedMode = ::driver::GPIO<constants::pin::LedMode, ::driver::GPIOConfigMode::Output>;
 using SwitchBrake = ::driver::GPIO<constants::pin::SwitchBrake, ::driver::GPIOConfigMode::Input>;

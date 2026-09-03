@@ -74,6 +74,8 @@ class ECU {
       return false;
     }
 
+    m_driver_uart.wait_send_done(echo_timeout_ms);
+
     // 3. Выделяем буфер под эхо-пакет правильного размера
     std::array<std::uint8_t, packet_size> echo_packet{};
 
@@ -155,6 +157,8 @@ class ECU {
       ESP_LOGE("ECU", "WAKE_UP Send failed");
       return false;
     }
+
+    vTaskDelay(pdMS_TO_TICKS(200));
 
     if (!send_message(init_message)) {
       ESP_LOGE("ECU", "INIT Send failed");
@@ -337,13 +341,8 @@ class ECU {
     if (!connect()) [[unlikely]]
       return type::SystemError::ECUInitFault;
 
-    // updateTable0();
-    // updateTable10();
-    // updateTable11();
-    // updateTable20();
-    // updateTable21();
-    // updateTableD0();
-    // updateTableD1();
+    updateTable11();
+    updateTableD1();
 
     return type::SystemError::None;
   }
