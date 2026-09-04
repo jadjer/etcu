@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  release:
+    types: [published] # Запускает экшен при пересоздании релиза на сайте
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
@@ -21,13 +23,25 @@ jobs:
         with:
           submodules: 'recursive'
 
+      # Проверяем, был ли этот тег уже собран ранее
+      - name: Cache ESP-IDF Build Artifacts
+        id: cache-build
+        uses: actions/cache@v4
+        with:
+          path: build/ETCU.bin
+          # Ключ уникален для конкретного тега (например, build-v6.1.0)
+          key: build-${{ github.ref_name }}
+
+      # Этот шаг выполнится ТОЛЬКО если это первый пуш тега (кэш не найден)
       - name: esp-idf build
+        if: steps.cache-build.outputs.cache-hit != 'true'
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v6.1
           target: esp32s3
           path: '.'
 
+      # Этот шаг найдет релиз и прикрепит ETCU.bin (хоть новый, хоть из кэша)
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
