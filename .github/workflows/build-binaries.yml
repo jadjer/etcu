@@ -2,17 +2,15 @@ name: Build and Artifact the ESP-IDF Project
 
 on:
   push:
-    branches:
-      - main     # Накапливает базовый кэш компиляции при обычных коммитах
     tags:
-      - 'v*'     # Использует накопленный кэш для быстрой сборки тегов
+      - 'v*'
   release:
-    types: [published] # Срабатывает при создании/пересоздании релиза на сайте
+    types: [published] # Запускает сборку, если вы пересоздаете релиз на сайте
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
-# Отменяет дублирующие сборки для одного и того же тега/коммита
+# Автоматически отменяет дублирующие сборки, если они запустились одновременно для одного тега
 concurrency:
   group: build-release-${{ github.ref_name }}
   cancel-in-progress: true
@@ -30,41 +28,16 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # СТРАТЕГИЯ 1: Если этот тег уже собирался — мгновенно восстанавливаем готовый .bin (5 секунд)
-      - name: Cache Exact Final Binary
-        id: cache-binary
-        uses: actions/cache@v4
-        with:
-          path: build/ETCU.bin
-          key: binary-${{ github.ref_name }}
-
-      # СТРАТЕГИЯ 2: Если тег новый — подтягиваем базовый ccache из ветки main
-      - name: Cache ccache compiler outputs
-        if: steps.cache-binary.outputs.cache-hit != 'true'
-        uses: actions/cache@v4
-        with:
-          path: .ccache
-          key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt', '**/sdkconfig*', '**/main/idf_component.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-ccache-
-
-      # 3. Сборка ESP-IDF с пробросом папки кэша в Docker
+      # Стабильная сборка проекта с нуля (без Docker кэша)
       - name: esp-idf build
-        if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: espressif/esp-idf-ci-action@v1
-        env:
-          IDF_CCACHE_ENABLE: "1"
-          CCACHE_MAXSIZE: '500M'
         with:
-          esp_idf_version: v6.1
+          esp_idf_version: v6.1 # Исправленная версия тега Docker
           target: esp32s3
           path: '.'
-          # Пишем аргументы строго в одну строку через пробел
-          extra_docker_args: "-v ${{ github.workspace }}/.ccache:/ccache -e CCACHE_DIR=/ccache"
 
-      # Публикация артефакта (выполняется только для тегов и релизов, ветка main этот шаг пропустит)
+      # Публикация готового .bin файла в релиз GitHub
       - name: Upload binaries to release
-        if: github.ref_type == 'tag' || github.event_name == 'release'
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
