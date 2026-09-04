@@ -74,6 +74,9 @@ class GPIO {
         .intr_type = GPIO_INTR_DISABLE,
     };
 
+    if (gpio_reset_pin(esp_pin) != ESP_OK)
+      return false;
+
     return gpio_config(&config) == ESP_OK;
   }
 

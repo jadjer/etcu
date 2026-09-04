@@ -108,7 +108,7 @@ class Servo {
     };
     send_packet(ServoInstruction::InstWrite, params);
 
-    if (ServoMessage<0> message{}; !receive_message(message))
+    if (ServoMessage message{}; !receive_message(message))
       return false;
 
     return true;

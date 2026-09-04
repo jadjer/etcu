@@ -27,7 +27,7 @@ enum class ServoMessageError {
   STATUS_ERROR,
 };
 
-template <std::size_t PayloadSize>
+template <std::size_t PayloadSize = 0>
 struct ServoMessage {
   static constexpr std::size_t header_size{5};
   static constexpr std::size_t payload_size{PayloadSize};

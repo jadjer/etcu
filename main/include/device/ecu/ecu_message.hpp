@@ -28,8 +28,8 @@ enum class ECUMode : std::uint8_t {
   WAKE_UP = 0xFF,
   READ_TABLE = 0x71,
   READ_RANGE = 0x72,
-  READ_1 = 0x73,
-  READ_2 = 0x74,
+  UNKNOWN_1 = 0x73,
+  UNKNOWN_2 = 0x74,
 };
 
 enum class ECUMessageError {
@@ -38,7 +38,7 @@ enum class ECUMessageError {
   WRONG_CHECKSUM,
 };
 
-template <std::size_t PayloadSize>
+template <std::size_t PayloadSize = 0>
 struct ECUMessage {
   static constexpr std::size_t header_size{3};
   static constexpr std::size_t checksum_size{1};
@@ -89,7 +89,7 @@ struct ECUMessage {
     return common::as_byte(0U - sum);
   }
 
-  [[nodiscard]] auto to_array() const noexcept -> std::array<std::uint8_t, total_size> {
+  [[nodiscard]] constexpr auto to_array() const noexcept -> std::array<std::uint8_t, total_size> {
     std::array<std::uint8_t, total_size> bytes{address, length, mode};
 
     if constexpr (PayloadSize > 0) {
@@ -101,7 +101,7 @@ struct ECUMessage {
     return bytes;
   }
 
-  [[nodiscard]] auto operator==(ECUMessage const&) const noexcept -> bool = default;
+  [[nodiscard]] constexpr auto operator==(ECUMessage const&) const noexcept -> bool = default;
 };
 
 }  // namespace device
