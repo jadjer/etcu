@@ -3,15 +3,16 @@ name: Build and Artifact the ESP-IDF Project
 on:
   push:
     branches:
-      - main     # ВАЖНО: Копим кэш в основной ветке, чтобы новые теги могли его прочитать
+      - main     # Накапливает базовый кэш компиляции при обычных коммитах
     tags:
-      - 'v*'
+      - 'v*'     # Использует накопленный кэш для быстрой сборки тегов
   release:
-    types: [published]
+    types: [published] # Срабатывает при создании/пересоздании релиза на сайте
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
+# Отменяет дублирующие сборки для одного и того же тега/коммита
 concurrency:
   group: build-release-${{ github.ref_name }}
   cancel-in-progress: true
@@ -29,7 +30,7 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # 1. Проверяем точный готовый файл для текущего тега (для сценария ПЕРЕСОЗДАНИЯ)
+      # СТРАТЕГИЯ 1: Если этот тег уже собирался — мгновенно восстанавливаем готовый .bin (5 секунд)
       - name: Cache Exact Final Binary
         id: cache-binary
         uses: actions/cache@v4
@@ -37,31 +38,33 @@ jobs:
           path: build/ETCU.bin
           key: binary-${{ github.ref_name }}
 
-      # 2. Кэш компилятора. Если точного .bin нет, берем базовый ccache из ветки main
+      # СТРАТЕГИЯ 2: Если тег новый — подтягиваем базовый ccache из ветки main
       - name: Cache ccache compiler outputs
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: actions/cache@v4
         with:
           path: .ccache
           key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt', '**/sdkconfig*', '**/main/idf_component.yml') }}
-          # restore-keys заставит GitHub искать кэш в родительской ветке (main), если точный ключ не найден
           restore-keys: |
             ${{ runner.os }}-ccache-
 
-      # 3. Сборка ESP-IDF
+      # Сборка проекта (запустится только если нет готового .bin)
       - name: esp-idf build
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: espressif/esp-idf-ci-action@v1
         env:
-          IDF_CCACHE_ENABLE: "1"               # ВАЖНО: Включаем ccache внутри ESP-IDF
-          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          IDF_CCACHE_ENABLE: "1"
           CCACHE_MAXSIZE: '500M'
         with:
           esp_idf_version: v6.1
           target: esp32s3
           path: '.'
+          # Пробрасываем папку .ccache с хоста виртуальной машины внутрь Docker-контейнера
+          extra_docker_args: |
+            -v ${{ github.workspace }}/.ccache:/ccache
+            -e CCACHE_DIR=/ccache
 
-      # 4. Загрузка в релиз (выполняется только если событие — это релиз или тег)
+      # Публикация артефакта (выполняется только для тегов и релизов, ветка main этот шаг пропустит)
       - name: Upload binaries to release
         if: github.ref_type == 'tag' || github.event_name == 'release'
         uses: svenstaro/upload-release-action@v2
