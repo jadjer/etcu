@@ -5,7 +5,7 @@ on:
     tags:
       - 'v*'
   release:
-    types: [published] # Запускает экшен при пересоздании релиза на сайте
+    types: [published]
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
@@ -27,25 +27,38 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # Проверяем, был ли этот тег уже собран ранее
-      - name: Cache ESP-IDF Build Artifacts
-        id: cache-build
+      # СТРАТЕГИЯ 1: Если тег тот же — мгновенно восстанавливаем готовый .bin (5 секунд)
+      - name: Cache Exact Final Binary
+        id: cache-binary
         uses: actions/cache@v4
         with:
           path: build/ETCU.bin
-          # Ключ уникален для конкретного тега (например, build-v6.1.0)
-          key: build-${{ github.ref_name }}
+          key: binary-${{ github.ref_name }}
 
-      # Этот шаг выполнится ТОЛЬКО если это первый пуш тега (кэш не найден)
+      # СТРАТЕГИЯ 2: Если тег новый — ускоряем компиляцию через ccache
+      - name: Cache ccache compiler outputs
+        if: steps.cache-binary.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          # Хэш от файлов конфигурации гарантирует: если настройки проекта сменились, кэш обновится
+          key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt', '**/sdkconfig*', '**/main/idf_component.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-ccache-
+
+      # Сборка проекта (запустится только для новых тегов)
       - name: esp-idf build
-        if: steps.cache-build.outputs.cache-hit != 'true'
+        if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: espressif/esp-idf-ci-action@v1
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.ccache
+          CCACHE_MAXSIZE: '500M' # Ограничиваем размер кэша компилятора
         with:
           esp_idf_version: v6.1
           target: esp32s3
           path: '.'
 
-      # Этот шаг найдет релиз и прикрепит ETCU.bin (хоть новый, хоть из кэша)
+      # Публикация артефакта в релиз
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
