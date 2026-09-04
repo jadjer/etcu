@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-
 
-      # Сборка проекта (запустится только если нет готового .bin)
+      # 3. Сборка ESP-IDF с пробросом папки кэша в Docker
       - name: esp-idf build
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: espressif/esp-idf-ci-action@v1
@@ -59,10 +59,8 @@ jobs:
           esp_idf_version: v6.1
           target: esp32s3
           path: '.'
-          # Пробрасываем папку .ccache с хоста виртуальной машины внутрь Docker-контейнера
-          extra_docker_args: |
-            -v ${{ github.workspace }}/.ccache:/ccache
-            -e CCACHE_DIR=/ccache
+          # Пишем аргументы строго в одну строку через пробел
+          extra_docker_args: "-v ${{ github.workspace }}/.ccache:/ccache -e CCACHE_DIR=/ccache"
 
       # Публикация артефакта (выполняется только для тегов и релизов, ветка main этот шаг пропустит)
       - name: Upload binaries to release
