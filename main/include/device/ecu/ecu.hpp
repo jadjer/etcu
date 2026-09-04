@@ -25,9 +25,16 @@
 
 namespace device {
 
+enum class EngineState : std::uint8_t {
+  GEAR_ON = 0x00,
+  NEUTRAL = 0x01,
+  SIDE_STAND_AND_GEAR_ON = 0x02,
+  SIDE_STAND = 0x03,
+};
+
 struct EngineData {
-  bool is_clutch;
   bool is_running;
+  EngineState state;
   std::uint8_t speed;
   std::uint8_t ignition_advance;
   std::uint8_t ect_temp;
@@ -110,7 +117,6 @@ class ECU {
     auto const received_message = ECUMessage<PayloadSize>{received_packet};
 
     if (!received_message.is_valid()) [[unlikely]] {
-      m_is_connected = false;
       return false;
     }
 
@@ -194,7 +200,7 @@ class ECU {
     if (!receive_message(response)) [[unlikely]]
       return false;
 
-    ESP_LOG_BUFFER_HEX("ECU 00", header_size + response.payload.data(), response.payload.size());
+    ESP_LOG_BUFFER_HEX("ECU ID", header_size + response.payload.data(), response.payload.size());
 
     return true;
   }
@@ -327,6 +333,22 @@ class ECU {
     return true;
   }
 
+  auto updateTable60() noexcept -> bool {
+    return false;
+  }
+
+  auto updateTable61() noexcept -> bool {
+    return false;
+  }
+
+  auto updateTable70() noexcept -> bool {
+    return false;
+  }
+
+  auto updateTable71() noexcept -> bool {
+    return false;
+  }
+
   auto updateTableD0() noexcept -> bool {
     static constexpr std::uint8_t table{0xD0};
     static constexpr std::uint8_t address{0x72};
@@ -352,7 +374,6 @@ class ECU {
     return true;
   }
 
-
   auto updateTableD1() noexcept -> bool {
     static constexpr std::uint8_t table{0xD1};
     static constexpr std::uint8_t address{0x72};
@@ -373,7 +394,7 @@ class ECU {
     if (!receive_message(response)) [[unlikely]]
       return false;
 
-    m_engine_data.is_clutch = common::as_byte(response.payload[2]);
+    m_engine_data.state = static_cast<EngineState>(response.payload[2]);
     m_engine_data.is_running = common::as_byte(response.payload[6]);
 
     ESP_LOG_BUFFER_HEX("ECU D1", response.payload.data(), response.payload.size());
@@ -426,11 +447,15 @@ class ECU {
       return type::SystemError::ECUInitFault;
 
     telemetry.is_connected = m_is_connected;
+    telemetry.is_started = m_engine_data.is_running;
+    telemetry.is_clutch_enabled = m_engine_data.state == EngineState::NEUTRAL;
     telemetry.rpm = type::RPM{m_engine_data.rpm};
+    telemetry.battery = type::Volt{m_engine_data.battery_voltage};
     telemetry.speed = type::Speed{m_engine_data.speed};
-    telemetry.tps = type::Position{static_cast<int>(m_engine_data.tps_percent)};
-    telemetry.is_started = false;
-    telemetry.is_clutch_enabled = false;
+    telemetry.map = type::Pressure{m_engine_data.map_pressure};
+    telemetry.tps = type::Position{m_engine_data.tps_percent};
+    telemetry.air = type::Temperature{m_engine_data.iat_temp};
+    telemetry.coolant = type::Temperature{m_engine_data.ect_temp};
 
     return type::SystemError::None;
   }

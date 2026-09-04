@@ -28,6 +28,8 @@ enum class ECUMode : std::uint8_t {
   WAKE_UP = 0xFF,
   READ_TABLE = 0x71,
   READ_RANGE = 0x72,
+  READ_1 = 0x73,
+  READ_2 = 0x74,
 };
 
 enum class ECUMessageError {
