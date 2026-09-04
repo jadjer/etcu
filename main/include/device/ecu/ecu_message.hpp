@@ -41,10 +41,11 @@ struct ECUMessage {
   static constexpr std::size_t header_size{3};
   static constexpr std::size_t checksum_size{1};
   static constexpr std::size_t total_size{header_size + PayloadSize + checksum_size};
+  static constexpr std::uint8_t message_length{common::as_byte(total_size)};
 
   std::uint8_t address{};
-  std::uint8_t length{static_cast<std::uint8_t>(total_size)};
-  ECUMode mode{ECUMode::INIT};
+  std::uint8_t length{};
+  std::uint8_t mode{};
   std::array<std::uint8_t, PayloadSize> payload{};
   std::uint8_t checksum{};
 
@@ -53,7 +54,7 @@ struct ECUMessage {
   constexpr ECUMessage() noexcept = default;
 
   constexpr explicit ECUMessage(std::uint8_t const address, ECUMode const mode, std::array<std::uint8_t, PayloadSize> const& payload = {}) noexcept
-      : address{address}, mode{mode}, payload{payload} {}
+      : address{address}, length(message_length), mode{common::as_byte(mode)}, payload{payload}, checksum{calculate_checksum()} {}
 
   constexpr explicit ECUMessage(std::array<std::uint8_t, total_size> const& bytes) noexcept {
     if (bytes[1] != total_size) [[unlikely]] {
@@ -63,11 +64,10 @@ struct ECUMessage {
 
     address = bytes[0];
     length = bytes[1];
-    mode = static_cast<ECUMode>(bytes[2]);
+    mode = bytes[2];
 
-    if constexpr (PayloadSize > 0) {
+    if constexpr (PayloadSize > 0)
       std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + PayloadSize), payload.begin());
-    }
 
     checksum = bytes[total_size - 1];
 
@@ -79,22 +79,16 @@ struct ECUMessage {
 
   [[nodiscard]] constexpr auto is_valid() const noexcept -> bool { return error == ECUMessageError::NONE; }
 
-  [[nodiscard]] constexpr auto get_error() const noexcept -> ECUMessageError { return error; }
-
-  [[nodiscard]] auto calculate_checksum() const noexcept -> std::uint8_t {
-    std::uint32_t sum = address + length + static_cast<std::uint8_t>(mode);
+  [[nodiscard]] constexpr auto calculate_checksum() const noexcept -> std::uint8_t {
+    std::uint32_t sum = address + length + mode;
     if constexpr (PayloadSize > 0) {
       sum = std::accumulate(payload.begin(), payload.end(), sum);
     }
-    return static_cast<std::uint8_t>(0U - sum);
+    return common::as_byte(0U - sum);
   }
 
   [[nodiscard]] auto to_array() const noexcept -> std::array<std::uint8_t, total_size> {
-    std::array<std::uint8_t, total_size> bytes{};
-
-    bytes[0] = address;
-    bytes[1] = length;
-    bytes[2] = static_cast<std::uint8_t>(mode);
+    std::array<std::uint8_t, total_size> bytes{address, length, mode};
 
     if constexpr (PayloadSize > 0) {
       std::copy(payload.begin(), payload.end(), bytes.begin() + header_size);
@@ -108,4 +102,4 @@ struct ECUMessage {
   [[nodiscard]] auto operator==(ECUMessage const&) const noexcept -> bool = default;
 };
 
-}  // namespace type
+}  // namespace device

@@ -68,7 +68,7 @@ concept IndicatorConcept = requires(T indicator) {
 template <typename T>
 concept ServoConcept = requires(T servo, type::Position const& position, type::ServoTelemetry& telemetry) {
   { servo.init() } noexcept -> std::same_as<type::SystemError>;
-  { servo.set_position(position) } noexcept -> std::same_as<void>;
+  { servo.set_position(position) } noexcept -> std::same_as<bool>;
   { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
 };
 

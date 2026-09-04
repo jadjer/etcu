@@ -18,7 +18,7 @@
 
 #pragma once
 
-#include "common/convert.hpp"
+#include "common/calculate.hpp"
 #include "config/concepts.hpp"
 #include "device/ecu/ecu_message.hpp"
 #include "type/type.hpp"
@@ -30,17 +30,17 @@ struct EngineData {
   bool is_running;
   std::uint8_t speed;
   std::uint8_t ignition_advance;
+  std::uint8_t ect_temp;
+  std::uint8_t iat_temp;
+  std::uint8_t ect_voltage;
+  std::uint8_t iat_voltage;
+  std::uint8_t tps_percent;
+  std::uint8_t tps_voltage;
+  std::uint8_t map_voltage;
+  std::uint8_t map_pressure;
+  std::uint8_t battery_voltage;
   std::uint16_t rpm;
   std::uint16_t fuel_inject;
-  std::float_t ect_temp;
-  std::float_t iat_temp;
-  std::float_t ect_voltage;
-  std::float_t iat_voltage;
-  std::float_t tps_percent;
-  std::float_t tps_voltage;
-  std::float_t map_voltage;
-  std::float_t map_pressure;
-  std::float_t battery_voltage;
 };
 
 template <class DriverUart, class DriverGPIO>
@@ -59,14 +59,20 @@ class ECU {
   auto send_message(ECUMessage<PayloadSize> const& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
 
-    m_driver_uart.flush();
+    if (!m_driver_uart.flush()) [[unlikely]] {
+      m_is_connected = false;
+      return false;
+    }
 
     if (int const written_bytes = m_driver_uart.write(message.to_array()); std::cmp_less(written_bytes, packet_size)) [[unlikely]] {
       m_is_connected = false;
       return false;
     }
 
-    m_driver_uart.wait_send_done(timeout_ms);
+    if (!m_driver_uart.wait_send_done(timeout_ms)) [[unlikely]] {
+      m_is_connected = false;
+      return false;
+    }
 
     std::array<std::uint8_t, packet_size> echo_packet{};
 
@@ -78,11 +84,6 @@ class ECU {
     auto const echo_message = ECUMessage<PayloadSize>{echo_packet};
 
     if (!echo_message.is_valid()) [[unlikely]] {
-      m_is_connected = false;
-      return false;
-    }
-
-    if (echo_message.checksum != echo_message.calculate_checksum()) [[unlikely]] {
       m_is_connected = false;
       return false;
     }
@@ -106,17 +107,14 @@ class ECU {
       return false;
     }
 
-    message = ECUMessage<PayloadSize>{received_packet};
+    auto const received_message = ECUMessage<PayloadSize>{received_packet};
 
-    if (!message.is_valid()) [[unlikely]] {
+    if (!received_message.is_valid()) [[unlikely]] {
       m_is_connected = false;
       return false;
     }
 
-    if (message.checksum != message.calculate_checksum()) [[unlikely]] {
-      m_is_connected = false;
-      return false;
-    }
+    message = received_message;
 
     return true;
   }
@@ -126,17 +124,21 @@ class ECU {
     static constexpr ECUMessage<1> init_message{0x72, ECUMode::INIT, {0xF0}};
     static constexpr ECUMessage<0> init_answer_packet{0x02, ECUMode::INIT};
 
-    m_driver_gpio.init();
+    if (!m_driver_gpio.init()) [[unlikely]]
+      return false;
 
-    m_driver_gpio.disable();
+    if (!m_driver_gpio.disable()) [[unlikely]]
+      return false;
 
     vTaskDelay(pdMS_TO_TICKS(70));
 
-    m_driver_gpio.enable();
+    if (!m_driver_gpio.enable()) [[unlikely]]
+      return false;
 
     vTaskDelay(pdMS_TO_TICKS(120));
 
-    m_driver_uart.init();
+    if (!m_driver_uart.init()) [[unlikely]]
+      return false;
 
     if (!send_message(wakeup_message)) [[unlikely]]
       return false;
@@ -151,7 +153,7 @@ class ECU {
     if (!receive_message(answer_message)) [[unlikely]]
       return false;
 
-    if (answer_message != init_answer_packet)
+    if (answer_message != init_answer_packet) [[unlikely]]
       return false;
 
     return true;
@@ -169,13 +171,13 @@ class ECU {
     return true;
   }
 
-  auto updateTable11() noexcept -> bool {
-    static constexpr std::uint8_t table{0x11};
+  auto updateTable10() noexcept -> bool {
+    static constexpr std::uint8_t table{0x10};
     static constexpr std::uint8_t address{0x72};
-    static constexpr std::uint8_t header_size{2};
-    static constexpr std::uint8_t payload_size{0x17};
-    static constexpr std::uint8_t payload_offset{0x0};
-    static constexpr std::array payload{table, payload_offset, payload_size};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{23};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
     static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
 
     if (!connect()) [[unlikely]]
@@ -189,7 +191,44 @@ class ECU {
     if (!receive_message(response)) [[unlikely]]
       return false;
 
-    m_engine_data.rpm = (static_cast<std::uint16_t>(response.payload[2]) << 8) | response.payload[3];
+    m_engine_data.rpm = common::as_ulong(response.payload[header_size + 0], response.payload[header_size + 1]);
+    m_engine_data.tps_voltage = common::calculateValueDivide256(response.payload[header_size + 2]);
+    m_engine_data.tps_percent = common::calculateValueDivide16(response.payload[header_size + 3]);
+    m_engine_data.ect_voltage = common::calculateValueDivide256(response.payload[header_size + 4]);
+    m_engine_data.ect_temp = common::calculateValueMinus40(response.payload[header_size + 5]);
+    m_engine_data.iat_voltage = common::calculateValueDivide256(response.payload[header_size + 6]);
+    m_engine_data.iat_temp = common::calculateValueMinus40(response.payload[header_size + 7]);
+    m_engine_data.map_voltage = common::calculateValueDivide256(response.payload[header_size + 8]);
+    m_engine_data.map_pressure = response.payload[header_size + 9];
+    m_engine_data.battery_voltage = common::calculateValueDivide10(response.payload[header_size + 12]);
+    m_engine_data.speed = response.payload[header_size + 13];
+    m_engine_data.fuel_inject = common::as_ulong(response.payload[header_size + 14], response.payload[header_size + 15]);
+    m_engine_data.ignition_advance = response.payload[header_size + 16];
+
+    return true;
+  }
+
+  auto updateTable11() noexcept -> bool {
+    static constexpr std::uint8_t table{0x11};
+    static constexpr std::uint8_t address{0x72};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{23};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
+    static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
+    if (!send_message(request)) [[unlikely]]
+      return false;
+
+    ECUMessage<header_size + payload_size> response{};
+
+    if (!receive_message(response)) [[unlikely]]
+      return false;
+
+    m_engine_data.rpm = common::as_ulong(response.payload[2], response.payload[3]);
     m_engine_data.tps_voltage = common::calculateValueDivide256(response.payload[4]);
     m_engine_data.tps_percent = common::calculateValueDivide16(response.payload[5]);
     m_engine_data.ect_voltage = common::calculateValueDivide256(response.payload[6]);
@@ -200,7 +239,7 @@ class ECU {
     m_engine_data.map_pressure = response.payload[11];
     m_engine_data.battery_voltage = common::calculateValueDivide10(response.payload[14]);
     m_engine_data.speed = response.payload[15];
-    m_engine_data.fuel_inject = (static_cast<std::uint16_t>(response.payload[16]) << 8) | response.payload[17];
+    m_engine_data.fuel_inject = common::as_ulong(response.payload[16], response.payload[17]);
     m_engine_data.ignition_advance = response.payload[18];
 
     return true;
@@ -209,10 +248,10 @@ class ECU {
   auto updateTableD1() noexcept -> bool {
     static constexpr std::uint8_t table{0xD1};
     static constexpr std::uint8_t address{0x72};
-    static constexpr std::uint8_t header_size{2};
-    static constexpr std::uint8_t payload_size{0x06};
-    static constexpr std::uint8_t payload_offset{0x0};
-    static constexpr std::array payload{table, payload_offset, payload_size};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{6};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
     static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
 
     if (!connect()) [[unlikely]]
@@ -226,8 +265,8 @@ class ECU {
     if (!receive_message(response)) [[unlikely]]
       return false;
 
-    m_engine_data.is_clutch = response.payload[2];
-    m_engine_data.is_running = response.payload[6];
+    m_engine_data.is_clutch = common::as_byte(response.payload[2]);
+    m_engine_data.is_running = common::as_byte(response.payload[6]);
 
     return true;
   }
@@ -264,6 +303,7 @@ class ECU {
 
     if (!updateTable11())
       return type::SystemError::ECUReadFault;
+
     if (!updateTableD1())
       return type::SystemError::ECUReadFault;
 

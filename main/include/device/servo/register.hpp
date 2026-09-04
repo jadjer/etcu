@@ -7,9 +7,7 @@
 namespace device {
 
 enum class ServoRegister : std::uint8_t {
-  // =========================================================================
-  // ЗОНА EEPROM (Энергонезависимая. Запись доступна только при RegLockSign = 0)
-  // =========================================================================
+  // EEPROM
   FormwareMajorVersion = 0x00,
   FormwareMinorVersion = 0x01,
   ServoMajorVersion = 0x03,
@@ -44,9 +42,7 @@ enum class ServoRegister : std::uint8_t {
   OvercurrentProtectionTime = 0x26,
   VelocityCloseLoopI = 0x27,
 
-  // =========================================================================
-  // ЗОНА SRAM (Оперативная. Сбрасывается в дефолт при выключении питания)
-  // =========================================================================
+  // SRAM
   TorqueEnable = 0x28,
   Acceleration = 0x29,
   TargetPosition = 0x2A,
@@ -67,10 +63,21 @@ enum class ServoRegister : std::uint8_t {
   CurrentCurrent = 0x45,
 };
 
-template <typename T>
-  requires std::is_enum_v<T> || std::convertible_to<T, std::uint8_t>
-[[nodiscard]] constexpr auto as_byte(T const& value) noexcept -> std::uint8_t {
-  return static_cast<std::uint8_t>(value) & 0xFF;
-}
+enum class ServoMode : std::uint8_t {
+  PositionMode = 0x00,
+  WheelMode = 0x01,
+  PwmMode = 0x02,
+  StepMode = 0x03,
+};
+
+enum class ServoError : std::uint8_t {
+  None = 0x00,
+  Voltage = 0x01,
+  AngleLimit = 0x02,
+  Overheat = 0x04,
+  Overload = 0x08,
+  Encoder = 0x10,
+  Driver = 0x20,
+};
 
 }

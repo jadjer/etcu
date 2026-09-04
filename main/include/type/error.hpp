@@ -20,20 +20,6 @@
 
 namespace type {
 
-enum class ServoError : std::uint8_t {
-  None = 0x00,
-  Voltage = 0x01,
-  AngleLimit = 0x02,
-  Overheat = 0x04,
-  Overload = 0x08,
-  Encoder = 0x10,
-  Driver = 0x20,
-};
-
-[[nodiscard]] constexpr auto operator&(ServoError const lhs, ServoError const rhs) noexcept -> bool {
-  return (static_cast<std::uint8_t>(lhs) & static_cast<std::uint8_t>(rhs)) != 0;
-}
-
 enum class SystemError : std::uint32_t {
   None = 0,
 

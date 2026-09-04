@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "common/calculate.hpp"
 #include "common/convert.hpp"
 #include "common/map_range.hpp"
 #include "device/servo/register.hpp"
@@ -40,7 +41,7 @@ class Servo {
   PowerEnable& m_driver_power;
 
   template <std::size_t ParamSize>
-  constexpr auto send(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> void {
+  constexpr auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> void {
     ServoMessage<ParamSize> const message{servo_id, instruction, parameters};
 
     m_driver_uart.flush();
@@ -48,7 +49,7 @@ class Servo {
   }
 
   template <std::size_t PayloadSize>
-  constexpr auto receive(std::array<std::uint8_t, PayloadSize>& payload) noexcept -> bool {
+  constexpr auto receive_message(ServoMessage<PayloadSize>& message) noexcept -> bool {
     static constexpr std::uint16_t timeout_ms{30};
     static constexpr std::size_t total_package_size = ServoMessage<PayloadSize>::total_size;
 
@@ -62,7 +63,7 @@ class Servo {
     if (!response_message.is_valid()) [[unlikely]]
       return false;
 
-    payload = response_message.payload;
+    message = response_message;
 
     return true;
   }
@@ -93,7 +94,7 @@ class Servo {
     return type::SystemError::None;
   }
 
-  auto set_position(type::Position const target_position) noexcept -> void {
+  auto set_position(type::Position const target_position) noexcept -> bool {
     static constexpr type::Position position_min{type::Position::value_min};
     static constexpr type::Position position_max{type::Position::value_max};
 
@@ -101,37 +102,41 @@ class Servo {
         common::map_range(target_position, position_min, position_max, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
 
     std::array const params{
-        as_byte(ServoRegister::TargetPosition),
-        as_byte(servo_position.value),
-        as_byte(servo_position.value >> 8),
+        common::as_byte(ServoRegister::TargetPosition),
+        common::as_byte(servo_position.value),
+        common::as_byte(servo_position.value >> 8),
     };
-    send(ServoInstruction::InstWrite, params);
+    send_packet(ServoInstruction::InstWrite, params);
 
-    std::array<std::uint8_t, 0> payload{};
-    receive(payload);
+    if (ServoMessage<0> message{}; !receive_message(message))
+      return false;
+
+    return true;
   }
 
   auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
     static constexpr std::size_t payload_size{31};
-    static constexpr std::array<std::uint8_t, 2> params{
-        as_byte(ServoRegister::TorqueEnable),
-        payload_size,
+
+    static constexpr std::array params{
+        common::as_byte(ServoRegister::TorqueEnable),
+        common::as_byte(payload_size),
     };
-    send(ServoInstruction::InstRead, params);
+    send_packet(ServoInstruction::InstRead, params);
 
-    if (std::array<std::uint8_t, payload_size> payload{}; receive(payload)) {
-      telemetry.is_connected = true;
-      telemetry.is_enabled = payload[0];
-      telemetry.position = (static_cast<std::uint16_t>(payload[17] << 8) | payload[16]) & 0x7FFF;
-      telemetry.voltage = common::calculateValueDivide10(payload[22]);
-      telemetry.temperature = payload[23];
-      telemetry.is_moved = payload[26];
-      telemetry.current = common::calculateValueMultiply10((static_cast<std::uint16_t>(payload[30] << 8) | payload[29]) & 0x7FFF);
+    ServoMessage<payload_size> message{};
 
-      return true;
-    }
+    if (!receive_message(message))
+      return false;
 
-    return false;
+    telemetry.is_connected = true;
+    telemetry.is_enabled = message.payload[0];
+    telemetry.position = common::as_ulong(message.payload[17], message.payload[16]) & 0x7FFF;
+    telemetry.voltage = common::calculateValueDivide10(message.payload[22]);
+    telemetry.temperature = message.payload[23];
+    telemetry.is_moved = message.payload[26];
+    telemetry.current = common::calculateValueMultiply10(common::as_ulong(message.payload[30], message.payload[29]) & 0x7FFF);
+
+    return true;
   }
 };
 

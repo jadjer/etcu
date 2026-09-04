@@ -13,29 +13,31 @@
 // limitations under the License.
 
 //
-// Created by jadjer on 4.09.26.
+// Created by jadjer on 1.09.26.
 //
 
 #pragma once
 
-#include <concepts>
-#include <type_traits>
-
 namespace common {
 
-template <typename T>
-  requires std::is_enum_v<T> || std::convertible_to<T, std::uint8_t>
-[[nodiscard]] constexpr auto as_byte(T const& value) noexcept -> std::uint8_t {
-  return static_cast<std::uint8_t>(value);
+inline auto calculateValueDivide256(std::uint8_t const value) -> std::uint8_t {
+  return (static_cast<std::uint16_t>(value) * 5) / 256;
 }
 
-template <typename T>
-  requires std::is_enum_v<T> || std::convertible_to<T, std::uint8_t>
-[[nodiscard]] constexpr auto as_ulong(T const& value_high, T const& value_low) noexcept -> std::uint16_t {
-  auto const high = static_cast<std::uint16_t>(static_cast<std::uint8_t>(value_high)) << 8;
-  auto const low = static_cast<std::uint8_t>(value_low);
+inline auto calculateValueMinus40(std::uint8_t const value) -> std::uint8_t {
+  return value - 40;
+}
 
-  return high | low;
+inline auto calculateValueDivide16(std::uint8_t const value) -> std::uint8_t {
+  return static_cast<std::uint16_t>(value) * 10 / 16;
+}
+
+inline auto calculateValueDivide10(std::uint8_t const value) -> std::uint8_t {
+  return value / 10;
+}
+
+inline auto calculateValueMultiply10(std::uint8_t const value) -> std::uint16_t {
+  return static_cast<std::uint16_t>(value) * 10;
 }
 
 }  // namespace common
