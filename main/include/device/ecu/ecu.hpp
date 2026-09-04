@@ -168,6 +168,34 @@ class ECU {
 
     m_is_connected = true;
 
+    if (!updateTable0()) [[unlikely]]
+      return false;
+
+    return true;
+  }
+
+  auto updateTable0() noexcept -> bool {
+    static constexpr std::uint8_t table{0x0};
+    static constexpr std::uint8_t address{0x72};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{10};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
+    static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
+    if (!send_message(request)) [[unlikely]]
+      return false;
+
+    ECUMessage<header_size + payload_size> response{};
+
+    if (!receive_message(response)) [[unlikely]]
+      return false;
+
+    ESP_LOG_BUFFER_HEX("ECU 00", header_size + response.payload.data(), response.payload.size());
+
     return true;
   }
 
@@ -175,7 +203,7 @@ class ECU {
     static constexpr std::uint8_t table{0x10};
     static constexpr std::uint8_t address{0x72};
     static constexpr std::size_t header_size{2};
-    static constexpr std::size_t payload_size{23};
+    static constexpr std::size_t payload_size{17};
     static constexpr std::size_t payload_offset{0};
     static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
     static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
@@ -205,6 +233,8 @@ class ECU {
     m_engine_data.fuel_inject = common::as_ulong(response.payload[header_size + 14], response.payload[header_size + 15]);
     m_engine_data.ignition_advance = response.payload[header_size + 16];
 
+    ESP_LOG_BUFFER_HEX("ECU 10", response.payload.data(), response.payload.size());
+
     return true;
   }
 
@@ -212,7 +242,7 @@ class ECU {
     static constexpr std::uint8_t table{0x11};
     static constexpr std::uint8_t address{0x72};
     static constexpr std::size_t header_size{2};
-    static constexpr std::size_t payload_size{23};
+    static constexpr std::size_t payload_size{20};
     static constexpr std::size_t payload_offset{0};
     static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
     static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
@@ -228,22 +258,100 @@ class ECU {
     if (!receive_message(response)) [[unlikely]]
       return false;
 
-    m_engine_data.rpm = common::as_ulong(response.payload[2], response.payload[3]);
-    m_engine_data.tps_voltage = common::calculateValueDivide256(response.payload[4]);
-    m_engine_data.tps_percent = common::calculateValueDivide16(response.payload[5]);
-    m_engine_data.ect_voltage = common::calculateValueDivide256(response.payload[6]);
-    m_engine_data.ect_temp = common::calculateValueMinus40(response.payload[7]);
-    m_engine_data.iat_voltage = common::calculateValueDivide256(response.payload[8]);
-    m_engine_data.iat_temp = common::calculateValueMinus40(response.payload[9]);
-    m_engine_data.map_voltage = common::calculateValueDivide256(response.payload[10]);
-    m_engine_data.map_pressure = response.payload[11];
-    m_engine_data.battery_voltage = common::calculateValueDivide10(response.payload[14]);
-    m_engine_data.speed = response.payload[15];
-    m_engine_data.fuel_inject = common::as_ulong(response.payload[16], response.payload[17]);
-    m_engine_data.ignition_advance = response.payload[18];
+    m_engine_data.rpm = common::as_ulong(response.payload[header_size + 0], response.payload[header_size + 1]);
+    m_engine_data.tps_voltage = common::calculateValueDivide256(response.payload[header_size + 2]);
+    m_engine_data.tps_percent = common::calculateValueDivide16(response.payload[header_size + 3]);
+    m_engine_data.ect_voltage = common::calculateValueDivide256(response.payload[header_size + 4]);
+    m_engine_data.ect_temp = common::calculateValueMinus40(response.payload[header_size + 5]);
+    m_engine_data.iat_voltage = common::calculateValueDivide256(response.payload[header_size + 6]);
+    m_engine_data.iat_temp = common::calculateValueMinus40(response.payload[header_size + 7]);
+    m_engine_data.map_voltage = common::calculateValueDivide256(response.payload[header_size + 8]);
+    m_engine_data.map_pressure = response.payload[header_size + 9];
+    m_engine_data.battery_voltage = common::calculateValueDivide10(response.payload[header_size + 12]);
+    m_engine_data.speed = response.payload[header_size + 13];
+    m_engine_data.fuel_inject = common::as_ulong(response.payload[header_size + 14], response.payload[header_size + 15]);
+    m_engine_data.ignition_advance = response.payload[header_size + 16];
+
+    ESP_LOG_BUFFER_HEX("ECU 11", response.payload.data(), response.payload.size());
 
     return true;
   }
+
+  auto updateTable20() noexcept -> bool {
+    static constexpr std::uint8_t table{0x20};
+    static constexpr std::uint8_t address{0x72};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{3};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
+    static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
+    if (!send_message(request)) [[unlikely]]
+      return false;
+
+    ECUMessage<header_size + payload_size> response{};
+
+    if (!receive_message(response)) [[unlikely]]
+      return false;
+
+    ESP_LOG_BUFFER_HEX("ECU 20", response.payload.data(), response.payload.size());
+
+    return true;
+  }
+
+  auto updateTable21() noexcept -> bool {
+    static constexpr std::uint8_t table{0x21};
+    static constexpr std::uint8_t address{0x72};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{6};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
+    static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
+    if (!send_message(request)) [[unlikely]]
+      return false;
+
+    ECUMessage<header_size + payload_size> response{};
+
+    if (!receive_message(response)) [[unlikely]]
+      return false;
+
+    ESP_LOG_BUFFER_HEX("ECU 21", response.payload.data(), response.payload.size());
+
+    return true;
+  }
+
+  auto updateTableD0() noexcept -> bool {
+    static constexpr std::uint8_t table{0xD0};
+    static constexpr std::uint8_t address{0x72};
+    static constexpr std::size_t header_size{2};
+    static constexpr std::size_t payload_size{14};
+    static constexpr std::size_t payload_offset{0};
+    static constexpr std::array payload{table, common::as_byte(payload_offset), common::as_byte(payload_size)};
+    static constexpr ECUMessage request{address, ECUMode::READ_RANGE, payload};
+
+    if (!connect()) [[unlikely]]
+      return false;
+
+    if (!send_message(request)) [[unlikely]]
+      return false;
+
+    ECUMessage<header_size + payload_size> response{};
+
+    if (!receive_message(response)) [[unlikely]]
+      return false;
+
+    ESP_LOG_BUFFER_HEX("ECU D0", response.payload.data(), response.payload.size());
+
+    return true;
+  }
+
 
   auto updateTableD1() noexcept -> bool {
     static constexpr std::uint8_t table{0xD1};
@@ -267,6 +375,8 @@ class ECU {
 
     m_engine_data.is_clutch = common::as_byte(response.payload[2]);
     m_engine_data.is_running = common::as_byte(response.payload[6]);
+
+    ESP_LOG_BUFFER_HEX("ECU D1", response.payload.data(), response.payload.size());
 
     return true;
   }
@@ -301,11 +411,12 @@ class ECU {
     if (!connect()) [[unlikely]]
       return type::SystemError::ECUInitFault;
 
-    if (!updateTable11())
-      return type::SystemError::ECUReadFault;
-
-    if (!updateTableD1())
-      return type::SystemError::ECUReadFault;
+    updateTable10();
+    updateTable11();
+    updateTable20();
+    updateTable21();
+    updateTableD0();
+    updateTableD1();
 
     return type::SystemError::None;
   }

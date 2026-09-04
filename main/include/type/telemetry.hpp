@@ -67,8 +67,12 @@ struct ECUTelemetry {
   bool is_clutch_enabled{false};
 
   RPM rpm{0};
+  Volt battery{0};
   Speed speed{0};
+  Pressure map{0};
   Position tps{0};
+  Temperature air{0};
+  Temperature coolant{0};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ECUTelemetry {
     return dto::ECUTelemetry{
@@ -77,8 +81,12 @@ struct ECUTelemetry {
         .is_clutch_enabled = is_clutch_enabled,
 
         .rpm = rpm.get(),
+        .battery = battery.get(),
         .speed = speed.get(),
+        .map = map.get(),
         .tps = tps.get(),
+        .air = air.get(),
+        .coolant = coolant.get(),
     };
   }
 };

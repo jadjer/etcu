@@ -24,27 +24,27 @@
 namespace type::dto {
 
 struct Control {
-  primitive::Position servo_min{0};
-  primitive::Position servo_max{0};
-  primitive::Position accelerator_min{0};
-  primitive::Position accelerator_max{0};
+  primitive::Position servo_min{0};        // 2
+  primitive::Position servo_max{0};        // 2
+  primitive::Position accelerator_min{0};  // 2
+  primitive::Position accelerator_max{0};  // 2
 
 } __attribute__((packed));
 
 template <std::size_t PayloadSize>
 struct OTAChunk {
-  std::uint32_t firmware_size{0};
-  std::uint16_t chunk_total{0};
-  std::uint16_t chunk_index{0};
+  std::uint32_t firmware_size{0};  // 4
+  std::uint16_t chunk_total{0};    // 2
+  std::uint16_t chunk_index{0};    // 2
 
   std::array<std::uint8_t, PayloadSize> chunk{};
 
 } __attribute__((packed));
 
 struct SystemInfo {
-  primitive::FixedString build_date{};
-  primitive::FixedString board_version{};
-  primitive::FixedString firmware_version{};
+  primitive::FixedString build_date{};        // 16
+  primitive::FixedString board_version{};     // 16
+  primitive::FixedString firmware_version{};  // 16
 
 } __attribute__((packed));
 
@@ -53,9 +53,13 @@ struct ECUTelemetry {
   bool is_started{false};         // 1
   bool is_clutch_enabled{false};  // 1
 
-  primitive::RPM rpm{0};       // 2
-  primitive::Speed speed{0};   // 1
-  primitive::Position tps{0};  // 2
+  primitive::RPM rpm{0};              // 2
+  primitive::Volt battery{0};         // 1
+  primitive::Speed speed{0};          // 1
+  primitive::Pressure map{0};         // 1
+  primitive::Position tps{0};         // 2
+  primitive::Temperature air{0};      // 1
+  primitive::Temperature coolant{0};  // 1
 
 } __attribute__((packed));
 
@@ -75,8 +79,8 @@ struct SystemTelemetry {
   bool is_guard_active{false};   // 1
   bool is_brake_enabled{false};  // 1
 
-  ECUTelemetry ecu_telemetry{};      // 8
-  ServoTelemetry servo_telemetry{};  // 10
+  ECUTelemetry ecu_telemetry{};      // 12
+  ServoTelemetry servo_telemetry{};  // 9
 
   primitive::Speed target_speed{0};             // 1
   primitive::Position throttle_position{0};     // 2

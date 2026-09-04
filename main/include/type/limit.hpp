@@ -52,4 +52,7 @@ inline constexpr primitive::Temperature temperature_max{150};
 inline constexpr primitive::MilliSec milli_sec_min{0};
 inline constexpr primitive::MilliSec milli_sec_max{1000};
 
+inline constexpr primitive::Pressure pressure_min{0};
+inline constexpr primitive::Pressure pressure_max{100};
+
 }  // namespace type::limit

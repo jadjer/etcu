@@ -39,6 +39,7 @@ using Speed = std::uint8_t;
 using Current = std::uint16_t;
 using Temperature = std::uint8_t;
 using MilliSec = std::uint16_t;
+using Pressure = std::uint8_t;
 using FixedString = std::array<char, 16>;
 
 }  // namespace type::primitive

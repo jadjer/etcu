@@ -34,5 +34,6 @@ using Speed = common::BoundedValue<primitive::Speed, limit::speed_min, limit::sp
 using Current = common::BoundedValue<primitive::Current, limit::current_min, limit::current_max>;
 using Temperature = common::BoundedValue<primitive::Temperature, limit::temperature_min, limit::temperature_max>;
 using MilliSec = common::BoundedValue<primitive::MilliSec, limit::milli_sec_min, limit::milli_sec_max>;
+using Pressure = common::BoundedValue<primitive::Pressure, limit::pressure_min, limit::pressure_max>;
 
 }  // namespace type
