@@ -2,6 +2,8 @@ name: Build and Artifact the ESP-IDF Project
 
 on:
   push:
+    branches:
+      - main     # ВАЖНО: Копим кэш в основной ветке, чтобы новые теги могли его прочитать
     tags:
       - 'v*'
   release:
@@ -27,7 +29,7 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # СТРАТЕГИЯ 1: Если тег тот же — мгновенно восстанавливаем готовый .bin (5 секунд)
+      # 1. Проверяем точный готовый файл для текущего тега (для сценария ПЕРЕСОЗДАНИЯ)
       - name: Cache Exact Final Binary
         id: cache-binary
         uses: actions/cache@v4
@@ -35,31 +37,33 @@ jobs:
           path: build/ETCU.bin
           key: binary-${{ github.ref_name }}
 
-      # СТРАТЕГИЯ 2: Если тег новый — ускоряем компиляцию через ccache
+      # 2. Кэш компилятора. Если точного .bin нет, берем базовый ccache из ветки main
       - name: Cache ccache compiler outputs
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: actions/cache@v4
         with:
           path: .ccache
-          # Хэш от файлов конфигурации гарантирует: если настройки проекта сменились, кэш обновится
           key: ${{ runner.os }}-ccache-${{ hashFiles('**/CMakeLists.txt', '**/sdkconfig*', '**/main/idf_component.yml') }}
+          # restore-keys заставит GitHub искать кэш в родительской ветке (main), если точный ключ не найден
           restore-keys: |
             ${{ runner.os }}-ccache-
 
-      # Сборка проекта (запустится только для новых тегов)
+      # 3. Сборка ESP-IDF
       - name: esp-idf build
         if: steps.cache-binary.outputs.cache-hit != 'true'
         uses: espressif/esp-idf-ci-action@v1
         env:
+          IDF_CCACHE_ENABLE: "1"               # ВАЖНО: Включаем ccache внутри ESP-IDF
           CCACHE_DIR: ${{ github.workspace }}/.ccache
-          CCACHE_MAXSIZE: '500M' # Ограничиваем размер кэша компилятора
+          CCACHE_MAXSIZE: '500M'
         with:
           esp_idf_version: v6.1
           target: esp32s3
           path: '.'
 
-      # Публикация артефакта в релиз
+      # 4. Загрузка в релиз (выполняется только если событие — это релиз или тег)
       - name: Upload binaries to release
+        if: github.ref_type == 'tag' || github.event_name == 'release'
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
