@@ -37,15 +37,19 @@ class OTAManager {
   constexpr ~OTAManager() noexcept = default;
 
   [[nodiscard]] auto start_update(std::size_t const total_size) -> bool {
-    if (m_is_running)
+    if (m_is_running) {
       return false;
+    }
 
     m_update_partition = esp_ota_get_next_update_partition(nullptr);
-    if (m_update_partition == nullptr)
-      return false;
 
-    if (esp_ota_begin(m_update_partition, total_size, &m_update_handle) != ESP_OK)
+    if (m_update_partition == nullptr) {
       return false;
+    }
+
+    if (esp_ota_begin(m_update_partition, total_size, &m_update_handle) != ESP_OK) {
+      return false;
+    }
 
     m_is_running = true;
 
@@ -57,13 +61,15 @@ class OTAManager {
   [[nodiscard]] auto write_chunk(std::array<std::uint8_t, PayloadSize> const& data, std::size_t const chunk_number, std::size_t const firmware_size) -> bool {
     static constexpr std::size_t payload_size{PayloadSize};
 
-    if (!m_is_running)
+    if (!m_is_running) {
       return false;
+    }
 
     std::size_t const offset = chunk_number * payload_size;
 
-    if (offset >= firmware_size)
+    if (offset >= firmware_size) {
       return false;
+    }
 
     std::size_t const bytes_remaining = firmware_size - offset;
     std::size_t const bytes_to_write = std::min(payload_size, bytes_remaining);
@@ -72,14 +78,17 @@ class OTAManager {
   }
 
   [[nodiscard]] auto end_update() -> bool {
-    if (!m_is_running)
+    if (!m_is_running) {
       return false;
+    }
 
-    if (esp_ota_end(m_update_handle) != ESP_OK)
+    if (esp_ota_end(m_update_handle) != ESP_OK) {
       return false;
+    }
 
-    if (esp_ota_set_boot_partition(m_update_partition) != ESP_OK)
+    if (esp_ota_set_boot_partition(m_update_partition) != ESP_OK) {
       return false;
+    }
 
     m_is_running = false;
 

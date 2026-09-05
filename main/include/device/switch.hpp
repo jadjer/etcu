@@ -27,8 +27,9 @@ class Switch {
   constexpr ~Switch() noexcept = default;
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver.init()) [[unlikely]]
+    if (!m_driver.init()) [[unlikely]] {
       return type::SystemError::ButtonInitFault;
+    }
 
     return type::SystemError::None;
   }

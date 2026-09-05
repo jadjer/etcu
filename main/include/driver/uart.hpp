@@ -48,11 +48,6 @@ class UART {
   constexpr ~UART() noexcept = default;
 
   static auto init() noexcept -> bool {
-    if (!uart_is_driver_installed(esp_port)) {
-      if (uart_driver_install(esp_port, buffer_size, 0, 0, nullptr, 0) != ESP_OK) [[unlikely]]
-        return false;
-    }
-
     static constexpr uart_config_t config = {
         .baud_rate = esp_baud_rate,
         .data_bits = UART_DATA_8_BITS,
@@ -64,6 +59,12 @@ class UART {
         .source_clk = UART_SCLK_DEFAULT,
         .flags = {},
     };
+
+    if (!uart_is_driver_installed(esp_port)) {
+      if (uart_driver_install(esp_port, buffer_size, 0, 0, nullptr, 0) != ESP_OK) [[unlikely]] {
+        return false;
+      }
+    }
 
     if (uart_param_config(esp_port, &config) != ESP_OK) [[unlikely]] {
       uart_driver_delete(esp_port);
@@ -87,8 +88,8 @@ class UART {
   }
 
   template <std::size_t PackageSize>
-  requires(PackageSize > 0)
-static auto read(std::array<std::uint8_t, PackageSize>& packet, std::uint16_t const timeout_ms) noexcept -> int {
+    requires(PackageSize > 0)
+  static auto read(std::array<std::uint8_t, PackageSize>& packet, std::uint16_t const timeout_ms) noexcept -> int {
     return uart_read_bytes(esp_port, packet.data(), packet.size(), pdMS_TO_TICKS(timeout_ms));
   }
 };

@@ -41,8 +41,9 @@ class Indicator {
   constexpr ~Indicator() noexcept = default;
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver.init()) [[unlikely]]
+    if (!m_driver.init()) [[unlikely]] {
       return type::SystemError::IndicatorInitFault;
+    }
 
     return type::SystemError::None;
   }

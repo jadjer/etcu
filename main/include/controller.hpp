@@ -208,9 +208,11 @@ class Controller {
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
-    if (system_state == type::SystemState::Normal)
-      if (m_mode_button.is_long_press())
+    if (system_state == type::SystemState::Normal) {
+      if (m_mode_button.is_long_press()) {
         m_target_speed.store(ecu_telemetry.speed);
+      }
+    }
   }
 
   auto process_critical_loop() noexcept -> void {

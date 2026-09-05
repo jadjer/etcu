@@ -69,14 +69,15 @@ class ADC {
   constexpr ~ADC() noexcept = default;
 
   auto init() noexcept -> bool {
-    if (m_handle != nullptr) [[unlikely]]
-      return true;
-
     static constexpr adc_oneshot_unit_init_cfg_t handle_config = {
         .unit_id = esp_unit,
         .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
         .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
+
+    if (m_handle != nullptr) [[unlikely]] {
+      return true;
+    }
 
     return adc_oneshot_new_unit(&handle_config, &m_handle) == ESP_OK;
   }
@@ -85,30 +86,28 @@ class ADC {
   auto configure_channel() noexcept -> bool {
     static constexpr auto esp_channel{static_cast<adc_channel_t>(ChannelId)};
     static constexpr auto channel_index{static_cast<std::size_t>(ChannelId)};
-
-    if (m_handle == nullptr && !init()) [[unlikely]]
-      return false;
-
-    adc_oneshot_chan_cfg_t constexpr channel_config = {
+    static constexpr adc_oneshot_chan_cfg_t channel_config{
         .atten = esp_attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
-
-    if (adc_oneshot_config_channel(m_handle, esp_channel, &channel_config) != ESP_OK) [[unlikely]]
-      return false;
-
-    if (m_calibration_handles[channel_index] == nullptr) [[unlikely]]
-      return true;
-
-    static constexpr adc_cali_curve_fitting_config_t calibration_config = {
+    static constexpr adc_cali_curve_fitting_config_t calibration_config{
         .unit_id = esp_unit,
         .chan = esp_channel,
         .atten = esp_attenuation,
         .bitwidth = ADC_BITWIDTH_DEFAULT,
     };
 
-    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK) [[unlikely]]
+    if (m_handle == nullptr && !init()) [[unlikely]] {
       return false;
+    }
+
+    if (adc_oneshot_config_channel(m_handle, esp_channel, &channel_config) != ESP_OK) [[unlikely]] {
+      return false;
+    }
+
+    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK) [[unlikely]] {
+      return false;
+    }
 
     return true;
   }
@@ -118,13 +117,15 @@ class ADC {
   auto get_value(T& value) const noexcept -> bool {
     static constexpr auto esp_channel{static_cast<adc_channel_t>(ChannelId)};
 
-    if (m_handle == nullptr) [[unlikely]]
+    if (m_handle == nullptr) [[unlikely]] {
       return false;
+    }
 
     int raw_value{0};
 
-    if (adc_oneshot_read(m_handle, esp_channel, &raw_value) != ESP_OK) [[unlikely]]
+    if (adc_oneshot_read(m_handle, esp_channel, &raw_value) != ESP_OK) [[unlikely]] {
       return false;
+    }
 
     value = static_cast<T>(raw_value);
 
@@ -138,17 +139,20 @@ class ADC {
 
     int raw_value = 0;
 
-    if (!get_value<ChannelId>(raw_value)) [[unlikely]]
+    if (!get_value<ChannelId>(raw_value)) [[unlikely]] {
       return false;
+    }
 
     auto const calibration_handle = m_calibration_handles[channel_index];
-    if (calibration_handle == nullptr) [[unlikely]]
+    if (calibration_handle == nullptr) [[unlikely]] {
       return false;
+    }
 
     int voltage = 0;
 
-    if (adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage) != ESP_OK) [[unlikely]]
+    if (adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage) != ESP_OK) [[unlikely]] {
       return false;
+    }
 
     value = static_cast<T>(voltage);
 

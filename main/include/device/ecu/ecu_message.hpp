@@ -68,8 +68,9 @@ struct ECUMessage {
     length = bytes[1];
     mode = bytes[2];
 
-    if constexpr (PayloadSize > 0)
+    if constexpr (PayloadSize > 0) {
       std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + PayloadSize), payload.begin());
+    }
 
     checksum = bytes[total_size - 1];
 
@@ -83,9 +84,11 @@ struct ECUMessage {
 
   [[nodiscard]] constexpr auto calculate_checksum() const noexcept -> std::uint8_t {
     std::uint32_t sum = address + length + mode;
+
     if constexpr (PayloadSize > 0) {
       sum = std::accumulate(payload.begin(), payload.end(), sum);
     }
+
     return common::as_byte(0U - sum);
   }
 

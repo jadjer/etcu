@@ -59,14 +59,17 @@ class BLEManager {
   [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data()))
+    if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data())) {
       return type::SystemError::BluetoothInitFault;
+    }
 
-    if (!NimBLEDevice::setPower(ESP_PWR_LVL_N24))
+    if (!NimBLEDevice::setPower(ESP_PWR_LVL_N24)) {
       return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault;
+    }
 
-    if (!NimBLEDevice::setMTU(517))
+    if (!NimBLEDevice::setMTU(517)) {
       return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetMTUFault;
+    }
 
     m_server = NimBLEDevice::createServer();
     m_server->setCallbacks(&m_server_callback);
@@ -95,11 +98,13 @@ class BLEManager {
   [[nodiscard]] auto isConnected() const -> bool { return m_server_callback.isConnected(); }
 
   [[nodiscard]] auto send_telemetry(type::SystemTelemetry const& data) const -> type::SystemError {
-    if (!isConnected())
+    if (!isConnected()) {
       return type::SystemError::BluetoothConnectedFault;
+    }
 
-    if (m_telemetry_characteristic == nullptr)
+    if (m_telemetry_characteristic == nullptr) {
       return type::SystemError::BluetoothInitFault;
+    }
 
     type::dto::SystemTelemetry const system_telemetry = data.to_dto();
 
@@ -110,11 +115,13 @@ class BLEManager {
   }
 
   [[nodiscard]] auto send_ota_notify(type::OTAStatus const status) const -> type::SystemError {
-    if (!isConnected())
+    if (!isConnected()) {
       return type::SystemError::BluetoothConnectedFault;
+    }
 
-    if (m_ota_characteristic == nullptr)
+    if (m_ota_characteristic == nullptr) {
       return type::SystemError::BluetoothInitFault;
+    }
 
     std::ignore = m_ota_characteristic->notify(status);
 

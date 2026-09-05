@@ -23,6 +23,7 @@
 #include "common/map_range.hpp"
 #include "device/servo/register.hpp"
 #include "device/servo/servo_message.hpp"
+#include "device/servo/servo_protocol.hpp"
 #include "type/type.hpp"
 
 namespace device {
@@ -30,46 +31,15 @@ namespace device {
 template <class Driver, class PowerEnable, std::uint8_t ServoId = 1>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable> && (ServoId > 0) && (ServoId < 254)
 class Servo {
-  static constexpr std::uint8_t servo_id{ServoId};
-
   type::ServoCalibrationData m_calibration_data{
       .position_minimal{600},
       .position_maximal{1250},
   };
 
-  Driver& m_driver_uart;
-  PowerEnable& m_driver_power;
-
-  template <std::size_t ParamSize>
-  constexpr auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> void {
-    ServoMessage<ParamSize> const message{servo_id, instruction, parameters};
-
-    m_driver_uart.flush();
-    m_driver_uart.write(message.to_array());
-  }
-
-  template <std::size_t PayloadSize>
-  constexpr auto receive_message(ServoMessage<PayloadSize>& message) noexcept -> bool {
-    static constexpr std::uint16_t timeout_ms{30};
-    static constexpr std::size_t total_package_size = ServoMessage<PayloadSize>::total_size;
-
-    std::array<std::uint8_t, total_package_size> response_bytes{};
-
-    if (!m_driver_uart.read(response_bytes, timeout_ms)) [[unlikely]]
-      return false;
-
-    auto const response_message = ServoMessage<PayloadSize>{servo_id, response_bytes};
-
-    if (!response_message.is_valid()) [[unlikely]]
-      return false;
-
-    message = response_message;
-
-    return true;
-  }
+  ServoProtocol<Driver, PowerEnable, ServoId> m_protocol;
 
  public:
-  constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_driver_uart(driver_uart), m_driver_power(driver_power) {}
+  constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_protocol(driver_uart, driver_power) {}
 
   constexpr Servo() noexcept = delete;
 
@@ -82,14 +52,9 @@ class Servo {
   constexpr ~Servo() noexcept = default;
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_driver_uart.init()) [[unlikely]]
+    if (!m_protocol.init_hardware()) [[unlikely]] {
       return type::SystemError::ServoInitError;
-
-    if (!m_driver_power.init()) [[unlikely]]
-      return type::SystemError::ServoInitError;
-
-    if (!m_driver_power.enable()) [[unlikely]]
-      return type::SystemError::ServoPowerFail;
+    }
 
     return type::SystemError::None;
   }
@@ -106,12 +71,12 @@ class Servo {
         common::as_byte(servo_position.value),
         common::as_byte(servo_position.value >> 8),
     };
-    send_packet(ServoInstruction::InstWrite, params);
 
-    if (ServoMessage message{}; !receive_message(message))
-      return false;
+    m_protocol.send_packet(ServoInstruction::InstWrite, params);
 
-    return true;
+    ServoMessage response_message{};
+
+    return m_protocol.receive_packet(response_message);
   }
 
   auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
@@ -121,20 +86,25 @@ class Servo {
         common::as_byte(ServoRegister::TorqueEnable),
         common::as_byte(payload_size),
     };
-    send_packet(ServoInstruction::InstRead, params);
 
-    ServoMessage<payload_size> message{};
+    m_protocol.send_packet(ServoInstruction::InstRead, params);
 
-    if (!receive_message(message))
+    ServoMessage<payload_size> response_message{};
+
+    if (!m_protocol.receive_packet(response_message)) {
+      telemetry.is_connected = false;
       return false;
+    }
 
     telemetry.is_connected = true;
-    telemetry.is_enabled = message.payload[0];
-    telemetry.position = common::as_ulong(message.payload[17], message.payload[16]) & 0x7FFF;
-    telemetry.voltage = common::calculateValueDivide10(message.payload[22]);
-    telemetry.temperature = message.payload[23];
-    telemetry.is_moved = message.payload[26];
-    telemetry.current = common::calculateValueMultiply10(common::as_ulong(message.payload[30], message.payload[29]) & 0x7FFF);
+    telemetry.is_enabled = (response_message.payload[0] != 0);
+    telemetry.position = common::as_ulong(response_message.payload[17], response_message.payload[16]) & 0x7FFF;
+    telemetry.voltage = common::calculateValueDivide10(response_message.payload[22]);
+    telemetry.temperature = response_message.payload[23];
+    telemetry.is_moved = (response_message.payload[26] != 0);
+
+    std::uint32_t const raw_current = common::as_ulong(response_message.payload[30], response_message.payload[29]) & 0x7FFF;
+    telemetry.current = common::calculateValueMultiply10(raw_current);
 
     return true;
   }

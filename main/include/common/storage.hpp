@@ -37,8 +37,9 @@ struct Storage {
   [[nodiscard]] auto load_calibration(T& data) const noexcept -> bool {
     nvs_handle_t nvs_handle{0};
 
-    if (nvs_open(constants::system::NVSNamespace.data(), NVS_READONLY, &nvs_handle) != ESP_OK)
+    if (nvs_open(constants::system::NVSNamespace.data(), NVS_READONLY, &nvs_handle) != ESP_OK) {
       return false;
+    }
 
     std::size_t requiredSize = sizeof(T);
 
@@ -46,8 +47,9 @@ struct Storage {
 
     nvs_close(nvs_handle);
 
-    if (error != ESP_OK || requiredSize != sizeof(T))
+    if (error != ESP_OK || requiredSize != sizeof(T)) {
       return false;
+    }
 
     return data.struct_version == T::current_version;
   }
@@ -57,8 +59,9 @@ struct Storage {
   [[nodiscard]] auto save_calibration(T const& data) const noexcept -> bool {
     nvs_handle_t nvs_handle{0};
 
-    if (nvs_open(constants::system::NVSNamespace.data(), NVS_READWRITE, &nvs_handle) != ESP_OK) [[unlikely]]
+    if (nvs_open(constants::system::NVSNamespace.data(), NVS_READWRITE, &nvs_handle) != ESP_OK) [[unlikely]] {
       return false;
+    }
 
     if (nvs_set_blob(nvs_handle, T::struct_name.data(), &data, sizeof(T)) != ESP_OK) [[unlikely]] {
       nvs_close(nvs_handle);

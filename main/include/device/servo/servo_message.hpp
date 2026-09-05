@@ -78,8 +78,9 @@ struct ServoMessage {
     length = bytes[3];
     instruction_or_status = bytes[4];
 
-    if constexpr (payload_size > 0)
+    if constexpr (payload_size > 0) {
       std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + payload_size), payload.begin());
+    }
 
     checksum = bytes[total_size - 1];
 
@@ -94,8 +95,9 @@ struct ServoMessage {
   [[nodiscard]] constexpr auto calculate_checksum() const noexcept -> std::uint8_t {
     std::uint32_t sum = servo_id + length + instruction_or_status;
 
-    if constexpr (payload_size > 0)
+    if constexpr (payload_size > 0) {
       sum = std::accumulate(payload.begin(), payload.end(), sum);
+    }
 
     return common::as_byte(~sum);
   }
@@ -103,8 +105,9 @@ struct ServoMessage {
   [[nodiscard]] constexpr auto to_array() const noexcept -> std::array<std::uint8_t, total_size> {
     std::array<std::uint8_t, total_size> bytes{0xFF, 0xFF, servo_id, length, instruction_or_status};
 
-    if constexpr (payload_size > 0)
+    if constexpr (payload_size > 0) {
       std::copy(payload.begin(), payload.end(), bytes.begin() + header_size);
+    }
 
     bytes[total_size - 1] = calculate_checksum();
 
