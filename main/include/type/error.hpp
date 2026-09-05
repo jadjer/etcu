@@ -54,6 +54,8 @@ enum class SystemError : std::uint32_t {
   BluetoothSetPowerFault = 1 << 26,
   BluetoothSetMTUFault = 1 << 27,
   BluetoothConnectedFault = 1 << 28,
+
+  StorageSaveError = 1 << 29,
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {

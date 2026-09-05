@@ -75,7 +75,6 @@ concept ServoConcept = requires(T servo, type::Position const& position, type::S
 template <class Accelerator, class Servo, class ECU, class ModeButton, class ModeIndicator, class Brake, class Guard>
   requires AcceleratorConcept<Accelerator> && ServoConcept<Servo> && ECUConcept<ECU> && ButtonConcept<ModeButton> && IndicatorConcept<ModeIndicator> &&
            SwitchConcept<Brake> && SwitchConcept<Guard>
-
 class Controller {
   ECU& m_ecu;
   Servo& m_servo;
