@@ -25,24 +25,24 @@
 
 namespace type::dto {
 
+struct CruiseAutoSet {
+  bool enabled{false};                // 1
+  std::uint8_t delay_sec{0};          // 1
+  primitive::Speed threshold_kmh{0};  // 1
+  primitive::Speed tolerance_kmh{0};  // 1
+
+} __attribute__((packed));
+
+struct PositionRange {
+  primitive::Position min{0};  // 2
+  primitive::Position max{0};  // 2
+
+} __attribute__((packed));
+
 struct Control {
-  struct AutoSet {                  // 1
-    bool enabled{false};            // 1
-    primitive::Time delay{0};       // 2
-    primitive::Speed threshold{0};  // 1
-    primitive::Speed tolerance{0};  // 1
-
-  } __attribute__((packed));
-
-  struct Range {                 // 1
-    primitive::Position min{0};  // 2
-    primitive::Position max{0};  // 2
-
-  } __attribute__((packed));
-
-  AutoSet auto_set;   // 6
-  Range servo;        // 5
-  Range accelerator;  // 5
+  CruiseAutoSet cruise;       // 4
+  PositionRange servo;        // 4
+  PositionRange accelerator;  // 4
 
 } __attribute__((packed));
 

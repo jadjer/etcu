@@ -12,41 +12,44 @@
 
 namespace type {
 
-struct Control {
-  struct AutoSet {
-    bool enabled{false};
-    primitive::Time delay{0};
-    Speed threshold{0};
-    Speed tolerance{0};
-  };
-  struct Range {
-    Position min{Position::value_min};
-    Position max{Position::value_max};
-  };
+struct CruiseAutoSet {
+  bool enabled{false};
+  std::uint8_t delay_sec{0};
+  Speed threshold_kmh{0};
+  Speed tolerance_kmh{0};
 
-  AutoSet auto_set{};
-  Range servo{};
-  Range accelerator{};
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseAutoSet {
+    return dto::CruiseAutoSet{
+        .enabled = enabled,
+        .delay_sec = delay_sec,
+        .threshold_kmh = threshold_kmh.get(),
+        .tolerance_kmh = tolerance_kmh.get(),
+    };
+  }
+};
+
+struct PositionRange {
+  Position min{Position::value_min};
+  Position max{Position::value_max};
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::PositionRange {
+    return dto::PositionRange{
+        .min = min.get(),
+        .max = max.get(),
+    };
+  }
+};
+
+struct Control {
+  CruiseAutoSet cruise{};
+  PositionRange servo{};
+  PositionRange accelerator{};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::Control {
     return dto::Control{
-        .auto_set =
-            dto::Control::AutoSet{
-                .enabled = auto_set.enabled,
-                .delay = auto_set.delay,
-                .threshold = auto_set.threshold.get(),
-                .tolerance = auto_set.tolerance.get(),
-            },
-        .servo =
-            dto::Control::Range{
-                .min = servo.min.get(),
-                .max = servo.max.get(),
-            },
-        .accelerator =
-            dto::Control::Range{
-                .min = accelerator.min.get(),
-                .max = accelerator.max.get(),
-            },
+        .cruise = cruise.to_dto(),
+        .servo = servo.to_dto(),
+        .accelerator = accelerator.to_dto(),
     };
   }
 };
