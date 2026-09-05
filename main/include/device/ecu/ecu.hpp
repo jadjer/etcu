@@ -34,36 +34,36 @@ enum class EngineState : std::uint8_t {
 };
 
 struct EngineData {
-  bool is_running;
-  EngineState state;
-  std::uint8_t speed;
-  std::uint8_t ect_temp;
-  std::uint8_t iat_temp;
-  std::uint8_t ect_voltage;
-  std::uint8_t iat_voltage;
-  std::uint8_t tps_percent;
-  std::uint8_t tps_voltage;
-  std::uint8_t map_voltage;
-  std::uint8_t map_pressure;
-  std::uint8_t battery_voltage;
-  std::uint8_t ignition_advance;
-  std::uint16_t rpm;
-  std::uint16_t fuel_inject;
+  bool is_running{false};
+  EngineState state{EngineState::NEUTRAL};
+  std::uint8_t speed{0};
+  std::uint8_t ect_temp{0};
+  std::uint8_t iat_temp{0};
+  std::uint8_t ect_voltage{0};
+  std::uint8_t iat_voltage{0};
+  std::uint8_t tps_percent{0};
+  std::uint8_t tps_voltage{0};
+  std::uint8_t map_voltage{0};
+  std::uint8_t map_pressure{99};
+  std::uint8_t battery_voltage{0};
+  std::uint8_t ignition_advance{0};
+  std::uint16_t rpm{0};
+  std::uint16_t fuel_inject{0};
 
-  bool mil_state;               // Статус лампы Check Engine
-  std::uint8_t dtc_count;        // Количество активных ошибок
-  std::uint16_t dtc_code_1;      // Код первой ошибки (например, P0105 -> 0x0105)
-  std::uint16_t dtc_code_2;      // Код второй ошибки
+  bool mil_state{true};               // Статус лампы Check Engine
+  std::uint8_t dtc_count{0};        // Количество активных ошибок
+  std::uint16_t dtc_code_1{0};      // Код первой ошибки (например, P0105 -> 0x0105)
+  std::uint16_t dtc_code_2{0};      // Код второй ошибки
 
   // Топливные коррекции (0x6x)
-  std::uint8_t short_term_trim;  // Краткосрочная коррекция топлива (-128%...+127% или в попугаях)
-  std::uint8_t long_term_trim;   // Долгосрочная коррекция топлива
-  std::uint16_t coil_dwell_time;// Время заряда катушки зажигания (обычно в мкс)
+  std::uint8_t short_term_trim{0};  // Краткосрочная коррекция топлива (-128%...+127% или в попугаях)
+  std::uint8_t long_term_trim{0};   // Долгосрочная коррекция топлива
+  std::uint16_t coil_dwell_time{0};// Время заряда катушки зажигания (обычно в мкс)
 
   // Экология и Периферия (0x7x)
-  std::uint16_t o2_voltage;     // Напряжение датчика кислорода (мВ)
-  std::uint8_t iacv_steps;      // Положение клапана холостого хода (шаги или %)
-  std::uint8_t lean_angle_volt; // Напряжение датчика падения/наклона
+  std::uint16_t o2_voltage{0};     // Напряжение датчика кислорода (мВ)
+  std::uint8_t iacv_steps{0};      // Положение клапана холостого хода (шаги или %)
+  std::uint8_t lean_angle_volt{0}; // Напряжение датчика падения/наклона
 };
 
 template <class DriverUart, class DriverGPIO>
@@ -271,9 +271,6 @@ class ECU {
         m_engine_data.o2_voltage = common::calculateValueDivide256(payload[header_size + 0]);
         m_engine_data.iacv_steps = common::calculateValueDivide10(payload[header_size + 2]);
 
-        // Дополнительный температурный датчик (например, температура масла/выхлопа), если он есть в этой таблице
-        // m_engine_data.aux_temp = common::calculateValueMinus40(payload[header_size + 3]);
-
         break;
 
       case 0xD0:
@@ -369,7 +366,7 @@ class ECU {
 
     telemetry.is_connected = m_is_connected;
     telemetry.is_started = m_engine_data.is_running;
-    telemetry.is_clutch_enabled = m_engine_data.state == EngineState::NEUTRAL;
+    telemetry.is_neutral = m_engine_data.state != EngineState::GEAR_ON;
     telemetry.rpm = type::RPM{m_engine_data.rpm};
     telemetry.battery = type::Volt{m_engine_data.battery_voltage};
     telemetry.speed = type::Speed{m_engine_data.speed};

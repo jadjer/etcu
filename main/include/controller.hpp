@@ -93,8 +93,8 @@ class Controller {
   common::AtomicContainer<type::DriveTelemetry> m_driver_telemetry{};
   common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk{};
 
-  Logic m_logic;
   Logger m_logger;
+  ControllerLogic m_logic;
   OTAManager m_ota_manager;
   SystemErrors m_system_errors;
   bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
@@ -222,21 +222,28 @@ class Controller {
     type::Speed const target_speed = m_target_speed.load();
     type::Speed const current_speed = ecu_telemetry.speed;
 
+    bool const safety_active = m_brake.is_active() || ecu_telemetry.is_neutral;
+
     type::Position accelerator_position{0};
 
     if (system_state == type::SystemState::Normal) {
       m_system_errors.update(m_accelerator.get_position(accelerator_position));
     }
 
-    type::Position const throttle_position = m_logic.calculate_servo_position(accelerator_position, current_speed, target_speed, control);
+    auto const [servo_position, new_target_speed, is_speed_changed] =
+        m_logic.calculate_servo_position(accelerator_position, current_speed, target_speed, control, safety_active);
 
-    m_servo.set_position(throttle_position);
+    if (is_speed_changed) {
+      m_target_speed.store(new_target_speed);
+    }
+
+    m_servo.set_position(servo_position);
 
     type::ServoTelemetry servo_telemetry{};
     m_servo.get_telemetry(servo_telemetry);
 
     type::DriveTelemetry const drive_telemetry{
-        .throttle_position = throttle_position,
+        .throttle_position = servo_position,
         .accelerator_position = accelerator_position,
         .servo_telemetry = servo_telemetry,
     };

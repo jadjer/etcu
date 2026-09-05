@@ -13,17 +13,40 @@
 namespace type {
 
 struct Control {
-  Position servo_min{Position::value_min};
-  Position servo_max{Position::value_max};
-  Position accelerator_min{Position::value_min};
-  Position accelerator_max{Position::value_max};
+  struct AutoSet {
+    bool enabled{false};
+    primitive::Time delay{0};
+    Speed threshold{0};
+    Speed tolerance{0};
+  };
+  struct Range {
+    Position min{Position::value_min};
+    Position max{Position::value_max};
+  };
+
+  AutoSet auto_set{};
+  Range servo{};
+  Range accelerator{};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::Control {
     return dto::Control{
-        .servo_min = servo_min.get(),
-        .servo_max = servo_max.get(),
-        .accelerator_min = accelerator_min.get(),
-        .accelerator_max = accelerator_max.get(),
+        .auto_set =
+            dto::Control::AutoSet{
+                .enabled = auto_set.enabled,
+                .delay = auto_set.delay,
+                .threshold = auto_set.threshold.get(),
+                .tolerance = auto_set.tolerance.get(),
+            },
+        .servo =
+            dto::Control::Range{
+                .min = servo.min.get(),
+                .max = servo.max.get(),
+            },
+        .accelerator =
+            dto::Control::Range{
+                .min = accelerator.min.get(),
+                .max = accelerator.max.get(),
+            },
     };
   }
 };
@@ -64,7 +87,7 @@ struct ServoTelemetry {
 struct ECUTelemetry {
   bool is_connected{false};
   bool is_started{false};
-  bool is_clutch_enabled{false};
+  bool is_neutral{false};
 
   RPM rpm{0};
   Volt battery{0};
@@ -78,7 +101,7 @@ struct ECUTelemetry {
     return dto::ECUTelemetry{
         .is_connected = is_connected,
         .is_started = is_started,
-        .is_clutch_enabled = is_clutch_enabled,
+        .is_neutral = is_neutral,
 
         .rpm = rpm.get(),
         .battery = battery.get(),

@@ -19,15 +19,30 @@
 #pragma once
 
 #include <array>
+#include "type/error.hpp"
 #include "type/primitive.hpp"
+#include "type/state.hpp"
 
 namespace type::dto {
 
 struct Control {
-  primitive::Position servo_min{0};        // 2
-  primitive::Position servo_max{0};        // 2
-  primitive::Position accelerator_min{0};  // 2
-  primitive::Position accelerator_max{0};  // 2
+  struct AutoSet {                  // 1
+    bool enabled{false};            // 1
+    primitive::Time delay{0};       // 2
+    primitive::Speed threshold{0};  // 1
+    primitive::Speed tolerance{0};  // 1
+
+  } __attribute__((packed));
+
+  struct Range {                 // 1
+    primitive::Position min{0};  // 2
+    primitive::Position max{0};  // 2
+
+  } __attribute__((packed));
+
+  AutoSet auto_set;   // 6
+  Range servo;        // 5
+  Range accelerator;  // 5
 
 } __attribute__((packed));
 
@@ -49,9 +64,9 @@ struct SystemInfo {
 } __attribute__((packed));
 
 struct ECUTelemetry {
-  bool is_connected{false};       // 1
-  bool is_started{false};         // 1
-  bool is_clutch_enabled{false};  // 1
+  bool is_connected{false};  // 1
+  bool is_started{false};    // 1
+  bool is_neutral{false};    // 1
 
   primitive::RPM rpm{0};              // 2
   primitive::Volt battery{0};         // 1
