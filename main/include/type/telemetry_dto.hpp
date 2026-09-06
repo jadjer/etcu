@@ -27,10 +27,10 @@
 namespace type::dto {
 
 struct CruiseAutoSetDTO {
-  bool enabled{false};                // 1
-  std::uint8_t delay_sec{0};          // 1
-  primitive::Speed threshold_kmh{0};  // 1
-  primitive::Speed tolerance_kmh{0};  // 1
+  bool enabled{false};            // 1
+  std::uint8_t delay{0};          // 1
+  primitive::Speed threshold{0};  // 1
+  primitive::Speed tolerance{0};  // 1
 
 } __attribute__((packed));
 
@@ -91,16 +91,23 @@ struct ServoTelemetryDTO {
 
 } __attribute__((packed));
 
+struct AcceleratorTelemetryDTO {
+  primitive::AccPosition hall_a{0};  // 2
+  primitive::AccPosition hall_b{0};  // 2
+  primitive::Position position{0};   // 2
+
+} __attribute__((packed));
+
 struct SystemTelemetryDTO {
   bool is_guard_active{false};   // 1
   bool is_brake_enabled{false};  // 1
 
-  ECUTelemetryDTO ecu_telemetry{};      // 12
-  ServoTelemetryDTO servo_telemetry{};  // 9
+  ECUTelemetryDTO ecu_telemetry{};                  // 12
+  ServoTelemetryDTO servo_telemetry{};              // 9
+  AcceleratorTelemetryDTO accelerator_telemetry{};  // 6
 
-  primitive::Speed target_speed{0};             // 1
-  primitive::Position throttle_position{0};     // 2
-  primitive::Position accelerator_position{0};  // 2
+  primitive::Speed target_speed{0};          // 1
+  primitive::Position throttle_position{0};  // 2
 
   SystemState system_state{SystemState::Off};    // 1
   SystemError system_errors{SystemError::None};  // 2

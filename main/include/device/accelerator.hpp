@@ -67,7 +67,7 @@ class Accelerator {
 
   auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
 
-  [[nodiscard]] auto get_position(type::Position& current_position) noexcept -> type::SystemError {
+  [[nodiscard]] auto get_telemetry(type::AcceleratorTelemetry& telemetry) noexcept -> type::SystemError {
     static constexpr type::Position value_min{type::Position::value_min};
     static constexpr type::Position value_max{type::Position::value_max};
     static constexpr type::Position threshold{Threshold};
@@ -78,19 +78,24 @@ class Accelerator {
       return type::SystemError::AcceleratorReadError;
     }
 
+    telemetry.hall_a = adc_value_a;
+
     if (!m_driver_adc.template get_value<hall_b>(adc_value_b)) [[unlikely]] {
       return type::SystemError::AcceleratorReadError;
     }
+
+    telemetry.hall_b = adc_value_b;
 
     type::Position const pos_a = common::map_range(adc_value_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, value_min, value_max);
     type::Position const pos_b = common::map_range(adc_value_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, value_min, value_max);
 
     if (type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)}; raw_diff > threshold) [[unlikely]] {
-      current_position = type::Position{0};
+      telemetry.position = 0;
+
       return type::SystemError::AcceleratorMismatch;
     }
 
-    current_position = pos_a;
+    telemetry.position = pos_a;
 
     return type::SystemError::None;
   }

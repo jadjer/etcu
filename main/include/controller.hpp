@@ -30,12 +30,14 @@
 #include "type/type.hpp"
 
 template <typename T>
-concept AcceleratorConcept =
-    requires(T accelerator, type::AcceleratorCalibrationData const& calibration_data, type::Position const& position, type::Position& position_result) {
-      { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
-      { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
-      { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
-    };
+concept AcceleratorConcept = requires(T accelerator,
+                                      type::AcceleratorCalibrationData const& calibration_data,
+                                      type::Position const& position,
+                                      type::AcceleratorTelemetry& accelerator_telemetry) {
+  { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
+  { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
+  { accelerator.get_telemetry(accelerator_telemetry) } noexcept -> std::same_as<type::SystemError>;
+};
 
 template <typename T>
 concept ButtonConcept = requires(T button) {
@@ -290,14 +292,14 @@ class Controller {
     bool const safety_active = m_brake.is_active() || ecu_telemetry.is_neutral;
     type::Speed const current_speed = ecu_telemetry.speed;
 
-    type::Position accelerator_position{0};
+    type::AcceleratorTelemetry accelerator_telemetry{};
 
     if (system_state == type::SystemState::Normal) {
-      m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.get_position(accelerator_position));
+      m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.get_telemetry(accelerator_telemetry));
     }
 
     auto const [servo_position, new_target_speed, is_speed_changed] =
-        m_logic.calculate_servo_position(accelerator_position, current_speed, target_speed, control, safety_active);
+        m_logic.calculate_servo_position(accelerator_telemetry.position, current_speed, target_speed, control, safety_active);
 
     if (is_speed_changed) {
       m_target_speed.store(new_target_speed);
@@ -310,8 +312,8 @@ class Controller {
 
     type::DriveTelemetry const drive_telemetry{
         .throttle_position = servo_position,
-        .accelerator_position = accelerator_position,
         .servo_telemetry = servo_telemetry,
+        .accelerator_telemetry = accelerator_telemetry,
     };
     m_driver_telemetry.store(drive_telemetry);
   }
@@ -324,17 +326,18 @@ class Controller {
     bool const guard_active = m_guard.is_active();
     bool const brake_active = m_brake.is_active();
 
-    auto const [throttle_position, accelerator_position, servo_telemetry] = m_driver_telemetry.load();
+    auto const [throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
 
     type::SystemTelemetry const system_telemetry{
         .is_guard_active = guard_active,
         .is_brake_enabled = brake_active,
 
-        .servo_telemetry = servo_telemetry,
         .ecu_telemetry = ecu_telemetry,
-        .accelerator_position = accelerator_position,
-        .throttle_position = throttle_position,
+        .servo_telemetry = servo_telemetry,
+        .accelerator_telemetry = accelerator_telemetry,
+
         .target_speed = target_speed,
+        .throttle_position = throttle_position,
 
         .system_state = system_state,
         .system_errors = m_system_errors.get_error_mask(),

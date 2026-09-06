@@ -33,7 +33,7 @@ struct ControllerLogicResult {
 };
 
 class ControllerLogic {
-  static constexpr type::Speed speed_start_fade_kmh{60};
+  static constexpr type::Speed speed_start_fade{60};
   static constexpr float loop_dt{0.1f};
   static constexpr float regulator_value_min{type::Position::value_min};
   static constexpr float regulator_value_max{type::Position::value_max};
@@ -80,7 +80,7 @@ class ControllerLogic {
                               ControllerLogicResult& result) noexcept -> void {
     switch (m_cruise_state) {
       case CruiseState::Idle:
-        if (control.cruise.enabled && target_speed == 0 && current_speed > control.cruise.threshold_kmh) {
+        if (control.cruise.enabled && target_speed == 0 && current_speed > control.cruise.threshold) {
           m_base_speed = current_speed;
           m_stability_ticks = 0;
           m_cruise_state = CruiseState::CheckingStability;
@@ -95,10 +95,10 @@ class ControllerLogic {
           break;
         }
 
-        if (std::abs(current_speed.get() - m_base_speed.get()) <= control.cruise.tolerance_kmh) {
+        if (std::abs(current_speed.get() - m_base_speed.get()) <= control.cruise.tolerance) {
           m_stability_ticks++;
 
-          if (float const delay_seconds = control.cruise.delay_sec; m_stability_ticks >= static_cast<std::uint32_t>(delay_seconds / loop_dt)) {
+          if (float const delay_seconds = control.cruise.delay; m_stability_ticks >= static_cast<std::uint32_t>(delay_seconds / loop_dt)) {
             result.new_target_speed = current_speed;
             result.is_speed_changed = true;
             m_speed_regulator.reset();
@@ -110,7 +110,7 @@ class ControllerLogic {
           m_base_speed = current_speed;
           m_stability_ticks = 0;
 
-          if (current_speed.get() <= control.cruise.threshold_kmh.get()) {
+          if (current_speed.get() <= control.cruise.threshold.get()) {
             m_cruise_state = CruiseState::Idle;
             ESP_LOGI("LOG", "Idle");
           }
@@ -119,7 +119,7 @@ class ControllerLogic {
         break;
 
       case CruiseState::Active:
-        if (current_speed.get() < speed_start_fade_kmh.get()) {
+        if (current_speed.get() < speed_start_fade.get()) {
           m_speed_regulator.reset();
           result.new_target_speed = type::Speed{0};
           result.is_speed_changed = true;

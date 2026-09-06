@@ -29,16 +29,16 @@ namespace type {
 
 struct CruiseAutoSet {
   bool enabled{false};
-  std::uint8_t delay_sec{0};
-  Speed threshold_kmh{0};
-  Speed tolerance_kmh{0};
+  std::uint8_t delay{0};
+  Speed threshold{0};
+  Speed tolerance{0};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseAutoSetDTO {
     return dto::CruiseAutoSetDTO{
         .enabled = enabled,
-        .delay_sec = delay_sec,
-        .threshold_kmh = threshold_kmh.get(),
-        .tolerance_kmh = tolerance_kmh.get(),
+        .delay = delay,
+        .threshold = threshold.get(),
+        .tolerance = tolerance.get(),
     };
   }
 
@@ -143,16 +143,30 @@ struct ECUTelemetry {
   }
 };
 
+struct AcceleratorTelemetry {
+  AccPosition hall_a{0};
+  AccPosition hall_b{0};
+  Position position{0};
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::AcceleratorTelemetryDTO {
+    return dto::AcceleratorTelemetryDTO{
+        .hall_a = hall_a.get(),
+        .hall_b = hall_a.get(),
+        .position = position.get(),
+    };
+  }
+};
+
 struct SystemTelemetry {
   bool is_guard_active{false};
   bool is_brake_enabled{false};
 
-  ServoTelemetry servo_telemetry{};
   ECUTelemetry ecu_telemetry{};
+  ServoTelemetry servo_telemetry{};
+  AcceleratorTelemetry accelerator_telemetry{};
 
-  Position accelerator_position{0};
-  Position throttle_position{0};
   Speed target_speed{0};
+  Position throttle_position{0};
 
   SystemState system_state{SystemState::Off};
   SystemError system_errors{SystemError::None};
@@ -164,10 +178,10 @@ struct SystemTelemetry {
 
         .ecu_telemetry = ecu_telemetry.to_dto(),
         .servo_telemetry = servo_telemetry.to_dto(),
+        .accelerator_telemetry = accelerator_telemetry.to_dto(),
 
         .target_speed = target_speed.get(),
         .throttle_position = throttle_position.get(),
-        .accelerator_position = accelerator_position.get(),
 
         .system_state = system_state,
         .system_errors = system_errors,
@@ -177,8 +191,8 @@ struct SystemTelemetry {
 
 struct DriveTelemetry {
   Position throttle_position{};
-  Position accelerator_position{};
   ServoTelemetry servo_telemetry{};
+  AcceleratorTelemetry accelerator_telemetry{};
 };
 
 }  // namespace type

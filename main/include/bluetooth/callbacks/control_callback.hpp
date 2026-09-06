@@ -53,9 +53,9 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
         .cruise =
             type::CruiseAutoSet{
                 .enabled = cruise.enabled,
-                .delay_sec = cruise.delay_sec,
-                .threshold_kmh = cruise.threshold_kmh,
-                .tolerance_kmh = cruise.tolerance_kmh,
+                .delay = cruise.delay,
+                .threshold = cruise.threshold,
+                .tolerance = cruise.tolerance,
             },
         .servo =
             type::PositionRange{
