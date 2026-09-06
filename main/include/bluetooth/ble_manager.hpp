@@ -19,6 +19,7 @@
 #pragma once
 
 #include <NimBLEDevice.h>
+
 #include "bluetooth/callbacks/ota_callback.hpp"
 #include "bluetooth/callbacks/server_callback.hpp"
 #include "bluetooth/callbacks/system_info_callback.hpp"
@@ -59,7 +60,7 @@ class BLEManager {
   [[nodiscard]] constexpr auto init() -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(constants::bluetooth::DeviceName.data())) {
+    if (!NimBLEDevice::init(constants::system::Name.data())) {
       return type::SystemError::BluetoothInitFault;
     }
 
@@ -85,7 +86,7 @@ class BLEManager {
     m_system_info_characteristic->setCallbacks(&m_system_info_callback);
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();
-    advertising->setName(constants::bluetooth::DeviceName.data());
+    advertising->setName(constants::system::Name.data());
     advertising->addServiceUUID(service->getUUID());
     advertising->enableScanResponse(true);
     advertising->setMinInterval(32);

@@ -20,10 +20,10 @@
 
 #include "bluetooth/ble_manager.hpp"
 #include "common/atomic_container.hpp"
-#include "common/storage.hpp"
 #include "controller_logic.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
+#include "storage.hpp"
 #include "system_errors.hpp"
 #include "type/calibration.hpp"
 #include "type/telemetry.hpp"
@@ -31,7 +31,7 @@
 
 template <typename T>
 concept AcceleratorConcept =
-    requires(T accelerator, type::AcceleratorCalibrationData calibration_data, type::Position const& position, type::Position& position_result) {
+    requires(T accelerator, type::AcceleratorCalibrationData const& calibration_data, type::Position const& position, type::Position& position_result) {
       { accelerator.init() } noexcept -> std::same_as<type::SystemError>;
       { accelerator.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
       { accelerator.get_position(position_result) } noexcept -> std::same_as<type::SystemError>;
@@ -66,10 +66,11 @@ concept IndicatorConcept = requires(T indicator) {
 };
 
 template <typename T>
-concept ServoConcept = requires(T servo, type::Position const& position, type::ServoTelemetry& telemetry) {
+concept ServoConcept = requires(T servo, type::ServoCalibrationData const& calibration_data, type::Position const& position, type::ServoTelemetry& telemetry) {
   { servo.init() } noexcept -> std::same_as<type::SystemError>;
-  { servo.set_position(position) } noexcept -> std::same_as<bool>;
-  { servo.get_telemetry(telemetry) } noexcept -> std::same_as<bool>;
+  { servo.set_calibration(calibration_data) } noexcept -> std::same_as<void>;
+  { servo.set_position(position) } noexcept -> std::same_as<type::SystemError>;
+  { servo.get_telemetry(telemetry) } noexcept -> std::same_as<type::SystemError>;
 };
 
 template <class Accelerator, class Servo, class ECU, class ModeButton, class ModeIndicator, class Brake, class Guard>
@@ -93,12 +94,63 @@ class Controller {
   common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk{};
 
   Logger m_logger;
+  Storage m_storage;
   ControllerLogic m_logic;
   OTAManager m_ota_manager;
   SystemErrors m_system_errors;
   bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
 
   std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
+
+  auto configure() noexcept -> void {
+    if (!m_storage.init()) {
+      m_logger.log_error("Storage init fault");
+    }
+
+    type::Control control{};
+    m_storage.load(control);
+    m_control.store(control);
+
+    type::AcceleratorCalibrationData accelerator_calibration{};
+
+    if (!m_storage.load(accelerator_calibration)) {
+      static constexpr type::AcceleratorCalibrationData accelerator_calibration_factory{
+        .hall_a_minimal{650},
+        .hall_a_maximal{1350},
+        .hall_b_minimal{320},
+        .hall_b_maximal{690},
+    };
+
+      m_logger.log_error("Accelerator factory calibration loading...");
+
+      if (!m_storage.save(accelerator_calibration_factory)) {
+        m_logger.log_error("Accelerator factory calibration set error");
+      }
+
+      accelerator_calibration = accelerator_calibration_factory;
+    }
+
+    m_accelerator.set_calibration(accelerator_calibration);
+
+    type::ServoCalibrationData servo_calibration{};
+
+    if (!m_storage.load(servo_calibration)) {
+      static constexpr type::ServoCalibrationData servo_calibration_factory{
+        .position_minimal{600},
+        .position_maximal{1250},
+    };
+
+      m_logger.log_error("Servo factory calibration loading...");
+
+      if (!m_storage.save(servo_calibration_factory)) {
+        m_logger.log_error("Servo factory calibration set error");
+      }
+
+      servo_calibration = servo_calibration_factory;
+    }
+
+    m_servo.set_calibration(servo_calibration);
+  }
 
  public:
   constexpr explicit Controller(Accelerator& accelerator,
@@ -121,7 +173,7 @@ class Controller {
   constexpr ~Controller() noexcept = default;
 
   auto init() noexcept -> void {
-    m_logger.init();
+    Logger::init();
 
     m_logger.log_info("Initialization...");
 
@@ -134,13 +186,21 @@ class Controller {
     m_system_errors.update(m_ble_manager.init());
     m_system_errors.update(m_mode_indicator.init());
 
-    m_logger.log_info("Check guard...");
+    m_logger.log_info("Configuration loading...");
+
+    configure();
+
+    m_logger.log_info("Guard checking...");
 
     if (m_guard.is_active()) {
       m_system_errors.add(type::SystemError::GuardLock);
     }
 
-    m_logger.log_info("{}", m_system_errors.has_any() ? "Not ready" : "Ready");
+    if (m_system_errors.has_any()) {
+      m_logger.log_error("NOT READY");
+    } else {
+      m_logger.log_info("READY");
+    }
   }
 
   auto process_ecu_loop() noexcept -> void {
@@ -166,12 +226,12 @@ class Controller {
         return;
       }
 
-      m_logger.log_info("Start OTA (Size: {} bytes, Chunks: {})", size, total);
+      m_logger.log_info("Start OTA (Size: %d bytes, Chunks: %d)", size, total);
       m_system_state.store(type::SystemState::Update);
     }
 
-    if (!m_ota_manager.write_chunk(data, index, size)) {
-      m_logger.log_error("Failed to write chunk {}", index);
+    if (!m_ota_manager.write_chunk(index, data)) {
+      m_logger.log_error("Failed to write chunk %d", index);
       m_system_errors.update(m_ble_manager.send_ota_notify(type::OTAStatus::Error));
       m_system_state.store(type::SystemState::Normal);
       m_chunk_index = std::numeric_limits<std::size_t>::max();
@@ -179,7 +239,7 @@ class Controller {
     }
 
     m_chunk_index = index;
-    m_logger.log_info("Written chunk [{}/{}]", index + 1, total);
+    m_logger.log_info("Written chunk [%d/%d]", index + 1, total);
 
     if (index == total - 1) {
       if (!m_ota_manager.end_update()) {
@@ -238,10 +298,11 @@ class Controller {
       m_target_speed.store(new_target_speed);
     }
 
-    m_servo.set_position(servo_position);
+    m_system_errors.update(m_servo.set_position(servo_position));
 
     type::ServoTelemetry servo_telemetry{};
-    m_servo.get_telemetry(servo_telemetry);
+
+    m_system_errors.update(m_servo.get_telemetry(servo_telemetry));
 
     type::DriveTelemetry const drive_telemetry{
         .throttle_position = servo_position,

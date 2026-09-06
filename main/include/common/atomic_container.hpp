@@ -26,19 +26,36 @@ namespace common {
 template <typename T>
   requires std::is_trivially_copyable_v<T> && std::default_initializable<T>
 class AtomicContainer {
+ public:
+  using CallbackType = auto (*)(void* context, T const& data) noexcept -> void;
+
+ private:
   T m_buffer_a{};
   T m_buffer_b{};
 
   std::atomic<T*> m_active_ptr{&m_buffer_a};
 
+  CallbackType m_on_store_callback{nullptr};
+  void* m_callback_context{nullptr};
+
  public:
+  // Конструктор по умолчанию (без колбэка — для телеметрии и простых данных)
+  constexpr AtomicContainer() noexcept = default;
+
+  // Конструктор с инициализацией начальных данных (без сохранения)
   constexpr explicit AtomicContainer(T const& initial_data) noexcept {
     m_buffer_a = initial_data;
     m_buffer_b = initial_data;
     m_active_ptr.store(&m_buffer_a, std::memory_order_release);
   }
 
-  constexpr AtomicContainer() noexcept = default;
+  // Конструктор со встроенной регистрацией статического колбэка и контекста
+  constexpr explicit AtomicContainer(T const& initial_data, CallbackType const callback, void* const context) noexcept
+      : m_on_store_callback(callback), m_callback_context(context) {
+    m_buffer_a = initial_data;
+    m_buffer_b = initial_data;
+    m_active_ptr.store(&m_buffer_a, std::memory_order_release);
+  }
 
   AtomicContainer(AtomicContainer const&) = delete;
   auto operator=(AtomicContainer const&) -> AtomicContainer& = delete;
@@ -50,7 +67,6 @@ class AtomicContainer {
 
   [[nodiscard]] auto load() const noexcept -> T {
     T* const active = m_active_ptr.load(std::memory_order_acquire);
-
     return *active;
   }
 
@@ -61,6 +77,11 @@ class AtomicContainer {
     *shadow = data;
 
     m_active_ptr.store(shadow, std::memory_order_release);
+
+    // Безопасный вызов: предотвращает панику ядра Xtensa/ARM, если колбэк не задан
+    if (m_on_store_callback != nullptr) [[likely]] {
+      m_on_store_callback(m_callback_context, data);
+    }
   }
 };
 

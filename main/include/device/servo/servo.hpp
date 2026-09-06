@@ -31,10 +31,7 @@ namespace device {
 template <class Driver, class PowerEnable, std::uint8_t ServoId = 1>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable> && (ServoId > 0) && (ServoId < 254)
 class Servo {
-  type::ServoCalibrationData m_calibration_data{
-      .position_minimal{600},
-      .position_maximal{1250},
-  };
+  type::ServoCalibrationData m_calibration_data{};
 
   ServoProtocol<Driver, PowerEnable, ServoId> m_protocol;
 
@@ -52,14 +49,16 @@ class Servo {
   constexpr ~Servo() noexcept = default;
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
-    if (!m_protocol.init_hardware()) [[unlikely]] {
+    if (!m_protocol.init()) [[unlikely]] {
       return type::SystemError::ServoInitError;
     }
 
     return type::SystemError::None;
   }
 
-  auto set_position(type::Position const target_position) noexcept -> bool {
+  auto set_calibration(type::ServoCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
+
+  [[nodiscard]] auto set_position(type::Position const target_position) noexcept -> type::SystemError {
     static constexpr type::Position position_min{type::Position::value_min};
     static constexpr type::Position position_max{type::Position::value_max};
 
@@ -74,12 +73,14 @@ class Servo {
 
     m_protocol.send_packet(ServoInstruction::InstWrite, params);
 
-    ServoMessage response_message{};
+    if (ServoMessage response_message{}; !m_protocol.receive_packet(response_message)) {
+      return type::SystemError::ServoReadError;
+    }
 
-    return m_protocol.receive_packet(response_message);
+    return type::SystemError::None;
   }
 
-  auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> bool {
+  [[nodiscard]] auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> type::SystemError {
     static constexpr std::size_t payload_size{31};
 
     static constexpr std::array params{
@@ -93,7 +94,7 @@ class Servo {
 
     if (!m_protocol.receive_packet(response_message)) {
       telemetry.is_connected = false;
-      return false;
+      return type::SystemError::ServoReadError;
     }
 
     telemetry.is_connected = true;
@@ -106,7 +107,7 @@ class Servo {
     std::uint32_t const raw_current = common::as_ulong(response_message.payload[30], response_message.payload[29]) & 0x7FFF;
     telemetry.current = common::calculateValueMultiply10(raw_current);
 
-    return true;
+    return type::SystemError::None;
   }
 };
 

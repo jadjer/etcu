@@ -19,14 +19,12 @@
 #pragma once
 
 #include "driver/adc.hpp"
-#include "driver/uart.hpp"
 #include "type/type.hpp"
 
 namespace constants {
 
 namespace bluetooth {
 inline constexpr std::size_t OTAPayloadSize{500};
-inline constexpr std::string_view DeviceName{"ETCU"};
 inline constexpr std::string_view ServiceUUID{"019fa351-08ac-76bf-b925-fe3ae2f765fb"};
 inline constexpr std::string_view SysInfoCharUUID{"01a044f2-cf05-7494-aef5-a5298c878532"};
 inline constexpr std::string_view OTACharUUID{"019fa351-08ac-7d45-8718-b4aa5af6756a"};
@@ -66,12 +64,12 @@ inline constexpr auto ChannelB{9};
 namespace system {
 inline constexpr std::uint8_t SystemCore{0};
 inline constexpr std::uint8_t CriticalCore{1};
+inline constexpr std::uint16_t DebounceTicksUS{3};
 inline constexpr type::MilliSec SystemRate{50};
 inline constexpr type::MilliSec CriticalRate{50};
 inline constexpr type::MilliSec LongPressUS{1500};
 inline constexpr type::Position MismatchThreshold(static_cast<std::int64_t>(type::Position::value_max) / 10);
-inline constexpr std::uint16_t DebounceTicksUS{3};
-inline constexpr std::string_view NVSNamespace{"ETCU"};
+inline constexpr std::string_view Name{"ETCU"};
 }  // namespace system
 
 }  // namespace constants

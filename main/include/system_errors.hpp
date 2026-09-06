@@ -19,6 +19,7 @@
 #pragma once
 
 #include <atomic>
+
 #include "type/error.hpp"
 
 class SystemErrors {

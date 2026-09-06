@@ -1,3 +1,17 @@
+// Copyright 2026 Pavel Suprunov
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 //
 // Created by jadjer on 6.09.26.
 //
@@ -27,7 +41,7 @@ class ServoProtocol {
 
   constexpr ~ServoProtocol() noexcept = default;
 
-  [[nodiscard]] auto init_hardware() noexcept -> bool {
+  auto init() noexcept -> bool {
     if (!m_driver_uart.init()) [[unlikely]] {
       return false;
     }
@@ -36,19 +50,30 @@ class ServoProtocol {
       return false;
     }
 
-    return m_driver_power.enable();
+    if (!m_driver_power.enable()) [[ unlikely]] {
+      return false;
+    }
+
+    return true;
   }
 
   template <std::size_t ParamSize>
-  auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> void {
+  auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> bool {
     ServoMessage<ParamSize> const message{ServoId, instruction, parameters};
 
-    m_driver_uart.flush();
-    m_driver_uart.write(message.to_array());
+    if (!m_driver_uart.flush()) [[unlikely]] {
+      return false;
+    }
+
+    if (!m_driver_uart.write(message.to_array())) [[unlikely]] {
+      return false;
+    }
+
+    return true;
   }
 
   template <std::size_t PayloadSize>
-  [[nodiscard]] auto receive_packet(ServoMessage<PayloadSize>& message) noexcept -> bool {
+  auto receive_packet(ServoMessage<PayloadSize>& message) noexcept -> bool {
     static constexpr std::size_t total_package_size = ServoMessage<PayloadSize>::total_size;
 
     std::array<std::uint8_t, total_package_size> response_bytes{};

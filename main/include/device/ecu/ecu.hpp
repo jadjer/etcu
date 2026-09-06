@@ -20,10 +20,13 @@
 
 #include <array>
 #include <span>
+
 #include "common/calculate.hpp"
+#include "common/convert.hpp"
 #include "config/concepts.hpp"
 #include "device/ecu/ecu_message.hpp"
 #include "device/ecu/ecu_protocol.hpp"
+#include "type/error.hpp"
 #include "type/type.hpp"
 
 namespace device {
@@ -56,22 +59,28 @@ struct EngineData {
 template <class DriverUart, class DriverGPIO>
   requires concepts::UART<DriverUart> && concepts::GPIO<DriverGPIO>
 class ECU {
+  static constexpr std::uint8_t header{0x72};
+  static constexpr std::size_t table_count{3};
   static constexpr std::size_t header_size{2};
   static constexpr std::size_t payload_size{17};
-  static constexpr std::array m_supported_tables{0x10, 0x11, 0xD1};
+  static constexpr std::array<std::uint8_t, table_count> supported_tables{0x10, 0x11, 0xD1};
 
   ECUProtocol<DriverUart, DriverGPIO> m_protocol;
 
-  bool m_is_connected = false;
+  bool m_is_connected{false};
   EngineData m_engine_data{};
   std::span<std::uint8_t const> m_active_tables{};
-  std::array<std::uint8_t, m_supported_tables.size()> m_active_tables_buffer{};
+  std::array<std::uint8_t, table_count> m_active_tables_buffer{};
 
-  [[nodiscard]] auto connect() noexcept -> bool {
+  auto connect() noexcept -> bool {
     if (m_is_connected) [[likely]]
       return true;
 
     if (!m_protocol.wakeup()) [[unlikely]] {
+      return false;
+    }
+
+    if (!m_protocol.begin()) [[unlikely]] {
       return false;
     }
 
@@ -83,16 +92,15 @@ class ECU {
   }
 
   auto detect_tables() noexcept -> void {
-    static constexpr std::uint8_t address{0x72};
     static constexpr std::uint8_t probe_size{0x01};
     static constexpr std::uint8_t probe_offset{0x00};
 
     std::size_t found_count = 0;
 
-    for (std::uint8_t const table : m_supported_tables) {
+    for (std::uint8_t const table : supported_tables) {
       std::array const payload{table, probe_offset, probe_size};
 
-      if (ECUMessage const request{address, ECUMode::READ_RANGE, payload}; !m_protocol.send_message(request)) {
+      if (ECUMessage const request{header, ECUMode::READ_RANGE, payload}; !m_protocol.send_message(request)) {
         continue;
       }
 
@@ -105,13 +113,12 @@ class ECU {
   }
 
   auto update_active_tables() noexcept -> bool {
-    static constexpr std::uint8_t address{0x72};
-    static constexpr std::uint8_t payload_offset{0};
+    static constexpr std::uint8_t payload_offset{0x00};
 
     for (std::uint8_t const table : m_active_tables) {
       std::array const payload{table, payload_offset, common::as_byte(payload_size)};
 
-      if (ECUMessage const request{address, ECUMode::READ_RANGE, payload}; !m_protocol.send_message(request)) [[unlikely]] {
+      if (ECUMessage const request{header, ECUMode::READ_RANGE, payload}; !m_protocol.send_message(request)) [[unlikely]] {
         return false;
       }
 
@@ -181,12 +188,12 @@ class ECU {
 
   [[nodiscard]] auto update() noexcept -> type::SystemError {
     if (!connect()) [[unlikely]] {
-      return type::SystemError::None;
+      return type::SystemError::ECUInitFault;
     }
 
     if (!update_active_tables()) [[unlikely]] {
       m_is_connected = false;
-      return type::SystemError::ECUReadFault;
+      return type::SystemError::ECUReadError;
     }
 
     return type::SystemError::None;
@@ -195,7 +202,7 @@ class ECU {
   [[nodiscard]] auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {
     telemetry.is_connected = m_is_connected;
 
-    if (!m_is_connected) [[unlikely]] {
+    if (!m_is_connected) {
       telemetry.is_started = false;
       telemetry.is_neutral = true;
 

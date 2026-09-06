@@ -23,7 +23,6 @@
 #include <freertos/FreeRTOS.h>
 #include <array>
 #include <cstddef>
-#include <utility>
 
 namespace driver {
 

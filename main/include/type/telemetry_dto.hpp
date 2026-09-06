@@ -19,6 +19,7 @@
 #pragma once
 
 #include <array>
+
 #include "type/error.hpp"
 #include "type/primitive.hpp"
 #include "type/state.hpp"

@@ -41,22 +41,21 @@ enum class ECUMessageError {
 template <std::size_t PayloadSize = 0>
 struct ECUMessage {
   static constexpr std::size_t header_size{3};
+  static constexpr std::size_t payload_size{PayloadSize};
   static constexpr std::size_t checksum_size{1};
   static constexpr std::size_t total_size{header_size + PayloadSize + checksum_size};
-  static constexpr std::uint8_t message_length{common::as_byte(total_size)};
+  static constexpr std::uint8_t length{common::as_byte(total_size)};
 
-  std::uint8_t address{};
-  std::uint8_t length{};
+  std::uint8_t header{};
   std::uint8_t mode{};
   std::array<std::uint8_t, PayloadSize> payload{};
-  std::uint8_t checksum{};
 
   ECUMessageError error{ECUMessageError::NONE};
 
   constexpr ECUMessage() noexcept = default;
 
-  constexpr explicit ECUMessage(std::uint8_t const address, ECUMode const mode, std::array<std::uint8_t, PayloadSize> const& payload = {}) noexcept
-      : address{address}, length(message_length), mode{common::as_byte(mode)}, payload{payload}, checksum{calculate_checksum()} {}
+  constexpr explicit ECUMessage(std::uint8_t const header, ECUMode const mode, std::array<std::uint8_t, PayloadSize> const& payload = {}) noexcept
+      : header{header}, mode{common::as_byte(mode)}, payload{payload} {}
 
   constexpr explicit ECUMessage(std::array<std::uint8_t, total_size> const& bytes) noexcept {
     if (bytes[1] != total_size) [[unlikely]] {
@@ -64,17 +63,14 @@ struct ECUMessage {
       return;
     }
 
-    address = bytes[0];
-    length = bytes[1];
+    header = bytes[0];
     mode = bytes[2];
 
-    if constexpr (PayloadSize > 0) {
-      std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + PayloadSize), payload.begin());
+    if constexpr (payload_size > 0) {
+      std::copy(bytes.begin() + header_size, bytes.begin() + (header_size + payload_size), payload.begin());
     }
 
-    checksum = bytes[total_size - 1];
-
-    if (checksum != calculate_checksum()) [[unlikely]] {
+    if (std::uint8_t const checksum = bytes[total_size - 1]; checksum != calculate_checksum()) [[unlikely]] {
       error = ECUMessageError::WRONG_CHECKSUM;
       return;
     }
@@ -83,9 +79,9 @@ struct ECUMessage {
   [[nodiscard]] constexpr auto is_valid() const noexcept -> bool { return error == ECUMessageError::NONE; }
 
   [[nodiscard]] constexpr auto calculate_checksum() const noexcept -> std::uint8_t {
-    std::uint32_t sum = address + length + mode;
+    std::uint32_t sum = header + length + mode;
 
-    if constexpr (PayloadSize > 0) {
+    if constexpr (payload_size > 0) {
       sum = std::accumulate(payload.begin(), payload.end(), sum);
     }
 
@@ -93,9 +89,9 @@ struct ECUMessage {
   }
 
   [[nodiscard]] constexpr auto to_array() const noexcept -> std::array<std::uint8_t, total_size> {
-    std::array<std::uint8_t, total_size> bytes{address, length, mode};
+    std::array<std::uint8_t, total_size> bytes{header, length, mode};
 
-    if constexpr (PayloadSize > 0) {
+    if constexpr (payload_size > 0) {
       std::copy(payload.begin(), payload.end(), bytes.begin() + header_size);
     }
 

@@ -19,6 +19,7 @@
 #pragma once
 
 #include <NimBLECharacteristic.h>
+
 #include "common/atomic_container.hpp"
 #include "config/constants.hpp"
 #include "type/telemetry.hpp"

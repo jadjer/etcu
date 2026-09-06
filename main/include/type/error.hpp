@@ -45,17 +45,22 @@ enum class SystemError : std::uint32_t {
   AcceleratorCalibrateFault = 1 << 17,
   AcceleratorReadFault = 1 << 18,
   AcceleratorMismatch = 1 << 19,
+
   ButtonInitFault = 1 << 20,
   ButtonReadFault = 1 << 21,
-  ECUInitFault = 1 << 22,
-  ECUReadFault = 1 << 23,
-  IndicatorInitFault = 1 << 24,
-  BluetoothInitFault = 1 << 25,
-  BluetoothSetPowerFault = 1 << 26,
-  BluetoothSetMTUFault = 1 << 27,
-  BluetoothConnectedFault = 1 << 28,
 
-  StorageSaveError = 1 << 29,
+  ECUInitFault = 1 << 22,
+  ECUCommsError = 1 << 23,
+  ECUReadError = 1 << 24,
+
+  IndicatorInitFault = 1 << 25,
+
+  BluetoothInitFault = 1 << 26,
+  BluetoothSetPowerFault = 1 << 27,
+  BluetoothSetMTUFault = 1 << 28,
+  BluetoothConnectedFault = 1 << 29,
+
+  StorageSaveError = 1 << 30,
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {

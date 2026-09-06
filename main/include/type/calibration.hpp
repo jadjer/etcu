@@ -19,15 +19,16 @@
 #pragma once
 
 #include <string_view>
+
 #include "type/type.hpp"
 
 namespace type {
 
 struct AcceleratorCalibrationData {
-  static constexpr std::string_view struct_name{"acc_calib"};
-  static constexpr std::uint32_t current_version{0x10000001};
+  static constexpr std::string_view name{"acc_calib"};
+  static constexpr std::uint32_t current_version{1};
 
-  std::uint32_t struct_version{current_version};
+  std::uint32_t version{0};
 
   AccPosition hall_a_minimal{0};
   AccPosition hall_a_maximal{0};
@@ -36,10 +37,10 @@ struct AcceleratorCalibrationData {
 };
 
 struct ServoCalibrationData {
-  static constexpr std::string_view struct_name{"servo_calib"};
-  static constexpr std::uint32_t current_version{0x10000001};
+  static constexpr std::string_view name{"servo_calib"};
+  static constexpr std::uint32_t current_version{1};
 
-  std::uint32_t struct_version{current_version};
+  std::uint32_t version{0};
 
   ServoPosition position_minimal{0};
   ServoPosition position_maximal{0};

@@ -34,12 +34,7 @@ class Accelerator {
 
   Driver& m_driver_adc;
 
-  type::AcceleratorCalibrationData m_calibration_data{
-      .hall_a_minimal{650},
-      .hall_a_maximal{1350},
-      .hall_b_minimal{320},
-      .hall_b_maximal{690},
-  };
+  type::AcceleratorCalibrationData m_calibration_data{};
 
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}

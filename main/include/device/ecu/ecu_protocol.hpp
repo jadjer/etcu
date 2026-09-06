@@ -18,6 +18,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "config/concepts.hpp"
 
 namespace device {
@@ -43,51 +45,82 @@ class ECUProtocol {
 
   constexpr ~ECUProtocol() noexcept = default;
 
-  [[nodiscard]] auto init() noexcept -> bool { return m_driver_uart.init() && m_driver_gpio.init(); }
+  auto init() noexcept -> bool { return m_driver_uart.init() && m_driver_gpio.init(); }
 
-  [[nodiscard]] auto wakeup() noexcept -> bool {
-    static constexpr ECUMessage wakeup_message{0xFE, ECUMode::WAKE_UP};
-    static constexpr std::array init_payload{common::as_byte(0xF0)};
-    static constexpr ECUMessage init_message{0x72, ECUMode::INIT, init_payload};
-    static constexpr ECUMessage init_answer_packet{0x02, ECUMode::INIT};
+  auto wakeup() noexcept -> bool {
+    static constexpr ECUMessage wakeup{0xFE, ECUMode::WAKE_UP};
+    static constexpr std::uint8_t wait_low_ms{70};
+    static constexpr std::uint8_t wait_high_ms{130};
 
     if (!m_driver_gpio.disable()) [[unlikely]] {
       return false;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(70));
+    vTaskDelay(pdMS_TO_TICKS(wait_low_ms));
 
     if (!m_driver_gpio.enable()) [[unlikely]] {
       return false;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(120));
+    vTaskDelay(pdMS_TO_TICKS(wait_high_ms));
 
     if (!m_driver_uart.init()) [[unlikely]] {
       return false;
     }
 
-    if (!send_message(wakeup_message)) [[unlikely]] {
+    if (!send_message(wakeup)) [[unlikely]] {
       return false;
     }
 
-    vTaskDelay(pdMS_TO_TICKS(200));
+    return true;
+  }
 
-    if (!send_message(init_message)) [[unlikely]] {
+  auto begin() noexcept -> bool {
+    static constexpr std::array request_payload{common::as_byte(0xF0)};
+    static constexpr ECUMessage request{0x72, ECUMode::INIT, request_payload};
+    static constexpr ECUMessage response{0x02, ECUMode::INIT};
+
+    if (!send_message(request)) [[unlikely]] {
       return false;
     }
 
-    ECUMessage answer_message{};
+    ECUMessage answer{};
 
-    if (!receive_message(answer_message)) [[unlikely]] {
+    if (!receive_message(answer)) [[unlikely]] {
       return false;
     }
 
-    return answer_message == init_answer_packet;
+    if (answer != response) [[unlikely]] {
+      return false;
+    }
+
+    return true;
+  }
+
+  auto end() noexcept -> bool {
+    static constexpr std::array payload{common::as_byte(0xF1)};
+    static constexpr ECUMessage request{0x72, ECUMode::INIT, payload};
+    static constexpr ECUMessage response{0x02, ECUMode::INIT};
+
+    if (!send_message(request)) [[unlikely]] {
+      return false;
+    }
+
+    ECUMessage answer{};
+
+    if (!receive_message(answer)) [[unlikely]] {
+      return false;
+    }
+
+    if (answer != response) [[unlikely]] {
+      return false;
+    }
+
+    return true;
   }
 
   template <std::size_t PayloadSize>
-  [[nodiscard]] auto send_message(ECUMessage<PayloadSize> const& message) noexcept -> bool {
+  auto send_message(ECUMessage<PayloadSize> const& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
 
     if (!m_driver_uart.flush()) [[unlikely]] {
@@ -114,7 +147,7 @@ class ECUProtocol {
   }
 
   template <std::size_t PayloadSize>
-  [[nodiscard]] auto receive_message(ECUMessage<PayloadSize>& message) noexcept -> bool {
+  auto receive_message(ECUMessage<PayloadSize>& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
 
     std::array<std::uint8_t, packet_size> received_packet{};
