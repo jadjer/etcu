@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <freertos/FreeRTOS.h>
 #include <utility>
 
 #include "config/concepts.hpp"
@@ -51,6 +52,11 @@ class ECUProtocol {
     static constexpr ECUMessage wakeup{0xFE, ECUMode::WAKE_UP};
     static constexpr std::uint8_t wait_low_ms{70};
     static constexpr std::uint8_t wait_high_ms{130};
+    static constexpr std::uint8_t wait_init_ms{200};
+
+    if (!m_driver_gpio.init()) [[unlikely]] {
+      return false;
+    }
 
     if (!m_driver_gpio.disable()) [[unlikely]] {
       return false;
@@ -71,6 +77,8 @@ class ECUProtocol {
     if (!send_message(wakeup)) [[unlikely]] {
       return false;
     }
+
+    vTaskDelay(pdMS_TO_TICKS(wait_init_ms));
 
     return true;
   }
