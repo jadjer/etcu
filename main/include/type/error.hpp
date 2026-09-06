@@ -20,67 +20,80 @@
 
 namespace type {
 
-enum class SystemError : std::uint32_t {
+static constexpr std::uint16_t ErrorShiftECU{0};
+static constexpr std::uint16_t ErrorShiftGuard{2};
+static constexpr std::uint16_t ErrorShiftServo{3};
+static constexpr std::uint16_t ErrorShiftBluetooth{6};
+static constexpr std::uint16_t ErrorShiftIndicator{10};
+static constexpr std::uint16_t ErrorShiftPeripheral{11};
+static constexpr std::uint16_t ErrorShiftAccelerator{12};
+
+enum class SystemError : std::uint16_t {
   None = 0,
-
-  GuardLock = 1 << 0,
-
-  ServoInitError = 1 << 1,
-  ServoCommsError = 1 << 2,
-  ServoProtocolError = 1 << 3,
-  ServoCheckSumError = 1 << 4,
-  ServoReadError = 1 << 5,
-  ServoWriteError = 1 << 6,
-  ServoModeError = 1 << 7,
-  ServoSpeedError = 1 << 8,
-  ServoPositionError = 1 << 9,
-  ServoCurrentError = 1 << 10,
-  ServoTorqueError = 1 << 11,
-  ServoOvercurrent = 1 << 12,
-  ServoOvertemp = 1 << 13,
-  ServoCalibrateError = 1 << 14,
-  ServoPowerFail = 1 << 15,
-
-  AcceleratorInitFault = 1 << 16,
-  AcceleratorCalibrateFault = 1 << 17,
-  AcceleratorReadFault = 1 << 18,
-  AcceleratorMismatch = 1 << 19,
-
-  ButtonInitFault = 1 << 20,
-  ButtonReadFault = 1 << 21,
-
-  ECUInitFault = 1 << 22,
-  ECUCommsError = 1 << 23,
-  ECUReadError = 1 << 24,
-
-  IndicatorInitFault = 1 << 25,
-
-  BluetoothInitFault = 1 << 26,
-  BluetoothSetPowerFault = 1 << 27,
-  BluetoothSetMTUFault = 1 << 28,
-  BluetoothConnectedFault = 1 << 29,
-
-  StorageSaveError = 1 << 30,
+  ECUInitFault = 1 << (ErrorShiftECU + 0),                   // 0
+  ECUReadError = 1 << (ErrorShiftECU + 1),                   // 1
+  GuardLock = 1 << (ErrorShiftGuard + 0),                    // 2
+  ServoInitError = 1 << (ErrorShiftServo + 0),               // 3
+  ServoReadError = 1 << (ErrorShiftServo + 1),               // 4
+  ServoWriteError = 1 << (ErrorShiftServo + 2),              // 5
+  BluetoothInitFault = 1 << (ErrorShiftBluetooth + 0),       // 6
+  BluetoothSetPowerFault = 1 << (ErrorShiftBluetooth + 1),   // 7
+  BluetoothSetMTUFault = 1 << (ErrorShiftBluetooth + 2),     // 8
+  BluetoothConnectedFault = 1 << (ErrorShiftBluetooth + 3),  // 9
+  IndicatorInitFault = 1 << (ErrorShiftIndicator + 0),       // 10
+  PeripheralInitError = 1 << (ErrorShiftPeripheral + 0),     // 11
+  AcceleratorInitError = 1 << (ErrorShiftAccelerator + 0),   // 12
+  AcceleratorReadError = 1 << (ErrorShiftAccelerator + 1),   // 13
+  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),    // 14
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {
-  return static_cast<SystemError>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
+  return static_cast<SystemError>(static_cast<std::uint16_t>(a) | static_cast<std::uint16_t>(b));
 }
 
 [[nodiscard]] constexpr auto operator&(SystemError const a, SystemError const b) noexcept -> SystemError {
-  return static_cast<SystemError>(static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b));
+  return static_cast<SystemError>(static_cast<std::uint16_t>(a) & static_cast<std::uint16_t>(b));
 }
 
 [[nodiscard]] constexpr auto operator~(SystemError const a) noexcept -> SystemError {
-  return static_cast<SystemError>(~static_cast<std::uint32_t>(a));
+  return static_cast<SystemError>(~static_cast<std::uint16_t>(a));
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const err) -> bool {
-  return static_cast<std::uint32_t>(err) != 0;
+  return static_cast<std::uint16_t>(err) != 0;
 }
 
 [[nodiscard]] constexpr auto has_error(SystemError const mask, SystemError const err) -> bool {
-  return (static_cast<std::uint32_t>(mask) & static_cast<std::uint32_t>(err)) != 0;
+  return (static_cast<std::uint16_t>(mask) & static_cast<std::uint16_t>(err)) != 0;
 }
+
+[[nodiscard]] constexpr auto make_mask(std::uint16_t const current_shift, std::uint16_t const next_shift) noexcept -> SystemError {
+  std::uint16_t const bit_count = next_shift - current_shift;
+  std::uint16_t const raw_mask = (1U << bit_count) - 1U;
+  return static_cast<SystemError>(raw_mask << current_shift);
+}
+
+static constexpr SystemError ErrorMaskECU = make_mask(ErrorShiftECU, ErrorShiftGuard);
+static constexpr SystemError ErrorMaskGuard = make_mask(ErrorShiftGuard, ErrorShiftServo);
+static constexpr SystemError ErrorMaskServo = make_mask(ErrorShiftServo, ErrorShiftBluetooth);
+static constexpr SystemError ErrorMaskBluetooth = make_mask(ErrorShiftBluetooth, ErrorShiftIndicator);
+static constexpr SystemError ErrorMaskIndicator = make_mask(ErrorShiftIndicator, ErrorShiftPeripheral);
+static constexpr SystemError ErrorMaskPeripheral = make_mask(ErrorShiftPeripheral, ErrorShiftAccelerator);
+static constexpr SystemError ErrorMaskAccelerator = make_mask(ErrorShiftAccelerator, 16U);
+
+static_assert((ErrorMaskECU & ErrorMaskGuard) == SystemError::None);
+static_assert((ErrorMaskGuard & ErrorMaskServo) == SystemError::None);
+static_assert((ErrorMaskServo & ErrorMaskBluetooth) == SystemError::None);
+static_assert((ErrorMaskBluetooth & ErrorMaskIndicator) == SystemError::None);
+static_assert((ErrorMaskIndicator & ErrorMaskPeripheral) == SystemError::None);
+static_assert((ErrorMaskPeripheral & ErrorMaskAccelerator) == SystemError::None);
+
+static_assert(has_error(ErrorMaskECU, SystemError::ECUReadError));
+static_assert(has_error(ErrorMaskGuard, SystemError::GuardLock));
+static_assert(has_error(ErrorMaskServo, SystemError::ServoWriteError));
+static_assert(has_error(ErrorMaskBluetooth, SystemError::BluetoothConnectedFault));
+static_assert(has_error(ErrorMaskIndicator, SystemError::IndicatorInitFault));
+static_assert(has_error(ErrorMaskPeripheral, SystemError::PeripheralInitError));
+static_assert(has_error(ErrorMaskAccelerator, SystemError::AcceleratorMismatch));
 
 }  // namespace type

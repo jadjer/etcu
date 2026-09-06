@@ -26,7 +26,7 @@
 
 namespace type::dto {
 
-struct CruiseAutoSet {
+struct CruiseAutoSetDTO {
   bool enabled{false};                // 1
   std::uint8_t delay_sec{0};          // 1
   primitive::Speed threshold_kmh{0};  // 1
@@ -34,21 +34,21 @@ struct CruiseAutoSet {
 
 } __attribute__((packed));
 
-struct PositionRange {
+struct PositionRangeDTO {
   primitive::Position min{0};  // 2
   primitive::Position max{0};  // 2
 
 } __attribute__((packed));
 
-struct Control {
-  CruiseAutoSet cruise;       // 4
-  PositionRange servo;        // 4
-  PositionRange accelerator;  // 4
+struct ControlDTO {
+  CruiseAutoSetDTO cruise;       // 4
+  PositionRangeDTO servo;        // 4
+  PositionRangeDTO accelerator;  // 4
 
 } __attribute__((packed));
 
 template <std::size_t PayloadSize>
-struct OTAChunk {
+struct OTAChunkDTO {
   std::uint32_t firmware_size{0};  // 4
   std::uint16_t chunk_total{0};    // 2
   std::uint16_t chunk_index{0};    // 2
@@ -57,14 +57,14 @@ struct OTAChunk {
 
 } __attribute__((packed));
 
-struct SystemInfo {
+struct SystemInfoDTO {
   primitive::FixedString build_date{};        // 16
   primitive::FixedString board_version{};     // 16
   primitive::FixedString firmware_version{};  // 16
 
 } __attribute__((packed));
 
-struct ECUTelemetry {
+struct ECUTelemetryDTO {
   bool is_connected{false};  // 1
   bool is_started{false};    // 1
   bool is_neutral{false};    // 1
@@ -79,7 +79,7 @@ struct ECUTelemetry {
 
 } __attribute__((packed));
 
-struct ServoTelemetry {
+struct ServoTelemetryDTO {
   bool is_connected{false};  // 1
   bool is_enabled{false};    // 1
   bool is_moved{false};      // 1
@@ -91,19 +91,19 @@ struct ServoTelemetry {
 
 } __attribute__((packed));
 
-struct SystemTelemetry {
+struct SystemTelemetryDTO {
   bool is_guard_active{false};   // 1
   bool is_brake_enabled{false};  // 1
 
-  ECUTelemetry ecu_telemetry{};      // 12
-  ServoTelemetry servo_telemetry{};  // 9
+  ECUTelemetryDTO ecu_telemetry{};      // 12
+  ServoTelemetryDTO servo_telemetry{};  // 9
 
   primitive::Speed target_speed{0};             // 1
   primitive::Position throttle_position{0};     // 2
   primitive::Position accelerator_position{0};  // 2
 
   SystemState system_state{SystemState::Off};    // 1
-  SystemError system_errors{SystemError::None};  // 4
+  SystemError system_errors{SystemError::None};  // 2
 
 } __attribute__((packed));
 

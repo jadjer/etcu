@@ -77,7 +77,7 @@ class Storage {
 
     std::size_t required_size{data_size};
 
-    if (esp_err_t error = nvs_get_blob(m_handle, data_name.data(), &data, &required_size); error != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = nvs_get_blob(m_handle, data_name.data(), &data, &required_size); error != ESP_OK) [[unlikely]] {
       return false;
     }
 

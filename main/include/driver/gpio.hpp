@@ -43,11 +43,14 @@ template <std::uint8_t Pin, GPIOConfigMode Mode, bool Inverse = false>
 class GPIO {
   static constexpr bool inverse{Inverse};
   static constexpr auto esp_pin{static_cast<gpio_num_t>(Pin)};
+
   static constexpr auto is_input() noexcept -> bool {
     return Mode == GPIOConfigMode::Input || Mode == GPIOConfigMode::InputOutput || Mode == GPIOConfigMode::InputOutputOpedDrain;
   }
+
   static constexpr bool need_pull_up = is_input() && inverse;
   static constexpr bool need_pull_down = is_input() && !inverse;
+
   static constexpr gpio_mode_t get_esp_mode() noexcept {
     switch (Mode) {
       case GPIOConfigMode::Input:
@@ -77,7 +80,7 @@ class GPIO {
   constexpr ~GPIO() noexcept = default;
 
   static auto init() noexcept -> bool {
-    static constexpr gpio_config_t config = {
+    static constexpr gpio_config_t config{
         .pin_bit_mask = 1ULL << esp_pin,
         .mode = get_esp_mode(),
         .pull_up_en = need_pull_up ? GPIO_PULLUP_ENABLE : GPIO_PULLUP_DISABLE,

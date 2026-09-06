@@ -33,26 +33,30 @@ struct CruiseAutoSet {
   Speed threshold_kmh{0};
   Speed tolerance_kmh{0};
 
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseAutoSet {
-    return dto::CruiseAutoSet{
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseAutoSetDTO {
+    return dto::CruiseAutoSetDTO{
         .enabled = enabled,
         .delay_sec = delay_sec,
         .threshold_kmh = threshold_kmh.get(),
         .tolerance_kmh = tolerance_kmh.get(),
     };
   }
+
+  [[nodiscard]] auto operator<=>(CruiseAutoSet const&) const = default;
 };
 
 struct PositionRange {
   Position min{Position::value_min};
   Position max{Position::value_max};
 
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::PositionRange {
-    return dto::PositionRange{
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::PositionRangeDTO {
+    return dto::PositionRangeDTO{
         .min = min.get(),
         .max = max.get(),
     };
   }
+
+  [[nodiscard]] auto operator<=>(PositionRange const&) const = default;
 };
 
 struct Control {
@@ -65,13 +69,15 @@ struct Control {
   PositionRange servo{};
   PositionRange accelerator{};
 
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::Control {
-    return dto::Control{
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ControlDTO {
+    return dto::ControlDTO{
         .cruise = cruise.to_dto(),
         .servo = servo.to_dto(),
         .accelerator = accelerator.to_dto(),
     };
   }
+
+  [[nodiscard]] auto operator<=>(Control const&) const = default;
 };
 
 template <std::size_t PayloadSize>
@@ -93,8 +99,8 @@ struct ServoTelemetry {
   ServoPosition position{0};
   Temperature temperature{0};
 
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ServoTelemetry {
-    return dto::ServoTelemetry{
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ServoTelemetryDTO {
+    return dto::ServoTelemetryDTO{
         .is_connected = is_connected,
         .is_enabled = is_enabled,
         .is_moved = is_moved,
@@ -120,8 +126,8 @@ struct ECUTelemetry {
   Temperature air{0};
   Temperature coolant{0};
 
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ECUTelemetry {
-    return dto::ECUTelemetry{
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ECUTelemetryDTO {
+    return dto::ECUTelemetryDTO{
         .is_connected = is_connected,
         .is_started = is_started,
         .is_neutral = is_neutral,
@@ -151,8 +157,8 @@ struct SystemTelemetry {
   SystemState system_state{SystemState::Off};
   SystemError system_errors{SystemError::None};
 
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::SystemTelemetry {
-    return dto::SystemTelemetry{
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::SystemTelemetryDTO {
+    return dto::SystemTelemetryDTO{
         .is_guard_active = is_guard_active,
         .is_brake_enabled = is_brake_enabled,
 

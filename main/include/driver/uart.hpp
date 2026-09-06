@@ -47,7 +47,7 @@ class UART {
   constexpr ~UART() noexcept = default;
 
   static auto init() noexcept -> bool {
-    static constexpr uart_config_t config = {
+    static constexpr uart_config_t config{
         .baud_rate = esp_baud_rate,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,

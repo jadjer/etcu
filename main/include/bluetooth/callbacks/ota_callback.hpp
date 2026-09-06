@@ -41,7 +41,7 @@ class OTACallback : public NimBLECharacteristicCallbacks {
   ~OTACallback() noexcept override = default;
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
-    auto const [firmware_size, total, index, data] = characteristic->getValue<type::dto::OTAChunk<constants::bluetooth::OTAPayloadSize>>();
+    auto const [firmware_size, total, index, data] = characteristic->getValue<type::dto::OTAChunkDTO<constants::bluetooth::OTAPayloadSize>>();
 
     auto const chunk = type::OTAChunk{
         .firmware_size = firmware_size,

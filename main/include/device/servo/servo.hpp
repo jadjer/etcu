@@ -24,6 +24,7 @@
 #include "device/servo/register.hpp"
 #include "device/servo/servo_message.hpp"
 #include "device/servo/servo_protocol.hpp"
+#include "type/error.hpp"
 #include "type/type.hpp"
 
 namespace device {
@@ -71,7 +72,9 @@ class Servo {
         common::as_byte(servo_position.value >> 8),
     };
 
-    m_protocol.send_packet(ServoInstruction::InstWrite, params);
+    if (!m_protocol.send_packet(ServoInstruction::InstWrite, params)) [[unlikely]] {
+      return type::SystemError::ServoWriteError;
+    }
 
     if (ServoMessage response_message{}; !m_protocol.receive_packet(response_message)) {
       return type::SystemError::ServoReadError;

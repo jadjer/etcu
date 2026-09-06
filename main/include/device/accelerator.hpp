@@ -51,15 +51,15 @@ class Accelerator {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_adc.init()) [[unlikely]] {
-      return type::SystemError::AcceleratorInitFault;
+      return type::SystemError::AcceleratorInitError;
     }
 
     if (!m_driver_adc.template configure_channel<hall_a>()) [[unlikely]] {
-      return type::SystemError::AcceleratorInitFault;
+      return type::SystemError::AcceleratorInitError;
     }
 
     if (!m_driver_adc.template configure_channel<hall_b>()) [[unlikely]] {
-      return type::SystemError::AcceleratorInitFault;
+      return type::SystemError::AcceleratorInitError;
     }
 
     return type::SystemError::None;
@@ -75,11 +75,11 @@ class Accelerator {
     type::AccPosition adc_value_a, adc_value_b;
 
     if (!m_driver_adc.template get_value<hall_a>(adc_value_a)) [[unlikely]] {
-      return type::SystemError::AcceleratorReadFault;
+      return type::SystemError::AcceleratorReadError;
     }
 
     if (!m_driver_adc.template get_value<hall_b>(adc_value_b)) [[unlikely]] {
-      return type::SystemError::AcceleratorReadFault;
+      return type::SystemError::AcceleratorReadError;
     }
 
     type::Position const pos_a = common::map_range(adc_value_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, value_min, value_max);

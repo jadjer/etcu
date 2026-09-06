@@ -26,7 +26,7 @@
 namespace bluetooth::callback {
 
 class SystemInfoCallback : public NimBLECharacteristicCallbacks {
-  static constexpr type::dto::SystemInfo system_info{
+  static constexpr type::dto::SystemInfoDTO system_info{
       .build_date{common::to_fixed_string<16>(BUILD_DATE)},
       .board_version{common::to_fixed_string<16>(BOARD_VERSION)},
       .firmware_version{common::to_fixed_string<16>(FW_VERSION)},

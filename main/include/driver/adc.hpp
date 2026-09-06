@@ -69,7 +69,7 @@ class ADC {
   constexpr ~ADC() noexcept = default;
 
   auto init() noexcept -> bool {
-    static constexpr adc_oneshot_unit_init_cfg_t handle_config = {
+    static constexpr adc_oneshot_unit_init_cfg_t handle_config{
         .unit_id = esp_unit,
         .clk_src = ADC_RTC_CLK_SRC_DEFAULT,
         .ulp_mode = ADC_ULP_MODE_DISABLE,

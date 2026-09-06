@@ -199,7 +199,7 @@ class ECU {
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> type::SystemError {
+  auto get_telemetry(type::ECUTelemetry& telemetry) const noexcept -> bool {
     telemetry.is_connected = m_is_connected;
 
     if (!m_is_connected) {
@@ -214,7 +214,7 @@ class ECU {
       telemetry.air = type::Temperature{0};
       telemetry.coolant = type::Temperature{0};
 
-      return type::SystemError::None;
+      return false;
     }
 
     telemetry.is_started = m_engine_data.is_running;
@@ -228,7 +228,7 @@ class ECU {
     telemetry.air = type::Temperature{static_cast<std::int32_t>(m_engine_data.iat_temp)};
     telemetry.coolant = type::Temperature{static_cast<std::int32_t>(m_engine_data.ect_temp)};
 
-    return type::SystemError::None;
+    return true;
   }
 };
 

@@ -23,9 +23,7 @@
 #include "type/error.hpp"
 
 class SystemErrors {
-  static constexpr auto to_underlying(type::SystemError err) noexcept -> std::uint32_t { return static_cast<std::uint32_t>(err); }
-
-  std::atomic<std::uint32_t> m_errors_mask{0};
+  std::atomic<type::SystemError> m_errors_mask{type::SystemError::None};
 
  public:
   constexpr SystemErrors() noexcept = default;
@@ -38,28 +36,24 @@ class SystemErrors {
 
   constexpr ~SystemErrors() noexcept = default;
 
-  auto add(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_or(to_underlying(err), std::memory_order_relaxed); }
-  auto update(type::SystemError const err) noexcept -> void { m_errors_mask.fetch_and(~to_underlying(err), std::memory_order_relaxed); }
-  auto reset() noexcept -> void { m_errors_mask.store(0, std::memory_order_relaxed); }
+  auto update(type::SystemError const device_mask, type::SystemError const active_errors) noexcept -> void {
+    type::SystemError current = m_errors_mask.load(std::memory_order_relaxed);
 
-  [[nodiscard]] auto has(type::SystemError const err) const noexcept -> bool {
-    std::uint32_t const error_mask = m_errors_mask.load(std::memory_order_relaxed);
-    auto const errors = static_cast<type::SystemError>(error_mask);
-
-    return type::has_error(errors, err);
+    while (true) {
+      if (type::SystemError const next = (current & ~device_mask) | (active_errors & device_mask);
+          m_errors_mask.compare_exchange_weak(current, next, std::memory_order_release, std::memory_order_relaxed)) {
+        break;
+      }
+    }
   }
 
-  [[nodiscard]] auto has_any() const noexcept -> bool {
-    std::uint32_t const error_mask = m_errors_mask.load(std::memory_order_relaxed);
-    auto const errors = static_cast<type::SystemError>(error_mask);
+  auto reset() noexcept -> void { m_errors_mask.store(type::SystemError::None, std::memory_order_relaxed); }
 
-    return type::has_error(errors);
+  [[nodiscard]] auto has(type::SystemError const err_or_group) const noexcept -> bool {
+    return type::has_error(m_errors_mask.load(std::memory_order_relaxed), err_or_group);
   }
 
-  [[nodiscard]] auto get_all() const noexcept -> type::SystemError {
-    std::uint32_t const error_mask = m_errors_mask.load(std::memory_order_relaxed);
-    auto const errors = static_cast<type::SystemError>(error_mask);
+  [[nodiscard]] auto has_any() const noexcept -> bool { return type::has_error(m_errors_mask.load(std::memory_order_relaxed)); }
 
-    return errors;
-  }
+  [[nodiscard]] auto get_error_mask() const noexcept -> type::SystemError { return m_errors_mask.load(std::memory_order_relaxed); }
 };

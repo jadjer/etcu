@@ -41,13 +41,13 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
 
   auto onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
     type::Control const control = m_container.load();
-    type::dto::Control const control_dto = control.to_dto();
+    type::dto::ControlDTO const control_dto = control.to_dto();
 
     characteristic->setValue(control_dto);
   }
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
-    auto const [cruise, servo, accelerator] = characteristic->getValue<type::dto::Control>();
+    auto const [cruise, servo, accelerator] = characteristic->getValue<type::dto::ControlDTO>();
 
     type::Control const control{
         .cruise =

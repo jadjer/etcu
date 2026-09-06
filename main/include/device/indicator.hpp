@@ -19,6 +19,7 @@
 #pragma once
 
 #include "config/concepts.hpp"
+#include "type/error.hpp"
 
 namespace device {
 

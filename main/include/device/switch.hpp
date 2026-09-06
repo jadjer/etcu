@@ -19,6 +19,7 @@
 #pragma once
 
 #include "config/concepts.hpp"
+#include "type/error.hpp"
 
 namespace device {
 
@@ -42,7 +43,7 @@ class Switch {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]] {
-      return type::SystemError::ButtonInitFault;
+      return type::SystemError::PeripheralInitError;
     }
 
     return type::SystemError::None;

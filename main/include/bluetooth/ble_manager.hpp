@@ -107,7 +107,7 @@ class BLEManager {
       return type::SystemError::BluetoothInitFault;
     }
 
-    type::dto::SystemTelemetry const system_telemetry = data.to_dto();
+    type::dto::SystemTelemetryDTO const system_telemetry = data.to_dto();
 
     m_telemetry_characteristic->setValue(system_telemetry);
     std::ignore = m_telemetry_characteristic->notify();
