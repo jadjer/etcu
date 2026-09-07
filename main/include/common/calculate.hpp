@@ -20,24 +20,24 @@
 
 namespace common {
 
-inline auto calculateValueDivide256(std::uint8_t const value) -> std::uint8_t {
-  return (static_cast<std::uint16_t>(value) * 5) / 256;
+static auto calculateValueDivide256(std::uint16_t const value) -> std::uint8_t {
+  return value * 5 / 256;
 }
 
-inline auto calculateValueMinus40(std::uint8_t const value) -> std::uint8_t {
+static auto calculateValueMinus40(std::uint8_t const value) -> std::uint8_t {
   return value - 40;
 }
 
-inline auto calculateValueDivide16(std::uint8_t const value) -> std::uint8_t {
-  return static_cast<std::uint16_t>(value) * 10 / 16;
+static auto calculateValueDivide16(std::uint16_t const value) -> std::uint8_t {
+  return value * 10 / 16;
 }
 
-inline auto calculateValueDivide10(std::uint8_t const value) -> std::uint8_t {
+static auto calculateValueDivide10(std::uint8_t const value) -> std::uint8_t {
   return value / 10;
 }
 
-inline auto calculateValueMultiply10(std::uint8_t const value) -> std::uint16_t {
-  return static_cast<std::uint16_t>(value) * 10;
+static auto calculateValueMultiply10(std::uint16_t const value) -> std::uint16_t {
+  return value * 10;
 }
 
 }  // namespace common

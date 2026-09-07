@@ -18,7 +18,6 @@
 
 #pragma once
 
-#include <freertos/FreeRTOS.h>
 #include <utility>
 
 #include "config/concepts.hpp"
@@ -28,8 +27,6 @@ namespace device {
 template <class DriverUart, class DriverGPIO>
   requires concepts::UART<DriverUart> && concepts::GPIO<DriverGPIO>
 class ECUProtocol {
-  static constexpr std::uint16_t timeout_ms{100};
-
   DriverUart& m_driver_uart;
   DriverGPIO& m_driver_gpio;
 
@@ -52,7 +49,6 @@ class ECUProtocol {
     static constexpr ECUMessage wakeup{0xFE, ECUMode::WAKE_UP};
     static constexpr std::uint8_t wait_low_ms{70};
     static constexpr std::uint8_t wait_high_ms{130};
-    static constexpr std::uint8_t wait_init_ms{200};
 
     if (!m_driver_gpio.init()) [[unlikely]] {
       return false;
@@ -77,8 +73,6 @@ class ECUProtocol {
     if (!send_message(wakeup)) [[unlikely]] {
       return false;
     }
-
-    vTaskDelay(pdMS_TO_TICKS(wait_init_ms));
 
     return true;
   }
@@ -130,24 +124,26 @@ class ECUProtocol {
   template <std::size_t PayloadSize>
   auto send_message(ECUMessage<PayloadSize> const& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
+    static constexpr std::uint16_t echo_timeout_ms{1};
 
-    if (!m_driver_uart.flush()) [[unlikely]] {
-      return false;
-    }
+    m_driver_uart.flush();
 
     if (int const written_bytes = m_driver_uart.write(message.to_array()); std::cmp_less(written_bytes, packet_size)) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
     std::array<std::uint8_t, packet_size> echo_packet{};
 
-    if (!m_driver_uart.read(echo_packet, timeout_ms)) [[unlikely]] {
+    if (int const read_bytes = m_driver_uart.read(echo_packet, echo_timeout_ms); std::cmp_less(read_bytes, packet_size)) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
     auto const echo_message = ECUMessage<PayloadSize>{echo_packet};
 
     if (!echo_message.is_valid() || message != echo_message) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
@@ -157,16 +153,19 @@ class ECUProtocol {
   template <std::size_t PayloadSize>
   auto receive_message(ECUMessage<PayloadSize>& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
+    static constexpr std::uint16_t read_timeout_ms{30};
 
     std::array<std::uint8_t, packet_size> received_packet{};
 
-    if (!m_driver_uart.read(received_packet, timeout_ms)) [[unlikely]] {
+    if (int const read_bytes = m_driver_uart.read(received_packet, read_timeout_ms); std::cmp_less(read_bytes, packet_size)) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
     auto const received_message = ECUMessage<PayloadSize>{received_packet};
 
     if (!received_message.is_valid()) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 

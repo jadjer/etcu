@@ -49,15 +49,9 @@ class Indicator {
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto update() noexcept -> type::SystemError {  // NOLINT
-    return type::SystemError::None;
+  [[nodiscard]] auto update() noexcept -> bool {  // NOLINT
+    return true;
   }
-
-  // auto set_status(Mode const  /*mode*/) noexcept -> SystemError {
-  //   gpio_set_level(Pin, (esp_timer_get_time() / 100000) % 2);  // Частое мигание (Авария)
-  //
-  //   return SystemError::None;
-  // }
 };
 
 }  // namespace device

@@ -32,9 +32,11 @@ namespace device {
 template <class Driver, class PowerEnable, std::uint8_t ServoId = 1>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable> && (ServoId > 0) && (ServoId < 254)
 class Servo {
-  type::ServoCalibrationData m_calibration_data{};
+  static constexpr std::uint8_t servo_id{ServoId};
 
-  ServoProtocol<Driver, PowerEnable, ServoId> m_protocol;
+  ServoProtocol<Driver, PowerEnable> m_protocol;
+
+  type::ServoCalibrationData m_calibration_data{};
 
  public:
   constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_protocol(driver_uart, driver_power) {}
@@ -72,11 +74,11 @@ class Servo {
         common::as_byte(servo_position.value >> 8),
     };
 
-    if (!m_protocol.send_packet(ServoInstruction::InstWrite, params)) [[unlikely]] {
+    if (ServoMessage const request{servo_id, ServoInstruction::InstWrite, params}; !m_protocol.send_message(request)) [[unlikely]] {
       return type::SystemError::ServoWriteError;
     }
 
-    if (ServoMessage response_message{}; !m_protocol.receive_packet(response_message)) {
+    if (ServoMessage response_message{}; !m_protocol.receive_message(response_message)) {
       return type::SystemError::ServoReadError;
     }
 
@@ -85,29 +87,30 @@ class Servo {
 
   [[nodiscard]] auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> type::SystemError {
     static constexpr std::size_t payload_size{31};
-
     static constexpr std::array params{
         common::as_byte(ServoRegister::TorqueEnable),
         common::as_byte(payload_size),
     };
+    static constexpr ServoMessage request{servo_id, ServoInstruction::InstRead, params};
 
-    m_protocol.send_packet(ServoInstruction::InstRead, params);
+    if (!m_protocol.send_message(request)) [[unlikely]] {
+      return type::SystemError::ServoWriteError;
+    }
 
-    ServoMessage<payload_size> response_message{};
+    ServoMessage<payload_size> response{};
 
-    if (!m_protocol.receive_packet(response_message)) {
-      telemetry.is_connected = false;
+    if (!m_protocol.receive_message(response)) {
       return type::SystemError::ServoReadError;
     }
 
     telemetry.is_connected = true;
-    telemetry.is_enabled = (response_message.payload[0] != 0);
-    telemetry.position = common::as_ulong(response_message.payload[17], response_message.payload[16]) & 0x7FFF;
-    telemetry.voltage = common::calculateValueDivide10(response_message.payload[22]);
-    telemetry.temperature = response_message.payload[23];
-    telemetry.is_moved = (response_message.payload[26] != 0);
+    telemetry.is_enabled = (response.payload[0] != 0);
+    telemetry.position = common::as_ulong(response.payload[17], response.payload[16]) & 0x7FFF;
+    telemetry.voltage = common::calculateValueDivide10(response.payload[22]);
+    telemetry.temperature = response.payload[23];
+    telemetry.is_moved = response.payload[26] != 0;
 
-    std::uint32_t const raw_current = common::as_ulong(response_message.payload[30], response_message.payload[29]) & 0x7FFF;
+    std::uint16_t const raw_current = common::as_ulong(response.payload[30], response.payload[29]) & 0x7FFF;
     telemetry.current = common::calculateValueMultiply10(raw_current);
 
     return type::SystemError::None;

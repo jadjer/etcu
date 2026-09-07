@@ -21,6 +21,7 @@
 #include "bluetooth/ble_manager.hpp"
 #include "common/atomic_container.hpp"
 #include "controller_logic.hpp"
+#include "cruise_manager.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
 #include "storage.hpp"
@@ -98,10 +99,8 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
-  common::AtomicContainer<type::Speed> m_target_speed{0};
-  common::AtomicContainer<type::SystemState> m_system_state{type::SystemState::Normal};
-
   common::AtomicContainer<type::Control> m_control{};
+  common::AtomicContainer<type::SystemState> m_system_state{type::SystemState::Normal};
   common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry{};
   common::AtomicContainer<type::DriveTelemetry> m_driver_telemetry{};
   common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk{};
@@ -111,6 +110,7 @@ class Controller {
   ControllerLogic m_logic;
   OTAManager m_ota_manager;
   SystemErrors m_system_errors;
+  CruiseManager m_cruise_manager;
   bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
 
   type::Control m_last_control{};
@@ -205,13 +205,11 @@ class Controller {
   }
 
   auto process_ecu_loop() noexcept -> void {
-    type::ECUTelemetry ecu_telemetry{};
-
     m_system_errors.update(type::ErrorMaskECU, m_ecu.update());
 
-    m_ecu.get_telemetry(ecu_telemetry);
-
-    m_ecu_telemetry.store(ecu_telemetry);
+    if (type::ECUTelemetry ecu_telemetry{}; m_ecu.get_telemetry(ecu_telemetry)) [[unlikely]] {
+      m_ecu_telemetry.store(ecu_telemetry);
+    }
   }
 
   auto process_ota_loop() noexcept -> void {
@@ -265,7 +263,7 @@ class Controller {
 
   auto process_system_loop() noexcept -> void {
     m_mode_button.update();
-    m_system_errors.update(type::ErrorMaskIndicator, m_mode_indicator.update());
+    m_mode_indicator.update();
 
     if (type::Control const control = m_control.load(); control != m_last_control) {
       if (!m_storage.save(control)) [[unlikely]] {
@@ -278,32 +276,34 @@ class Controller {
 
     if (system_state == type::SystemState::Normal) {
       if (m_mode_button.is_long_press()) {
-        m_target_speed.store(ecu_telemetry.speed);
+        m_cruise_manager.set_target_speed(ecu_telemetry.speed);
       }
     }
   }
 
   auto process_critical_loop() noexcept -> void {
     type::Control const control = m_control.load();
-    type::Speed const target_speed = m_target_speed.load();
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
     bool const safety_active = m_brake.is_active() || ecu_telemetry.is_neutral;
     type::Speed const current_speed = ecu_telemetry.speed;
 
+    type::Speed target_speed{0};
     type::AcceleratorTelemetry accelerator_telemetry{};
 
     if (system_state == type::SystemState::Normal) {
+      if (m_cruise_manager.get_target_speed(current_speed, control, safety_active)) {
+        target_speed = m_cruise_manager.get_target_speed();
+      }
+
       m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.get_telemetry(accelerator_telemetry));
     }
 
-    auto const [servo_position, new_target_speed, is_speed_changed] =
-        m_logic.calculate_servo_position(accelerator_telemetry.position, current_speed, target_speed, control, safety_active);
+    // auto const [servo_position, new_target_speed, is_speed_changed] =
+    //     m_logic.calculate_servo_position(accelerator_telemetry.position, current_speed, target_speed, control, safety_active);
 
-    if (is_speed_changed) {
-      m_target_speed.store(new_target_speed);
-    }
+    type::Position const servo_position = m_logic.calculate_servo_position(600, 93, target_speed, control, false);
 
     m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(servo_position));
 
@@ -311,6 +311,7 @@ class Controller {
     m_system_errors.update(type::ErrorMaskServo, m_servo.get_telemetry(servo_telemetry));
 
     type::DriveTelemetry const drive_telemetry{
+        .target_speed = target_speed,
         .throttle_position = servo_position,
         .servo_telemetry = servo_telemetry,
         .accelerator_telemetry = accelerator_telemetry,
@@ -319,14 +320,13 @@ class Controller {
   }
 
   auto process_telemetry_loop() noexcept -> void {
-    type::Speed const target_speed = m_target_speed.load();
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
     bool const guard_active = m_guard.is_active();
     bool const brake_active = m_brake.is_active();
 
-    auto const [throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
+    auto const [target_speed, throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
 
     type::SystemTelemetry const system_telemetry{
         .is_guard_active = guard_active,

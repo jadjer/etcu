@@ -190,6 +190,7 @@ struct SystemTelemetry {
 };
 
 struct DriveTelemetry {
+  Speed target_speed{0};
   Position throttle_position{};
   ServoTelemetry servo_telemetry{};
   AcceleratorTelemetry accelerator_telemetry{};

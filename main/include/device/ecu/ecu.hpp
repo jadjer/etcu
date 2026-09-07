@@ -63,6 +63,7 @@ class ECU {
   static constexpr std::size_t table_count{3};
   static constexpr std::size_t header_size{2};
   static constexpr std::size_t payload_size{17};
+  static constexpr std::uint8_t wait_begin_ms{200};
   static constexpr std::array<std::uint8_t, table_count> supported_tables{0x10, 0x11, 0xD1};
 
   ECUProtocol<DriverUart, DriverGPIO> m_protocol;
@@ -79,6 +80,8 @@ class ECU {
     if (!m_protocol.wakeup()) [[unlikely]] {
       return false;
     }
+
+    vTaskDelay(pdMS_TO_TICKS(wait_begin_ms));
 
     if (!m_protocol.begin()) [[unlikely]] {
       return false;

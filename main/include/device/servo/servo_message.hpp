@@ -62,7 +62,7 @@ struct ServoMessage {
                                   std::array<std::uint8_t, PayloadSize> const& payload = {}) noexcept
       : servo_id{servo_id}, instruction_or_status{common::as_byte(instruction)}, payload{payload} {}
 
-  constexpr explicit ServoMessage(std::uint8_t const expected_servo_id, std::array<std::uint8_t, total_size> const& bytes) noexcept {
+  constexpr explicit ServoMessage(std::array<std::uint8_t, total_size> const& bytes) noexcept {
     static constexpr std::uint8_t start_byte{0xFF};
     static constexpr std::uint8_t broadcast_id{0xFE};
 
@@ -71,7 +71,7 @@ struct ServoMessage {
       return;
     }
 
-    if (bytes[2] != expected_servo_id && expected_servo_id != broadcast_id) [[unlikely]] {
+    if (bytes[2] == broadcast_id) [[unlikely]] {
       error = ServoMessageError::WRONG_ID;
       return;
     }

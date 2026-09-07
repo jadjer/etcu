@@ -20,11 +20,9 @@
 
 namespace device {
 
-template <class Driver, class PowerEnable, std::uint8_t ServoId>
+template <class Driver, class PowerEnable>
   requires concepts::UART<Driver> && concepts::GPIO<PowerEnable>
 class ServoProtocol {
-  static constexpr std::uint16_t timeout_ms{30};
-
   Driver& m_driver_uart;
   PowerEnable& m_driver_power;
 
@@ -50,7 +48,7 @@ class ServoProtocol {
       return false;
     }
 
-    if (!m_driver_power.enable()) [[ unlikely]] {
+    if (!m_driver_power.enable()) [[unlikely]] {
       return false;
     }
 
@@ -58,14 +56,13 @@ class ServoProtocol {
   }
 
   template <std::size_t ParamSize>
-  auto send_packet(ServoInstruction const instruction, std::array<std::uint8_t, ParamSize> const& parameters) const noexcept -> bool {
-    ServoMessage<ParamSize> const message{ServoId, instruction, parameters};
+  auto send_message(ServoMessage<ParamSize> const& message) const noexcept -> bool {
+    static constexpr std::size_t packet_size{ServoMessage<ParamSize>::total_size};
 
-    if (!m_driver_uart.flush()) [[unlikely]] {
-      return false;
-    }
+    m_driver_uart.flush();
 
-    if (!m_driver_uart.write(message.to_array())) [[unlikely]] {
+    if (int const written_bytes = m_driver_uart.write(message.to_array()); std::cmp_less(written_bytes, packet_size)) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
@@ -73,18 +70,21 @@ class ServoProtocol {
   }
 
   template <std::size_t PayloadSize>
-  auto receive_packet(ServoMessage<PayloadSize>& message) noexcept -> bool {
-    static constexpr std::size_t total_package_size = ServoMessage<PayloadSize>::total_size;
+  auto receive_message(ServoMessage<PayloadSize>& message) noexcept -> bool {
+    static constexpr std::size_t package_size = ServoMessage<PayloadSize>::total_size;
+    static constexpr std::uint16_t read_timeout_ms{1};
 
-    std::array<std::uint8_t, total_package_size> response_bytes{};
+    std::array<std::uint8_t, package_size> response_bytes{};
 
-    if (!m_driver_uart.read(response_bytes, timeout_ms)) [[unlikely]] {
+    if (!m_driver_uart.read(response_bytes, read_timeout_ms)) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
-    auto const response_message = ServoMessage<PayloadSize>{ServoId, response_bytes};
+    auto const response_message = ServoMessage<PayloadSize>{response_bytes};
 
     if (!response_message.is_valid()) [[unlikely]] {
+      m_driver_uart.flush();
       return false;
     }
 
