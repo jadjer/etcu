@@ -8,8 +8,8 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(
         ETCU
-        DESCRIPTION "Electronic throttle control unit for Honda Varadero based on esp32-s3"
+        DESCRIPTION "Electronic throttle control unit for Honda Varadero based on esp32s3"
         HOMEPAGE_URL https://github.com/jadjer/etcu
-        VERSION 1.1.7
+        VERSION 1.1.8
         LANGUAGES CXX
 )
