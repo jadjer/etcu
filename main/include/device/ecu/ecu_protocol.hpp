@@ -124,7 +124,7 @@ class ECUProtocol {
   template <std::size_t PayloadSize>
   auto send_message(ECUMessage<PayloadSize> const& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
-    static constexpr std::uint16_t echo_timeout_ms{1};
+    static constexpr std::uint16_t echo_timeout_ms{100};
 
     m_driver_uart.flush();
 
@@ -153,7 +153,7 @@ class ECUProtocol {
   template <std::size_t PayloadSize>
   auto receive_message(ECUMessage<PayloadSize>& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
-    static constexpr std::uint16_t read_timeout_ms{30};
+    static constexpr std::uint16_t read_timeout_ms{100};
 
     std::array<std::uint8_t, packet_size> received_packet{};
 

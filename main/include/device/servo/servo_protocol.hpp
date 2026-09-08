@@ -72,7 +72,7 @@ class ServoProtocol {
   template <std::size_t PayloadSize>
   auto receive_message(ServoMessage<PayloadSize>& message) noexcept -> bool {
     static constexpr std::size_t package_size = ServoMessage<PayloadSize>::total_size;
-    static constexpr std::uint16_t read_timeout_ms{1};
+    static constexpr std::uint16_t read_timeout_ms{10};
 
     std::array<std::uint8_t, package_size> response_bytes{};
 

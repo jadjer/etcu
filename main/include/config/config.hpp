@@ -39,7 +39,7 @@ using UARTEcu = ::driver::UART<constants::uart::ecu::Port, constants::uart::ecu:
 using ECUWakeUp = ::driver::GPIO<constants::uart::ecu::Tx, ::driver::GPIOConfigMode::Output>;
 using ButtonMode = ::driver::GPIO<constants::pin::ButtonMode, ::driver::GPIOConfigMode::Input, true>;
 using LedMode = ::driver::GPIO<constants::pin::LedMode, ::driver::GPIOConfigMode::Output>;
-using SwitchBrake = ::driver::GPIO<constants::pin::SwitchBrake, ::driver::GPIOConfigMode::Input>;
+using SwitchBrake = ::driver::GPIO<constants::pin::SwitchBrake, ::driver::GPIOConfigMode::Input, true>;
 using SwitchGuard = ::driver::GPIO<constants::pin::SwitchGuard, ::driver::GPIOConfigMode::Input>;
 }  // namespace driver
 

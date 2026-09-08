@@ -207,6 +207,7 @@ class Controller {
     m_system_errors.update(type::ErrorMaskECU, m_ecu.update());
 
     if (type::ECUTelemetry ecu_telemetry{}; m_ecu.get_telemetry(ecu_telemetry)) [[unlikely]] {
+      m_logger.log_info("ECU %d", ecu_telemetry.is_connected);
       m_ecu_telemetry.store(ecu_telemetry);
     }
   }
