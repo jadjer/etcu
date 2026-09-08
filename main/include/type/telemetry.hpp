@@ -27,24 +27,6 @@
 
 namespace type {
 
-struct CruiseAutoSet {
-  bool enabled{false};
-  std::uint8_t delay{0};
-  Speed threshold{0};
-  Speed tolerance{0};
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseAutoSetDTO {
-    return dto::CruiseAutoSetDTO{
-        .enabled = enabled,
-        .delay = delay,
-        .threshold = threshold.get(),
-        .tolerance = tolerance.get(),
-    };
-  }
-
-  [[nodiscard]] auto operator<=>(CruiseAutoSet const&) const = default;
-};
-
 struct PositionRange {
   Position min{Position::value_min};
   Position max{Position::value_max};
@@ -65,13 +47,11 @@ struct Control {
 
   std::uint32_t version{0};
 
-  CruiseAutoSet cruise{};
   PositionRange servo{};
   PositionRange accelerator{};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ControlDTO {
     return dto::ControlDTO{
-        .cruise = cruise.to_dto(),
         .servo = servo.to_dto(),
         .accelerator = accelerator.to_dto(),
     };

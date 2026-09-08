@@ -82,15 +82,16 @@ template <class Accelerator, class Servo, class ECU, class ModeButton, class Mod
   requires AcceleratorConcept<Accelerator> && ServoConcept<Servo> && ECUConcept<ECU> && ButtonConcept<ModeButton> && IndicatorConcept<ModeIndicator> &&
            SwitchConcept<Brake> && SwitchConcept<Guard>
 class Controller {
+  static constexpr type::Speed cruise_minimal_speed{40};
+  static constexpr type::ServoCalibrationData servo_calibration_factory{
+    .position_minimal{600},
+    .position_maximal{1250},
+};
   static constexpr type::AcceleratorCalibrationData accelerator_calibration_factory{
       .hall_a_minimal{650},
       .hall_a_maximal{1350},
       .hall_b_minimal{320},
       .hall_b_maximal{690},
-  };
-  static constexpr type::ServoCalibrationData servo_calibration_factory{
-      .position_minimal{600},
-      .position_maximal{1250},
   };
 
   ECU& m_ecu;
@@ -288,7 +289,7 @@ class Controller {
              break;
 
            case device::BuildPattern(device::ClickType::Long):
-             if (ecu_telemetry.speed < control.cruise.threshold) {
+             if (ecu_telemetry.speed < cruise_minimal_speed) {
                m_mode_indicator.blink_times(2);
              } else if (safety_active) {
                m_mode_indicator.blink_times(3);
@@ -300,21 +301,18 @@ class Controller {
              break;
 
            case device::BuildPattern(device::ClickType::Long, device::ClickType::Short):
-             ESP_LOGI("CTRL", "Long Short");
              control.servo = type::PositionRange{.min = control.servo.min, .max = 300};
              m_control.store(control);
              m_mode_indicator.blink_times(1);
              break;
 
            case device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short):
-             ESP_LOGI("CTRL", "Long Short Short");
              control.servo = type::PositionRange{.min = control.servo.min, .max = 600};
              m_control.store(control);
              m_mode_indicator.blink_times(1);
              break;
 
            case BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short, device::ClickType::Short):
-             ESP_LOGI("CTRL", "Long Short Short Short");
              control.servo = type::PositionRange{.min = control.servo.min, .max = 900};
              m_control.store(control);
              m_mode_indicator.blink_times(1);

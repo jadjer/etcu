@@ -26,14 +26,6 @@
 
 namespace type::dto {
 
-struct CruiseAutoSetDTO {
-  bool enabled{false};            // 1
-  std::uint8_t delay{0};          // 1
-  primitive::Speed threshold{0};  // 1
-  primitive::Speed tolerance{0};  // 1
-
-} __attribute__((packed));
-
 struct PositionRangeDTO {
   primitive::Position min{0};  // 2
   primitive::Position max{0};  // 2
@@ -41,7 +33,6 @@ struct PositionRangeDTO {
 } __attribute__((packed));
 
 struct ControlDTO {
-  CruiseAutoSetDTO cruise;       // 4
   PositionRangeDTO servo;        // 4
   PositionRangeDTO accelerator;  // 4
 
