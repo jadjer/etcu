@@ -23,40 +23,60 @@
 
 namespace device {
 
-enum class ButtonEvent : std::uint8_t {
-  None = 0,
-  ShortPress,
-  LongPress,
-};
+constexpr auto MakePattern(std::uint8_t const clicks, std::uint8_t const mask) noexcept -> std::uint16_t {
+  return (static_cast<std::uint16_t>(clicks) << 8) | mask;
+}
 
-enum class ButtonState : std::uint8_t {
-  Idle = 0,
-  Debounce,
-  Pressed,
-  WaitRelease,
-};
+enum class ClickType : std::uint8_t { Short = 0, Long = 1 };
 
-template <class Driver, std::uint16_t Debounce = 1, std::uint16_t LongPress = 20>
+template <typename... Args>
+constexpr auto BuildPattern(Args... args) noexcept -> std::uint16_t {
+  std::uint8_t const count = sizeof...(args);
+  std::uint8_t mask = 0;
+  ((mask = (mask << 1) | static_cast<std::uint8_t>(args)), ...);
+  return MakePattern(count, mask);
+}
+
+enum class ButtonState : std::uint8_t { Idle = 0, Pressed, WaitNextPress, WaitReleaseLong };
+
+template <class Driver,
+          std::uint16_t Debounce = 3,
+          std::uint16_t LongPress = 50,
+          std::uint16_t MultiClickTimeout = 35>
   requires concepts::GPIO<Driver>
 class Button {
   Driver& m_driver;
 
-  std::uint16_t m_ticks_count{0};
+  bool m_has_event{false};
+
+  std::uint16_t m_ticks{0};
+  std::uint16_t m_hold_ticks{0};
+  std::uint8_t m_clicks_count{0};
+  std::uint8_t m_pattern_mask{0};
+  std::uint16_t m_ready_pattern{0};
+
   ButtonState m_state{ButtonState::Idle};
-  ButtonEvent m_current_event{ButtonEvent::None};
+
+  auto change_state(ButtonState const new_state) noexcept -> void {
+    m_ticks = 0;
+    m_hold_ticks = 0;
+    m_state = new_state;
+  }
+
+  auto push_click(ClickType type) noexcept -> void {
+    m_pattern_mask = (m_pattern_mask << 1) | static_cast<std::uint8_t>(type);
+    m_clicks_count++;
+  }
+
+  auto reset() noexcept -> void {
+    m_clicks_count = 0;
+    m_pattern_mask = 0;
+    change_state(ButtonState::Idle);
+  }
 
  public:
   constexpr explicit Button(Driver& driver) noexcept : m_driver{driver} {}
-
   constexpr Button() noexcept = delete;
-
-  Button(Button const&) noexcept = delete;
-  auto operator=(Button const&) noexcept -> Button& = delete;
-
-  Button(Button&&) noexcept = delete;
-  auto operator=(Button&&) noexcept -> Button& = delete;
-
-  constexpr ~Button() noexcept = default;
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]] {
@@ -67,68 +87,65 @@ class Button {
   }
 
   auto update() noexcept -> void {
-    bool const is_pressed = is_active();
+    bool const is_pressed = m_driver.get_level();
 
     switch (m_state) {
-      case ButtonState::Idle: {
-        if (!is_pressed) {
-          return;
+      case ButtonState::Idle:
+        if (is_pressed && ++m_ticks >= Debounce) {
+          change_state(ButtonState::Pressed);
+        } else if (!is_pressed) {
+          m_ticks = 0;
         }
-        m_ticks_count = 0;
-        m_state = ButtonState::Debounce;
-      } break;
+        break;
 
-      case ButtonState::Debounce: {
+      case ButtonState::Pressed:
         if (!is_pressed) {
-          m_state = ButtonState::Idle;
-          return;
+          m_hold_ticks = 0;
+          if (++m_ticks >= Debounce) {
+            push_click(ClickType::Short);
+            change_state(ButtonState::WaitNextPress);
+          }
+        } else {
+          m_ticks = 0;
+          if (++m_hold_ticks >= LongPress) {
+            push_click(ClickType::Long);
+            change_state(ButtonState::WaitReleaseLong);
+          }
         }
-        m_ticks_count++;
-        if (m_ticks_count >= Debounce) {
-          m_state = ButtonState::Pressed;
-        }
-      } break;
+        break;
 
-      case ButtonState::Pressed: {
-        if (!is_pressed) {
-          m_state = ButtonState::Idle;
-          m_current_event = ButtonEvent::ShortPress;
-          return;
+      case ButtonState::WaitNextPress:
+        if (is_pressed) {
+          if (++m_ticks >= Debounce) {
+            change_state(ButtonState::Pressed);
+          }
+        } else {
+          m_ticks = 0;
+          if (++m_hold_ticks >= MultiClickTimeout) {
+            m_ready_pattern = MakePattern(m_clicks_count, m_pattern_mask);
+            m_has_event = true;
+            reset();
+          }
         }
-        m_ticks_count++;
-        if (m_ticks_count >= LongPress) {
-          m_state = ButtonState::WaitRelease;
-          m_current_event = ButtonEvent::LongPress;
-        }
-      } break;
+        break;
 
-      case ButtonState::WaitRelease: {
-        if (!is_pressed) {
-          m_state = ButtonState::Idle;
+      case ButtonState::WaitReleaseLong:
+        if (!is_pressed && ++m_ticks >= Debounce) {
+          change_state(ButtonState::WaitNextPress);
+        } else if (is_pressed) {
+          m_ticks = 0;
         }
-      } break;
+        break;
     }
   }
 
-  [[nodiscard]] auto is_active() noexcept -> bool { return m_driver.get_level(); }
-
-  [[nodiscard]] auto is_short_press() noexcept -> bool {
-    if (m_current_event == ButtonEvent::ShortPress) {
-      m_current_event = ButtonEvent::None;
-      return true;
-    }
-
+  [[nodiscard]] auto has_event() noexcept -> bool {
+    if (m_has_event) { m_has_event = false; return true; }
     return false;
   }
 
-  [[nodiscard]] auto is_long_press() noexcept -> bool {
-    if (m_current_event == ButtonEvent::LongPress) {
-      m_current_event = ButtonEvent::None;
-      return true;
-    }
-
-    return false;
-  }
+  [[nodiscard]] auto get_pattern() const noexcept -> std::uint16_t { return m_ready_pattern; }
 };
+
 
 }  // namespace device

@@ -48,17 +48,16 @@ class ControllerLogic {
   [[nodiscard]] auto calculate_servo_position(type::Position const accelerator_position,
                                               type::Speed const current_speed,
                                               type::Speed const target_speed,
-                                              type::Control const& control,
-                                              bool const safety_active) noexcept -> type::Position {
+                                              type::Control const& control) noexcept -> type::Position {
     auto const driver_position =
         common::map_range(accelerator_position, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);
 
-    if (safety_active) {
+    if (target_speed < control.cruise.threshold) {
       m_speed_regulator.reset();
       return driver_position;
     }
 
-    if (target_speed > 0 && current_speed >= control.cruise.threshold) {
+    if (target_speed >= control.cruise.threshold && current_speed >= control.cruise.threshold) {
       return calculate_cruise_control(driver_position, current_speed, target_speed);
     }
 

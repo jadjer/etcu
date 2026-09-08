@@ -30,6 +30,7 @@ inline constexpr std::string_view SysInfoCharUUID{"01a044f2-cf05-7494-aef5-a5298
 inline constexpr std::string_view OTACharUUID{"019fa351-08ac-7d45-8718-b4aa5af6756a"};
 inline constexpr std::string_view ControlCharUUID{"019fa351-08ac-7309-804b-ad328e7c1ef1"};
 inline constexpr std::string_view TelemetryCharUUID{"019fa351-08ac-7940-a519-6ef5087c0329"};
+inline constexpr std::string_view CalibrationCharUUID{"01a07de1-71b0-730f-a4cc-d319b715b7e0"};
 }  // namespace bluetooth
 
 namespace pin {

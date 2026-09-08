@@ -21,7 +21,7 @@
 #include "bluetooth/ble_manager.hpp"
 #include "common/atomic_container.hpp"
 #include "controller_logic.hpp"
-#include "cruise_manager.hpp"
+#include "device/button.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
 #include "storage.hpp"
@@ -44,9 +44,8 @@ template <typename T>
 concept ButtonConcept = requires(T button) {
   { button.init() } noexcept -> std::same_as<type::SystemError>;
   { button.update() } noexcept -> std::same_as<void>;
-  { button.is_active() } noexcept -> std::same_as<bool>;
-  { button.is_short_press() } noexcept -> std::same_as<bool>;
-  { button.is_long_press() } noexcept -> std::same_as<bool>;
+  { button.has_event() } noexcept -> std::same_as<bool>;
+  { button.get_pattern() } noexcept -> std::same_as<std::uint16_t>;
 };
 
 template <typename T>
@@ -65,7 +64,7 @@ concept ECUConcept = requires(T ecu, type::ECUTelemetry telemetry) {
 template <typename T>
 concept IndicatorConcept = requires(T indicator) {
   { indicator.init() } noexcept -> std::same_as<type::SystemError>;
-  { indicator.update() } noexcept -> std::same_as<type::SystemError>;
+  { indicator.update() } noexcept -> std::same_as<bool>;
 };
 
 template <typename T>
@@ -99,6 +98,7 @@ class Controller {
   Accelerator& m_accelerator;
   ModeIndicator& m_mode_indicator;
 
+  common::AtomicContainer<type::Speed> m_target_speed{0};
   common::AtomicContainer<type::Control> m_control{};
   common::AtomicContainer<type::SystemState> m_system_state{type::SystemState::Normal};
   common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry{};
@@ -109,12 +109,10 @@ class Controller {
   Storage m_storage;
   ControllerLogic m_logic;
   OTAManager m_ota_manager;
-  SystemErrors m_system_errors;
-  CruiseManager m_cruise_manager;
-  bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
-
-  type::Control m_last_control{};
   std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
+  SystemErrors m_system_errors;
+  type::Control m_last_control{};
+  bluetooth::BLEManager m_ble_manager{m_control, m_ota_chunk};
 
   auto configure() noexcept -> void {
     if (!m_storage.init()) {
@@ -195,6 +193,7 @@ class Controller {
 
     if (m_guard.is_active()) {
       m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLock);
+      m_system_state.store(type::SystemState::Off);
     }
 
     if (m_system_errors.has_any()) {
@@ -262,56 +261,84 @@ class Controller {
   }
 
   auto process_system_loop() noexcept -> void {
-    m_mode_button.update();
-    m_mode_indicator.update();
+     m_mode_button.update();
+     m_mode_indicator.update();
 
-    if (type::Control const control = m_control.load(); control != m_last_control) {
-      if (!m_storage.save(control)) [[unlikely]] {
-        m_logger.log_error("Control data save error");
-      }
-    }
+     type::Control control = m_control.load();
+     type::SystemState const system_state = m_system_state.load();
+     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
-    type::SystemState const system_state = m_system_state.load();
-    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
+     bool const safety_active = m_brake.is_active() || ecu_telemetry.is_neutral;
 
-    if (system_state == type::SystemState::Normal) {
-      if (m_mode_button.is_long_press()) {
-        m_cruise_manager.set_target_speed(ecu_telemetry.speed);
-      }
+     if (control != m_last_control) {
+       if (!m_storage.save(control)) [[unlikely]] {
+         m_logger.log_error("Control data save error");
+       }
+     }
+
+     if (system_state == type::SystemState::Normal) {
+       if (m_mode_button.has_event()) {
+         switch (m_mode_button.get_pattern()) {
+           case device::BuildPattern(device::ClickType::Short):
+             ESP_LOGI("CTRL", "Short");
+             m_target_speed.store(0);
+             break;
+
+           case device::BuildPattern(device::ClickType::Long):
+             ESP_LOGI("CTRL", "Long");
+             if (ecu_telemetry.speed >= control.cruise.threshold && !safety_active) {
+               m_target_speed.store(ecu_telemetry.speed);
+             }
+             break;
+
+           case device::BuildPattern(device::ClickType::Long, device::ClickType::Short):
+             ESP_LOGI("CTRL", "Long Short");
+             control.servo = type::PositionRange{.min = control.servo.min, .max = 300};
+             m_control.store(control);
+             break;
+
+           case device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short):
+             ESP_LOGI("CTRL", "Long Short Short");
+             control.servo = type::PositionRange{.min = control.servo.min, .max = 600};
+             m_control.store(control);
+             break;
+
+           case BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short, device::ClickType::Short):
+             ESP_LOGI("CTRL", "Long Short Short Short");
+             control.servo = type::PositionRange{.min = control.servo.min, .max = 900};
+             m_control.store(control);
+             break;
+
+           default:
+             break;
+         }
+       }
+     }
+
+    if (safety_active) {
+      m_target_speed.store(0);
     }
   }
 
   auto process_critical_loop() noexcept -> void {
+    type::Speed const target_speed = m_target_speed.load();
     type::Control const control = m_control.load();
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
-    bool const safety_active = m_brake.is_active() || ecu_telemetry.is_neutral;
-    type::Speed const current_speed = ecu_telemetry.speed;
-
-    type::Speed target_speed{0};
-    type::AcceleratorTelemetry accelerator_telemetry{};
+    type::AcceleratorTelemetry accelerator_telemetry{.hall_a = 0, .hall_b = 0, .position = 0};
 
     if (system_state == type::SystemState::Normal) {
-      if (m_cruise_manager.get_target_speed(current_speed, control, safety_active)) {
-        target_speed = m_cruise_manager.get_target_speed();
-      }
-
       m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.get_telemetry(accelerator_telemetry));
     }
 
-    // auto const [servo_position, new_target_speed, is_speed_changed] =
-    //     m_logic.calculate_servo_position(accelerator_telemetry.position, current_speed, target_speed, control, safety_active);
-
-    type::Position const servo_position = m_logic.calculate_servo_position(600, 93, target_speed, control, false);
-
+    type::Position const servo_position = m_logic.calculate_servo_position(accelerator_telemetry.position, ecu_telemetry.speed, target_speed, control);
     m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(servo_position));
 
     type::ServoTelemetry servo_telemetry{};
     m_system_errors.update(type::ErrorMaskServo, m_servo.get_telemetry(servo_telemetry));
 
     type::DriveTelemetry const drive_telemetry{
-        .target_speed = target_speed,
         .throttle_position = servo_position,
         .servo_telemetry = servo_telemetry,
         .accelerator_telemetry = accelerator_telemetry,
@@ -320,13 +347,14 @@ class Controller {
   }
 
   auto process_telemetry_loop() noexcept -> void {
+    type::Speed const target_speed = m_target_speed.load();
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
     bool const guard_active = m_guard.is_active();
     bool const brake_active = m_brake.is_active();
 
-    auto const [target_speed, throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
+    auto const [throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
 
     type::SystemTelemetry const system_telemetry{
         .is_guard_active = guard_active,

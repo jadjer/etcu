@@ -88,11 +88,17 @@ class GPIO {
         .intr_type = GPIO_INTR_DISABLE,
     };
 
-    if (gpio_reset_pin(esp_pin) != ESP_OK) {
+    if (esp_err_t const error = gpio_reset_pin(esp_pin); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("GPIO", "gpio_reset_pin %s", esp_err_to_name(error));
       return false;
     }
 
-    return gpio_config(&config) == ESP_OK;
+    if (esp_err_t const error = gpio_config(&config); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("GPIO", "gpio_config %s", esp_err_to_name(error));
+      return false;
+    }
+
+    return true;
   }
 
   [[nodiscard]] static auto get_level() noexcept -> bool {
@@ -100,7 +106,14 @@ class GPIO {
     return inverse ? level == 0 : level == 1;
   }
 
-  static auto set_level(bool const level) noexcept -> bool { return gpio_set_level(esp_pin, level ^ inverse) == ESP_OK; }
+  static auto set_level(bool const level) noexcept -> bool {
+    if (esp_err_t const error = gpio_set_level(esp_pin, level ^ inverse); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("GPIO", "gpio_set_level %s", esp_err_to_name(error));
+      return false;
+    }
+
+    return true;
+  }
 
   static auto enable() noexcept -> bool { return set_level(true); }
 

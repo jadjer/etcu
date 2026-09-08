@@ -60,17 +60,20 @@ class UART {
     };
 
     if (!uart_is_driver_installed(esp_port)) {
-      if (uart_driver_install(esp_port, buffer_size, 0, 0, nullptr, 0) != ESP_OK) [[unlikely]] {
+      if (esp_err_t const error = uart_driver_install(esp_port, buffer_size, 0, 0, nullptr, 0); error != ESP_OK) [[unlikely]] {
+        ESP_LOGE("UART", "uart_driver_install %s", esp_err_to_name(error));
         return false;
       }
     }
 
-    if (uart_param_config(esp_port, &config) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = uart_param_config(esp_port, &config); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("UART", "uart_param_config %s", esp_err_to_name(error));
       uart_driver_delete(esp_port);
       return false;
     }
 
-    if (uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = uart_set_pin(esp_port, esp_tx, esp_rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("UART", "uart_set_pin %s", esp_err_to_name(error));
       uart_driver_delete(esp_port);
       return false;
     }
@@ -78,7 +81,14 @@ class UART {
     return true;
   }
 
-  static auto flush() noexcept -> bool { return uart_flush_input(esp_port) == ESP_OK; }
+  static auto flush() noexcept -> bool {
+    if (esp_err_t const error = uart_flush_input(esp_port); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("UART", "uart_flush_input %s", esp_err_to_name(error));
+      return false;
+    }
+
+    return true;
+  }
 
   template <std::size_t PackageSize>
     requires(PackageSize > 0)

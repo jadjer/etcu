@@ -72,30 +72,32 @@ class Accelerator {
     static constexpr type::Position value_max{type::Position::value_max};
     static constexpr type::Position threshold{Threshold};
 
-    type::AccPosition adc_value_a, adc_value_b;
+    type::AccPosition adc_value_a;
+    {
+      if (!m_driver_adc.template get_value<hall_a>(adc_value_a)) [[unlikely]] {
+        return type::SystemError::AcceleratorReadError;
+      }
 
-    if (!m_driver_adc.template get_value<hall_a>(adc_value_a)) [[unlikely]] {
-      return type::SystemError::AcceleratorReadError;
+      telemetry.hall_a = adc_value_a;
     }
 
-    telemetry.hall_a = adc_value_a;
+    type::AccPosition adc_value_b;
+    {
+      if (!m_driver_adc.template get_value<hall_b>(adc_value_b)) [[unlikely]] {
+        return type::SystemError::AcceleratorReadError;
+      }
 
-    if (!m_driver_adc.template get_value<hall_b>(adc_value_b)) [[unlikely]] {
-      return type::SystemError::AcceleratorReadError;
+      telemetry.hall_b = adc_value_b;
     }
-
-    telemetry.hall_b = adc_value_b;
 
     type::Position const pos_a = common::map_range(adc_value_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, value_min, value_max);
     type::Position const pos_b = common::map_range(adc_value_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, value_min, value_max);
 
-    if (type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)}; raw_diff > threshold) [[unlikely]] {
-      telemetry.position = 0;
+    telemetry.position = pos_a;
 
+    if (type::Position const raw_diff{std::abs(pos_a.value - pos_b.value)}; raw_diff > threshold) [[unlikely]] {
       return type::SystemError::AcceleratorMismatch;
     }
-
-    telemetry.position = pos_a;
 
     return type::SystemError::None;
   }

@@ -20,6 +20,7 @@
 
 #include <NimBLEDevice.h>
 
+#include "bluetooth/callbacks/calibration_callback.hpp"
 #include "bluetooth/callbacks/ota_callback.hpp"
 #include "bluetooth/callbacks/server_callback.hpp"
 #include "bluetooth/callbacks/system_info_callback.hpp"
@@ -35,11 +36,13 @@ class BLEManager {
   NimBLECharacteristic* m_ota_characteristic{nullptr};
   NimBLECharacteristic* m_control_characteristic{nullptr};
   NimBLECharacteristic* m_telemetry_characteristic{nullptr};
+  NimBLECharacteristic* m_calibration_characteristic{nullptr};
   NimBLECharacteristic* m_system_info_characteristic{nullptr};
 
   callback::OTACallback m_ota_callback;
   callback::ServerCallback m_server_callback{};
   callback::ControlCallback m_control_callback;
+  callback::CalibrationCallback m_calibration_callback{};
   callback::SystemInfoCallback m_system_info_callback{};
 
  public:
@@ -77,12 +80,14 @@ class BLEManager {
 
     NimBLEService* service = m_server->createService(constants::bluetooth::ServiceUUID.data());
     m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharUUID.data(), WRITE | NOTIFY);
-    m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharUUID.data(), READ | WRITE);
+    m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharUUID.data(), READ | WRITE | NOTIFY);
     m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharUUID.data(), READ | NOTIFY);
+    m_calibration_characteristic = service->createCharacteristic(constants::bluetooth::CalibrationCharUUID.data(), READ | WRITE);
     m_system_info_characteristic = service->createCharacteristic(constants::bluetooth::SysInfoCharUUID.data(), READ);
 
     m_ota_characteristic->setCallbacks(&m_ota_callback);
     m_control_characteristic->setCallbacks(&m_control_callback);
+    m_calibration_characteristic->setCallbacks(&m_calibration_callback);
     m_system_info_characteristic->setCallbacks(&m_system_info_callback);
 
     NimBLEAdvertising* advertising = m_server->getAdvertising();

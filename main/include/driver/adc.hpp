@@ -75,11 +75,16 @@ class ADC {
         .ulp_mode = ADC_ULP_MODE_DISABLE,
     };
 
-    if (m_handle != nullptr) [[unlikely]] {
+    if (m_handle != nullptr) [[likely]] {
       return true;
     }
 
-    return adc_oneshot_new_unit(&handle_config, &m_handle) == ESP_OK;
+    if (esp_err_t const error = adc_oneshot_new_unit(&handle_config, &m_handle); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("ADC", "adc_oneshot_new_unit %s", esp_err_to_name(error));
+      return false;
+    }
+
+    return true;
   }
 
   template <std::uint8_t ChannelId>
@@ -101,11 +106,13 @@ class ADC {
       return false;
     }
 
-    if (adc_oneshot_config_channel(m_handle, esp_channel, &channel_config) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = adc_oneshot_config_channel(m_handle, esp_channel, &channel_config); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("ADC", "adc_oneshot_config_channel %s", esp_err_to_name(error));
       return false;
     }
 
-    if (adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("ADC", "adc_cali_create_scheme_curve_fitting %s", esp_err_to_name(error));
       return false;
     }
 
@@ -123,7 +130,8 @@ class ADC {
 
     int raw_value{0};
 
-    if (adc_oneshot_read(m_handle, esp_channel, &raw_value) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = adc_oneshot_read(m_handle, esp_channel, &raw_value); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("ADC", "adc_oneshot_read %s", esp_err_to_name(error));
       return false;
     }
 
@@ -150,7 +158,8 @@ class ADC {
 
     int voltage = 0;
 
-    if (adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage) != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = adc_cali_raw_to_voltage(calibration_handle, raw_value, &voltage); error != ESP_OK) [[unlikely]] {
+      ESP_LOGE("ADC", "adc_cali_raw_to_voltage %s", esp_err_to_name(error));
       return false;
     }
 

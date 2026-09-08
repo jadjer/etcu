@@ -49,7 +49,7 @@ class Indicator {
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto update() noexcept -> bool {  // NOLINT
+  auto update() noexcept -> bool {  // NOLINT
     return true;
   }
 };

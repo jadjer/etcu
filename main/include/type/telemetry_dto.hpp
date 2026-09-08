@@ -57,6 +57,16 @@ struct OTAChunkDTO {
 
 } __attribute__((packed));
 
+struct CalibrationDTO {
+  primitive::AccPosition hall_a_min{0};   // 2
+  primitive::AccPosition hall_a_max{0};   // 2
+  primitive::AccPosition hall_b_min{0};   // 2
+  primitive::AccPosition hall_b_max{0};   // 2
+  primitive::ServoPosition servo_min{0};  // 2
+  primitive::ServoPosition servo_max{0};  // 2
+
+} __attribute__((packed));
+
 struct SystemInfoDTO {
   primitive::FixedString build_date{};        // 16
   primitive::FixedString board_version{};     // 16
