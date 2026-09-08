@@ -124,7 +124,7 @@ class ECUProtocol {
   template <std::size_t PayloadSize>
   auto send_message(ECUMessage<PayloadSize> const& message) noexcept -> bool {
     static constexpr std::size_t packet_size{ECUMessage<PayloadSize>::total_size};
-    static constexpr std::uint16_t echo_timeout_ms{100};
+    static constexpr std::uint16_t echo_timeout_ms{50};
 
     m_driver_uart.flush();
 
