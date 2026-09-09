@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "common/atomic_container.hpp"
 #include "common/map_range.hpp"
 #include "config/concepts.hpp"
 #include "type/calibration.hpp"
@@ -34,7 +35,7 @@ class Accelerator {
 
   Driver& m_driver_adc;
 
-  type::AcceleratorCalibrationData m_calibration_data{};
+  common::AtomicContainer<type::AcceleratorCalibrationData> m_calibration_data{};
 
  public:
   constexpr explicit Accelerator(Driver& driver_adc) noexcept : m_driver_adc(driver_adc) {}
@@ -65,12 +66,14 @@ class Accelerator {
     return type::SystemError::None;
   }
 
-  auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
+  auto set_calibration(type::AcceleratorCalibrationData const& calibration_data) noexcept -> void { m_calibration_data.store(calibration_data); }
 
   [[nodiscard]] auto get_telemetry(type::AcceleratorTelemetry& telemetry) noexcept -> type::SystemError {
     static constexpr type::Position value_min{type::Position::value_min};
     static constexpr type::Position value_max{type::Position::value_max};
     static constexpr type::Position threshold{Threshold};
+
+    type::AcceleratorCalibrationData const calibration_data = m_calibration_data.load();
 
     type::AccPosition adc_value_a;
     {
@@ -90,8 +93,8 @@ class Accelerator {
       telemetry.hall_b = adc_value_b;
     }
 
-    type::Position const pos_a = common::map_range(adc_value_a, m_calibration_data.hall_a_minimal, m_calibration_data.hall_a_maximal, value_min, value_max);
-    type::Position const pos_b = common::map_range(adc_value_b, m_calibration_data.hall_b_minimal, m_calibration_data.hall_b_maximal, value_min, value_max);
+    type::Position const pos_a = common::map_range(adc_value_a, calibration_data.hall_a_minimal, calibration_data.hall_a_maximal, value_min, value_max);
+    type::Position const pos_b = common::map_range(adc_value_b, calibration_data.hall_b_minimal, calibration_data.hall_b_maximal, value_min, value_max);
 
     telemetry.position = pos_a;
 

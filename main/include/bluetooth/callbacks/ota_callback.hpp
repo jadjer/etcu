@@ -22,6 +22,7 @@
 
 #include "common/atomic_container.hpp"
 #include "config/constants.hpp"
+#include "type/ota.hpp"
 #include "type/telemetry.hpp"
 
 namespace bluetooth::callback {

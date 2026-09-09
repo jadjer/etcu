@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "common/atomic_container.hpp"
 #include "common/calculate.hpp"
 #include "common/convert.hpp"
 #include "common/map_range.hpp"
@@ -34,9 +35,9 @@ template <class Driver, class PowerEnable, std::uint8_t ServoId = 1>
 class Servo {
   static constexpr std::uint8_t servo_id{ServoId};
 
-  ServoProtocol<Driver, PowerEnable> m_protocol;
+  ServoProtocol<Driver, PowerEnable> m_protocol{};
 
-  type::ServoCalibrationData m_calibration_data{};
+  common::AtomicContainer<type::ServoCalibrationData> m_calibration_data{};
 
  public:
   constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_protocol(driver_uart, driver_power) {}
@@ -59,14 +60,16 @@ class Servo {
     return type::SystemError::None;
   }
 
-  auto set_calibration(type::ServoCalibrationData const& calibration_data) noexcept -> void { m_calibration_data = calibration_data; }
+  auto set_calibration(type::ServoCalibrationData const& calibration_data) noexcept -> void { m_calibration_data.store(calibration_data); }
 
   [[nodiscard]] auto set_position(type::Position const target_position) noexcept -> type::SystemError {
     static constexpr type::Position position_min{type::Position::value_min};
     static constexpr type::Position position_max{type::Position::value_max};
 
+    type::ServoCalibrationData const calibration_data = m_calibration_data.load();
+
     type::ServoPosition const servo_position =
-        common::map_range(target_position, position_min, position_max, m_calibration_data.position_minimal, m_calibration_data.position_maximal);
+        common::map_range(target_position, position_min, position_max, calibration_data.position_minimal, calibration_data.position_maximal);
 
     std::array const params{
         common::as_byte(ServoRegister::TargetPosition),

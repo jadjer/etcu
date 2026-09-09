@@ -13,23 +13,20 @@
 // limitations under the License.
 
 //
-// Created by jadjer on 24.08.26.
+// Created by jadjer on 9.09.26.
 //
 
 #pragma once
 
 namespace type {
 
-enum class SystemState : std::uint8_t {
-  Off = 0,
-  Normal,
-  Update,
-};
+template <std::size_t PayloadSize>
+struct OTAChunk {
+  std::uint32_t firmware_size{0};
+  std::uint16_t chunk_total{0};
+  std::uint16_t chunk_index{0};
 
-enum class OTAStatus : std::uint8_t {
-  Error = 0,
-  ReadyForNext,
-  Completed,
+  std::array<std::uint8_t, PayloadSize> payload{};
 };
 
 }  // namespace type

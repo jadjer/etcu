@@ -27,6 +27,9 @@
 #include "callbacks/control_callback.hpp"
 #include "common/atomic_container.hpp"
 #include "config/constants.hpp"
+#include "type/calibration.hpp"
+#include "type/control.hpp"
+#include "type/ota.hpp"
 #include "type/telemetry.hpp"
 
 namespace bluetooth {
@@ -42,13 +45,14 @@ class BLEManager {
   callback::OTACallback m_ota_callback;
   callback::ServerCallback m_server_callback{};
   callback::ControlCallback m_control_callback;
-  callback::CalibrationCallback m_calibration_callback{};
   callback::SystemInfoCallback m_system_info_callback{};
+  callback::CalibrationCallback m_calibration_callback;
 
  public:
   constexpr explicit BLEManager(common::AtomicContainer<type::Control>& control,
+                                common::AtomicContainer<type::Calibration>& calibration,
                                 common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& ota_chunk)
-      : m_ota_callback(ota_chunk), m_control_callback(control) {}
+      : m_ota_callback(ota_chunk), m_control_callback(control), m_calibration_callback(calibration) {}
 
   constexpr BLEManager() noexcept = delete;
 

@@ -39,10 +39,7 @@ constexpr auto BuildPattern(Args... args) noexcept -> std::uint16_t {
 
 enum class ButtonState : std::uint8_t { Idle = 0, Pressed, WaitNextPress, WaitReleaseLong };
 
-template <class Driver,
-          std::uint16_t Debounce = 3,
-          std::uint16_t LongPress = 50,
-          std::uint16_t MultiClickTimeout = 35>
+template <class Driver, std::uint16_t Debounce = 3, std::uint16_t LongPress = 50, std::uint16_t MultiClickTimeout = 35>
   requires concepts::GPIO<Driver>
 class Button {
   Driver& m_driver;
@@ -140,12 +137,14 @@ class Button {
   }
 
   [[nodiscard]] auto has_event() noexcept -> bool {
-    if (m_has_event) { m_has_event = false; return true; }
+    if (m_has_event) {
+      m_has_event = false;
+      return true;
+    }
     return false;
   }
 
   [[nodiscard]] auto get_pattern() const noexcept -> std::uint16_t { return m_ready_pattern; }
 };
-
 
 }  // namespace device

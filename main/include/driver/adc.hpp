@@ -111,7 +111,8 @@ class ADC {
       return false;
     }
 
-    if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK) [[unlikely]] {
+    if (esp_err_t const error = adc_cali_create_scheme_curve_fitting(&calibration_config, &m_calibration_handles[channel_index]); error != ESP_OK)
+        [[unlikely]] {
       ESP_LOGE("ADC", "adc_cali_create_scheme_curve_fitting %s", esp_err_to_name(error));
       return false;
     }

@@ -20,7 +20,6 @@
 
 #include <NimBLECharacteristic.h>
 
-#include "type/telemetry.hpp"
 #include "common/to_fixed_string.hpp"
 
 namespace bluetooth::callback {

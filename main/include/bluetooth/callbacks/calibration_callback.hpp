@@ -21,14 +21,18 @@
 #include <NimBLECharacteristic.h>
 
 #include "common/atomic_container.hpp"
-#include "config/constants.hpp"
-#include "type/telemetry.hpp"
+#include "type/calibration.hpp"
 
+namespace type {
+struct Calibration;
+}
 namespace bluetooth::callback {
 
 class CalibrationCallback : public NimBLECharacteristicCallbacks {
-public:
-  constexpr explicit CalibrationCallback() noexcept {}
+  common::AtomicContainer<type::Calibration>& m_calibration;
+
+ public:
+  constexpr explicit CalibrationCallback(common::AtomicContainer<type::Calibration>& calibration) noexcept : m_calibration(calibration) {}
 
   CalibrationCallback(CalibrationCallback const&) noexcept = delete;
   auto operator=(CalibrationCallback const&) noexcept -> CalibrationCallback& = delete;
@@ -38,8 +42,32 @@ public:
 
   ~CalibrationCallback() noexcept override = default;
 
+  auto onRead(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
+    type::Calibration const calibration = m_calibration.load();
+    type::dto::CalibrationDTO const calibration_dto = calibration.to_dto();
+
+    characteristic->setValue(calibration_dto);
+  }
+
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
-    ESP_LOGI("CAL", "WRITE");
+    const auto [hall_a_min, hall_a_max, hall_b_min, hall_b_max, servo_min, servo_max] = characteristic->getValue<type::dto::CalibrationDTO>();
+
+    type::Calibration const calibration{
+        .servo =
+            type::ServoCalibrationData{
+                .position_minimal = servo_min,
+                .position_maximal = servo_max,
+            },
+        .accelerator =
+            type::AcceleratorCalibrationData{
+                .hall_a_minimal = hall_a_min,
+                .hall_a_maximal = hall_a_max,
+                .hall_b_minimal = hall_b_min,
+                .hall_b_maximal = hall_b_max,
+            },
+    };
+
+    m_calibration.store(calibration);
   }
 };
 

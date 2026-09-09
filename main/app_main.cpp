@@ -48,7 +48,13 @@ SystemHost system_host{controller};
 }  // namespace
 
 extern "C" void app_main() {
-  controller.init();
+  if (!controller.init()) [[unlikely]] {
+    return;
+  }
+
+  if (!controller.configure()) [[unlikely]] {
+    return;
+  }
 
   system_host.run();
 }

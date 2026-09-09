@@ -21,7 +21,7 @@
 #include <NimBLECharacteristic.h>
 
 #include "common/atomic_container.hpp"
-#include "type/telemetry.hpp"
+#include "type/control.hpp"
 
 namespace bluetooth::callback {
 

@@ -20,54 +20,12 @@
 
 #include <array>
 
+#include "type/dto.hpp"
 #include "type/error.hpp"
 #include "type/state.hpp"
-#include "type/telemetry_dto.hpp"
 #include "type/type.hpp"
 
 namespace type {
-
-struct PositionRange {
-  Position min{Position::value_min};
-  Position max{Position::value_max};
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::PositionRangeDTO {
-    return dto::PositionRangeDTO{
-        .min = min.get(),
-        .max = max.get(),
-    };
-  }
-
-  [[nodiscard]] auto operator<=>(PositionRange const&) const = default;
-};
-
-struct Control {
-  static constexpr std::string_view name{"control"};
-  static constexpr std::uint32_t current_version{1};
-
-  std::uint32_t version{0};
-
-  PositionRange servo{};
-  PositionRange accelerator{};
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ControlDTO {
-    return dto::ControlDTO{
-        .servo = servo.to_dto(),
-        .accelerator = accelerator.to_dto(),
-    };
-  }
-
-  [[nodiscard]] auto operator<=>(Control const&) const = default;
-};
-
-template <std::size_t PayloadSize>
-struct OTAChunk {
-  std::uint32_t firmware_size{0};
-  std::uint16_t chunk_total{0};
-  std::uint16_t chunk_index{0};
-
-  std::array<std::uint8_t, PayloadSize> payload{};
-};
 
 struct ServoTelemetry {
   bool is_connected{false};
@@ -167,12 +125,6 @@ struct SystemTelemetry {
         .system_errors = system_errors,
     };
   }
-};
-
-struct DriveTelemetry {
-  Position throttle_position{};
-  ServoTelemetry servo_telemetry{};
-  AcceleratorTelemetry accelerator_telemetry{};
 };
 
 }  // namespace type

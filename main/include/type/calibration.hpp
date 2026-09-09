@@ -20,6 +20,7 @@
 
 #include <string_view>
 
+#include "type/dto.hpp"
 #include "type/type.hpp"
 
 namespace type {
@@ -34,6 +35,8 @@ struct AcceleratorCalibrationData {
   AccPosition hall_a_maximal{0};
   AccPosition hall_b_minimal{0};
   AccPosition hall_b_maximal{0};
+
+  [[nodiscard]] auto operator<=>(AcceleratorCalibrationData const&) const = default;
 };
 
 struct ServoCalibrationData {
@@ -44,6 +47,27 @@ struct ServoCalibrationData {
 
   ServoPosition position_minimal{0};
   ServoPosition position_maximal{0};
+
+  [[nodiscard]] auto operator<=>(ServoCalibrationData const&) const = default;
+};
+
+struct Calibration {
+  ServoCalibrationData servo{};
+  AcceleratorCalibrationData accelerator{};
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CalibrationDTO {
+    return dto::CalibrationDTO{
+        .hall_a_min = accelerator.hall_a_minimal.get(),
+        .hall_a_max = accelerator.hall_a_maximal.get(),
+        .hall_b_min = accelerator.hall_b_minimal.get(),
+        .hall_b_max = accelerator.hall_b_maximal.get(),
+
+        .servo_min = servo.position_minimal.get(),
+        .servo_max = servo.position_maximal.get(),
+    };
+  }
+
+  [[nodiscard]] auto operator<=>(Calibration const&) const = default;
 };
 
 }  // namespace type
