@@ -22,53 +22,35 @@
 
 namespace common {
 
-struct PidCoefficients {
-  float kp{0.0f};
-  float ki{0.0f};
-  float kd{0.0f};
-};
-
-template <float MinLimit, float MaxLimit>
-class PidRegulator {
-  static constexpr float min_limit{MinLimit};
-  static constexpr float max_limit{MaxLimit};
-
-  float m_dt{0.0f};
+class PidController {
+  float const m_kp, m_ki, m_kd, m_dt;
+  float const m_min, m_max;
   float m_integral{0.0f};
   float m_last_error{0.0f};
-  PidCoefficients m_coefficients{};
 
- public:
-  constexpr explicit PidRegulator(PidCoefficients const& coefficients, float const dt_sec) noexcept : m_dt(dt_sec), m_coefficients(coefficients) {}
+public:
+  constexpr PidController(float kp, float ki, float kd, float dt, float min, float max) noexcept
+      : m_kp(kp), m_ki(ki), m_kd(kd), m_dt(dt), m_min(min), m_max(max) {}
 
-  [[nodiscard]] auto calculate(float const target, float const current) const noexcept -> float {
-    float const error = target - current;
+  [[nodiscard]] auto calculate(float const error) const noexcept -> float {
+    float const p_term = m_kp * error;
+    float const i_term = m_integral;
+    float const d_term = m_kd * ((error - m_last_error) / m_dt);
 
-    float const p_term = m_coefficients.kp * error;
-    float const i_term = m_coefficients.ki * m_integral;
-    float const d_term = m_coefficients.kd * ((error - m_last_error) / m_dt);
-
-    return p_term + i_term + d_term;
+    return std::clamp(p_term + i_term + d_term, m_min, m_max);
   }
 
-  auto update(float const target, float const current, bool const freeze_integral = false) noexcept -> void {
-    float const error = target - current;
-
+  auto update(float const error, bool const freeze_integral) noexcept -> void {
     if (!freeze_integral) {
-      m_integral += error * m_dt;
-      m_integral = std::clamp(m_integral, min_limit, max_limit);
+      m_integral = std::clamp(m_integral + m_ki * error * m_dt, m_min, m_max);
     }
 
     m_last_error = error;
   }
 
-  auto reset() noexcept {
-    m_integral = 0.0f;
-    m_last_error = 0.0f;
-  }
-
-  auto set(float const value) noexcept -> void {
-    m_last_error = value;
+  auto reset_to(float const base_value, float const initial_error = 0.0f) noexcept -> void {
+    m_integral = std::clamp(base_value, m_min, m_max);
+    m_last_error = initial_error;
   }
 };
 

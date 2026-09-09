@@ -51,7 +51,7 @@ class BLEManager {
  public:
   constexpr explicit BLEManager(common::AtomicContainer<type::Control>& control,
                                 common::AtomicContainer<type::Calibration>& calibration,
-                                common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& ota_chunk)
+                                common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>>& ota_chunk) noexcept
       : m_ota_callback(ota_chunk), m_control_callback(control), m_calibration_callback(calibration) {}
 
   constexpr BLEManager() noexcept = delete;
@@ -64,7 +64,7 @@ class BLEManager {
 
   ~BLEManager() noexcept = default;
 
-  [[nodiscard]] constexpr auto init() -> type::SystemError {
+  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
     if (!NimBLEDevice::init(constants::system::Name.data())) {
@@ -105,9 +105,9 @@ class BLEManager {
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto isConnected() const -> bool { return m_server_callback.isConnected(); }
+  [[nodiscard]] auto isConnected() const noexcept -> bool { return m_server_callback.isConnected(); }
 
-  [[nodiscard]] auto send_telemetry(type::SystemTelemetry const& data) const -> type::SystemError {
+  [[nodiscard]] auto send_telemetry(type::SystemTelemetry const& data) const noexcept -> type::SystemError {
     if (!isConnected()) {
       return type::SystemError::BluetoothConnectedFault;
     }
@@ -118,13 +118,12 @@ class BLEManager {
 
     type::dto::SystemTelemetryDTO const system_telemetry = data.to_dto();
 
-    m_telemetry_characteristic->setValue(system_telemetry);
-    std::ignore = m_telemetry_characteristic->notify();
+    std::ignore = m_telemetry_characteristic->notify(system_telemetry);
 
     return type::SystemError::None;
   }
 
-  [[nodiscard]] auto send_ota_notify(type::OTAStatus const status) const -> type::SystemError {
+  [[nodiscard]] auto send_ota_status(type::OTAStatus const status) const noexcept -> type::SystemError {
     if (!isConnected()) {
       return type::SystemError::BluetoothConnectedFault;
     }
@@ -134,6 +133,22 @@ class BLEManager {
     }
 
     std::ignore = m_ota_characteristic->notify(status);
+
+    return type::SystemError::None;
+  }
+
+  [[nodiscard]] auto send_control(type::Control const& control) const noexcept -> type::SystemError {
+    if (!isConnected()) {
+      return type::SystemError::BluetoothConnectedFault;
+    }
+
+    if (m_control_characteristic == nullptr) {
+      return type::SystemError::BluetoothInitFault;
+    }
+
+    type::dto::ControlDTO const control_dto = control.to_dto();
+
+    std::ignore = m_control_characteristic->notify(control_dto);
 
     return type::SystemError::None;
   }

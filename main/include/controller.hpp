@@ -110,14 +110,14 @@ class Controller {
   ModeButton& m_mode_button;
   Accelerator& m_accelerator;
 
+  common::AtomicContainer<bool> m_is_cruise_active{false};
   common::AtomicContainer<type::Speed> m_target_speed{0};
   common::AtomicContainer<type::Control> m_control{};
+  common::AtomicContainer<DriveTelemetry> m_driver_telemetry{};
   common::AtomicContainer<type::Calibration> m_calibration{};
   common::AtomicContainer<type::SystemState> m_system_state{type::SystemState::Normal};
   common::AtomicContainer<type::ECUTelemetry> m_ecu_telemetry{};
   common::AtomicContainer<type::OTAChunk<constants::bluetooth::OTAPayloadSize>> m_ota_chunk{};
-
-  common::AtomicContainer<DriveTelemetry> m_driver_telemetry{};
 
   Logger m_logger;
   Storage m_storage;
@@ -129,43 +129,57 @@ class Controller {
   type::Calibration m_last_calibration{};
   bluetooth::BLEManager m_ble_manager{m_control, m_calibration, m_ota_chunk};
 
-  auto handle_mode_button(std::uint16_t const pattern, type::Control& control, type::ECUTelemetry const& ecu_telemetry, bool const safety_active) -> void {
+  auto handle_mode_button(std::uint16_t const pattern, type::Control& control, type::Speed const& current_speed, bool const safety_active) -> void {
+    bool const is_active = m_is_cruise_active.load();
+    type::Speed const target_speed = m_target_speed.load();
+
+    // --- ОДИНОЧНОЕ НАЖАТИЕ (Пауза / Возобновление - Resume) ---
     if (pattern == device::BuildPattern(device::ClickType::Short)) {
-      m_target_speed.store(0);
-      m_indicator.turn_off();
+      if (is_active) {
+        m_is_cruise_active.store(false);
+        m_indicator.turn_off();  // Успешное выключение: просто гаснет
+      } else {
+        // Ошибка: нажат тормоз/нейтраль ИЛИ скорость еще ни разу не задавалась
+        if (safety_active || target_speed == 0) {
+          m_indicator.blink_times(2);  // Индикация ошибки (2 мигания)
+          return;
+        }
+        m_is_cruise_active.store(true);
+        m_indicator.turn_on();  // Успешное возобновление: просто загорается
+      }
       return;
     }
 
+    // --- ДВОЙНОЕ НАЖАТИЕ (Фиксация скорости - Set) ---
     if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
-      if (ecu_telemetry.speed < cruise_minimal_speed) {
-        m_indicator.blink_times(2);
+      // Ошибка: нажат тормоз/нейтраль ИЛИ скорость мотоцикла ниже лимита (40 км/ч)
+      if (safety_active || current_speed < cruise_minimal_speed) {
+        m_indicator.blink_times(2);  // Индикация ошибки (2 мигания)
         return;
       }
 
-      if (safety_active) {
-        m_indicator.blink_times(3);
-        return;
-      }
-
-      m_target_speed.store(ecu_telemetry.speed);
-      m_indicator.turn_on();
+      m_target_speed.store(current_speed);
+      m_is_cruise_active.store(true);
+      m_indicator.turn_on();  // Успешная установка: просто загорается
 
       return;
     }
 
+    // --- КАЛИБРОВКА СЕРВОПРИВОДА (Инженерные функции) ---
     type::Position max_servo{0};
     if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
-      max_servo = 300;
+      max_servo = type::Position{300};
     } else if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short)) {
-      max_servo = 600;
+      max_servo = type::Position{600};
     } else if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short, device::ClickType::Short)) {
-      max_servo = 900;
+      max_servo = type::Position{900};
     }
 
-    if (max_servo > 0) {
+    if (max_servo.get() > 0) {
       control.servo.max = max_servo;
       m_control.store(control);
-      m_indicator.blink_times(1);
+      m_indicator.blink_times(1);  // Подтверждение успешной калибровки (1 мигание)
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_control(control));
     }
   }
 
@@ -245,7 +259,6 @@ class Controller {
 
     auto load_or_factory = [this](auto& out_calib, auto const& factory_calib, auto& device, const char* name) {
       auto temp = factory_calib;
-
       if (!m_storage.load(temp)) {
         m_logger.log_warn("%s factory calibration loading...", name);
         if (m_storage.save(factory_calib)) {
@@ -254,7 +267,6 @@ class Controller {
           m_logger.log_error("%s factory calibration loading...Error", name);
         }
       }
-
       device.set_calibration(temp);
       out_calib = temp;
     };
@@ -263,7 +275,6 @@ class Controller {
     load_or_factory(m_last_calibration.servo, servo_calibration_factory, m_servo, "Servo");
 
     m_calibration.store(m_last_calibration);
-
     m_logger.log_info("Configuration...Done");
 
     return true;
@@ -295,7 +306,7 @@ class Controller {
         m_logger.log_error(log_msg, args...);
       }
 
-      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_notify(type::OTAStatus::Error));
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::Error));
       m_system_state.store(type::SystemState::Normal);
       m_chunk_index = std::numeric_limits<std::size_t>::max();
     };
@@ -326,14 +337,14 @@ class Controller {
       }
 
       m_logger.log_info("OTA successfully written. Rebooting...");
-      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_notify(type::OTAStatus::Completed));
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::Completed));
 
       OTAManager::reboot();
 
       return;
     }
 
-    m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_notify(type::OTAStatus::ReadyForNext));
+    m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::ReadyForNext));
   }
 
   auto process_system_loop() noexcept -> void {
@@ -345,60 +356,70 @@ class Controller {
       m_system_state.store(type::SystemState::Off);
     }
 
-    type::Control control = m_control.load();
-    type::Calibration const calibration = m_calibration.load();
     type::SystemState const system_state = m_system_state.load();
+
+    if (system_state == type::SystemState::Off) {
+      m_is_cruise_active.store(false);
+      m_target_speed.store(type::Speed{0});
+      m_indicator.turn_off();
+    }
+
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
+    bool const is_brake_active = m_brake.is_active();
+    bool const is_gearbox_neutral = ecu_telemetry.is_neutral;
+    bool const safety_active = is_brake_active || is_gearbox_neutral;
+    type::Speed const current_speed = ecu_telemetry.speed;
+    std::uint16_t const button_patern = m_mode_button.get_pattern();
 
-    bool const safety_active = m_brake.is_active() || ecu_telemetry.is_neutral;
-
-    if (control != m_last_control && !m_storage.save(control)) [[unlikely]] {
-      m_logger.log_error("Control data save error");
-    }
-
-    auto update_calibration = [this](auto& current, auto& last, auto& device, auto const& name) {
-      if (current == last) {
-        return;
-      }
-
-      if (!m_storage.save(current)) {
-        m_logger.log_error("%s calibration set error", name);
-      } else {
-        m_logger.log_info("%s calibration set", name);
-        device.set_calibration(current);
-        last = current;
-      }
-    };
-
-    if (calibration != m_last_calibration) {
-      update_calibration(calibration.accelerator, m_last_calibration.accelerator, m_accelerator, "Accelerator");
-      update_calibration(calibration.servo, m_last_calibration.servo, m_servo, "Servo");
-    }
+    type::Control control = m_control.load();
 
     if (system_state == type::SystemState::Normal && m_mode_button.has_event()) {
-      handle_mode_button(m_mode_button.get_pattern(), control, ecu_telemetry, safety_active);
+      handle_mode_button(button_patern, control, current_speed, safety_active);
+    }
+  }
+
+  auto process_control_loop() noexcept -> void {
+    type::Control const control = m_control.load();
+
+    if (control == m_last_control) [[likely]] {
+      return;
     }
 
-    if (system_state == type::SystemState::Off || safety_active) {
-      m_target_speed.store(0);
-      m_indicator.turn_off();
+    m_control.store(control);
+    m_last_control = control;
+
+    if (!m_storage.save(control)) [[unlikely]] {
+      m_logger.log_error("Control data save error");
     }
   }
 
   auto process_critical_loop() noexcept -> void {
     if (type::SystemState const system_state = m_system_state.load(); system_state != type::SystemState::Normal) {
-      m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(0));
+      m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(type::Position{0}));
       return;
     }
-
-    type::Control const control = m_control.load();
-    type::Speed const target_speed = m_target_speed.load();
-    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
     type::AcceleratorTelemetry accelerator_telemetry;
     m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.get_telemetry(accelerator_telemetry));
 
-    type::Position const servo_position = m_logic.calculate_servo_position(accelerator_telemetry.position, ecu_telemetry.speed, target_speed, control);
+    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
+
+    bool const is_brake_active = m_brake.is_active();
+    bool const is_gearbox_neutral = ecu_telemetry.is_neutral;
+
+    bool is_cruise_active = m_is_cruise_active.load();
+
+    if (is_cruise_active && (is_brake_active || is_gearbox_neutral)) [[unlikely]] {
+      is_cruise_active = false;
+      m_is_cruise_active.store(false);
+      m_indicator.turn_off();
+    }
+
+    type::Speed const target_speed = m_target_speed.load();
+    type::Control const control = m_control.load();
+
+    type::Position const servo_position =
+        m_logic.calculate_servo_position(accelerator_telemetry.position, ecu_telemetry.speed, target_speed, is_cruise_active, control);
     m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(servo_position));
 
     type::ServoTelemetry servo_telemetry;
@@ -416,26 +437,46 @@ class Controller {
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 
-    bool const guard_active = m_guard.is_active();
-    bool const brake_active = m_brake.is_active();
+    bool const is_guard_active = m_guard.is_active();
+    bool const is_brake_active = m_brake.is_active();
 
     auto const [throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
 
     type::SystemTelemetry const system_telemetry{
-        .is_guard_active = guard_active,
-        .is_brake_enabled = brake_active,
-
+        .is_guard_active = is_guard_active,
+        .is_brake_enabled = is_brake_active,
         .ecu_telemetry = ecu_telemetry,
         .servo_telemetry = servo_telemetry,
         .accelerator_telemetry = accelerator_telemetry,
-
         .target_speed = target_speed,
         .throttle_position = throttle_position,
-
         .system_state = system_state,
         .system_errors = m_system_errors.get_error_mask(),
     };
 
     m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_telemetry(system_telemetry));
+  }
+
+  auto process_calibration_loop() noexcept -> void {
+    type::Calibration const calibration = m_calibration.load();
+
+    if (calibration == m_last_calibration) [[likely]] {
+      return;
+    }
+
+    auto update_calibration = [this](auto& current, auto& last, auto& device, auto const& name) {
+      if (current == last)
+        return;
+      if (!m_storage.save(current)) {
+        m_logger.log_error("%s calibration set error", name);
+      } else {
+        m_logger.log_info("%s calibration set ", name);
+        device.set_calibration(current);
+        last = current;
+      }
+    };
+
+    update_calibration(calibration.servo, m_last_calibration.servo, m_servo, "Servo");
+    update_calibration(calibration.accelerator, m_last_calibration.accelerator, m_accelerator, "Accelerator");
   }
 };
