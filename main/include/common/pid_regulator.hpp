@@ -66,6 +66,10 @@ class PidRegulator {
     m_integral = 0.0f;
     m_last_error = 0.0f;
   }
+
+  auto set(float const value) noexcept -> void {
+    m_last_error = value;
+  }
 };
 
 }  // namespace common

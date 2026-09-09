@@ -375,12 +375,13 @@ class Controller {
       update_calibration(calibration.servo, m_last_calibration.servo, m_servo, "Servo");
     }
 
-    if (system_state == type::SystemState::Off || safety_active) {
-      m_target_speed.store(0);
-    }
-
     if (system_state == type::SystemState::Normal && m_mode_button.has_event()) {
       handle_mode_button(m_mode_button.get_pattern(), control, ecu_telemetry, safety_active);
+    }
+
+    if (system_state == type::SystemState::Off || safety_active) {
+      m_target_speed.store(0);
+      m_indicator.turn_off();
     }
   }
 

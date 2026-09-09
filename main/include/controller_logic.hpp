@@ -29,14 +29,16 @@ class ControllerLogic {
   static constexpr float regulator_value_max{type::Position::value_max};
 
   common::PidRegulator<regulator_value_min, regulator_value_max> m_speed_regulator{
-      common::PidCoefficients{.kp = 1.5f, .ki = 0.2f, .kd = 0.02f},
-      0.01f,
+      common::PidCoefficients{.kp =10.0f, .ki = 0.5f, .kd = 0.00f},
+      0.1f,
   };
 
   [[nodiscard]] auto calculate_cruise_control(type::Position const driver_proposal, type::Speed const current_speed, type::Speed const target_speed) noexcept
       -> type::Position {
-    float const pid_value = m_speed_regulator.calculate(target_speed.get(), current_speed.get());
+    float const pid_value = m_speed_regulator.calculate(target_speed.as<float>(), current_speed.as<float>());
     auto const pid_servo_proposal = type::Position{static_cast<std::int32_t>(std::roundf(pid_value))};
+
+    ESP_LOGI("PID", "%f %d", pid_value, pid_servo_proposal.get());
 
     bool const driver_override = driver_proposal >= pid_servo_proposal;
     m_speed_regulator.update(target_speed.as<float>(), current_speed.as<float>(), driver_override);
