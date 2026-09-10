@@ -24,6 +24,8 @@
 namespace bluetooth::callback {
 
 class ServerCallback : public NimBLEServerCallbacks {
+  static constexpr std::uint32_t default_pin{123456};
+
   std::atomic<bool> m_connected{false};
 
  public:
@@ -37,15 +39,29 @@ class ServerCallback : public NimBLEServerCallbacks {
 
   ~ServerCallback() noexcept override = default;
 
-  auto onConnect(NimBLEServer*, NimBLEConnInfo&) -> void override { m_connected.store(true, std::memory_order_relaxed); }
-
-  auto onDisconnect(NimBLEServer* server, NimBLEConnInfo&, int) -> void override {
-    m_connected.store(false, std::memory_order_relaxed);
-
-    std::ignore = server->startAdvertising();
+  auto onConnect(NimBLEServer* server, NimBLEConnInfo& connInfo) -> void override {
+    m_connected.store(true, std::memory_order_relaxed);
   }
 
-  [[nodiscard]] auto isConnected() const -> bool { return m_connected.load(std::memory_order_relaxed); }
+  auto onDisconnect(NimBLEServer* server, NimBLEConnInfo&, int const reason) -> void override {
+    m_connected.store(false, std::memory_order_relaxed);
+
+    NimBLEDevice::startAdvertising();
+  }
+
+  auto onPassKeyDisplay() -> std::uint32_t override {
+    return default_pin;
+  }
+
+  void onConfirmPassKey(NimBLEConnInfo& connInfo, std::uint32_t const pin) override {
+    auto const is_pin_match = pin == default_pin;
+
+    NimBLEDevice::injectConfirmPasskey(connInfo, is_pin_match);
+  }
+
+  [[nodiscard]] auto isConnected() const noexcept -> bool {
+    return m_connected.load(std::memory_order_relaxed);
+  }
 };
 
 }  // namespace bluetooth::callback

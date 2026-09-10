@@ -133,40 +133,55 @@ class Controller {
     bool const is_active = m_is_cruise_active.load();
     type::Speed const target_speed = m_target_speed.load();
 
-    // --- ОДИНОЧНОЕ НАЖАТИЕ (Пауза / Возобновление - Resume) ---
     if (pattern == device::BuildPattern(device::ClickType::Short)) {
       if (is_active) {
         m_is_cruise_active.store(false);
-        m_indicator.turn_off();  // Успешное выключение: просто гаснет
+        m_indicator.turn_off();
+        m_logger.log_info("Cruise paused");
       } else {
-        // Ошибка: нажат тормоз/нейтраль ИЛИ скорость еще ни разу не задавалась
-        if (safety_active || target_speed == 0) {
-          m_indicator.blink_times(2);  // Индикация ошибки (2 мигания)
+        if (safety_active) {
+          m_indicator.blink_times(2);
+          m_logger.log_info("Cruise resume error: safety active");
           return;
         }
+
+        if (target_speed < cruise_minimal_speed) {
+          m_indicator.blink_times(2);
+          m_logger.log_info("Cruise resume error: target speed very low");
+          return;
+        }
+
         m_is_cruise_active.store(true);
-        m_indicator.turn_on();  // Успешное возобновление: просто загорается
+        m_indicator.turn_on();
+        m_logger.log_info("Cruise resumed");
       }
+
       return;
     }
 
-    // --- ДВОЙНОЕ НАЖАТИЕ (Фиксация скорости - Set) ---
     if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
-      // Ошибка: нажат тормоз/нейтраль ИЛИ скорость мотоцикла ниже лимита (40 км/ч)
-      if (safety_active || current_speed < cruise_minimal_speed) {
-        m_indicator.blink_times(2);  // Индикация ошибки (2 мигания)
+      if (safety_active) {
+        m_indicator.blink_times(2);
+        m_logger.log_info("Cruise enable error: safety active");
+        return;
+      }
+
+      if (current_speed < cruise_minimal_speed) {
+        m_indicator.blink_times(2);
+        m_logger.log_info("Cruise enable error: current speed very low");
         return;
       }
 
       m_target_speed.store(current_speed);
       m_is_cruise_active.store(true);
-      m_indicator.turn_on();  // Успешная установка: просто загорается
+      m_indicator.turn_on();
+      m_logger.log_info("Cruise enabled");
 
       return;
     }
 
-    // --- КАЛИБРОВКА СЕРВОПРИВОДА (Инженерные функции) ---
     type::Position max_servo{0};
+
     if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
       max_servo = type::Position{300};
     } else if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short)) {
@@ -175,10 +190,11 @@ class Controller {
       max_servo = type::Position{900};
     }
 
-    if (max_servo.get() > 0) {
+    if (max_servo > 0) {
       control.servo.max = max_servo;
       m_control.store(control);
-      m_indicator.blink_times(1);  // Подтверждение успешной калибровки (1 мигание)
+      m_indicator.blink_times(1);
+      m_logger.log_info("Set servo max as %d", max_servo.get());
       m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_control(control));
     }
   }
@@ -206,6 +222,11 @@ class Controller {
   auto init() noexcept -> bool {
     Logger::init();
     m_logger.log_info("Initialization...");
+
+    if (!m_storage.init()) [[unlikely]] {
+      m_logger.log_error("Storage init fault");
+      return false;
+    }
 
     struct InitStep {
       type::SystemError mask;
@@ -238,11 +259,6 @@ class Controller {
         m_logger.log_error(check.error_msg);
         return false;
       }
-    }
-
-    if (!m_storage.init()) [[unlikely]] {
-      m_logger.log_error("Storage init fault");
-      return false;
     }
 
     m_logger.log_info("Initialization...Done");
@@ -298,6 +314,10 @@ class Controller {
     }
 
     if (state != type::SystemState::Normal && state != type::SystemState::Update) {
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::Error));
+      m_chunk_index = std::numeric_limits<std::size_t>::max();
+      m_logger.log_error("System not ready for update (state: %d). Abort update", state);
+
       return;
     }
 
@@ -312,10 +332,6 @@ class Controller {
     };
 
     if (!m_ota_manager.is_active()) {
-      if (state != type::SystemState::Normal) {
-        return handle_error("System state is not NORMAL");
-      }
-
       if (!m_ota_manager.start_update(size)) {
         return handle_error("Start OTA error");
       }
@@ -354,6 +370,7 @@ class Controller {
     if (m_guard.is_active()) {
       m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLock);
       m_system_state.store(type::SystemState::Off);
+      m_logger.log_warn("Guard is active. System shout down");
     }
 
     type::SystemState const system_state = m_system_state.load();
@@ -362,6 +379,7 @@ class Controller {
       m_is_cruise_active.store(false);
       m_target_speed.store(type::Speed{0});
       m_indicator.turn_off();
+      m_logger.log_warn("System shout down. Disable cruise force");
     }
 
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
@@ -385,12 +403,14 @@ class Controller {
       return;
     }
 
-    m_control.store(control);
-    m_last_control = control;
-
     if (!m_storage.save(control)) [[unlikely]] {
       m_logger.log_error("Control data save error");
     }
+
+    m_control.store(control);
+    m_last_control = control;
+
+    m_logger.log_info("Control updated");
   }
 
   auto process_critical_loop() noexcept -> void {
@@ -465,15 +485,19 @@ class Controller {
     }
 
     auto update_calibration = [this](auto& current, auto& last, auto& device, auto const& name) {
-      if (current == last)
+      if (current == last) {
         return;
+      }
+
       if (!m_storage.save(current)) {
         m_logger.log_error("%s calibration set error", name);
-      } else {
-        m_logger.log_info("%s calibration set ", name);
-        device.set_calibration(current);
-        last = current;
+        return;
       }
+
+      device.set_calibration(current);
+      last = current;
+
+      m_logger.log_info("%s calibration set ", name);
     };
 
     update_calibration(calibration.servo, m_last_calibration.servo, m_servo, "Servo");

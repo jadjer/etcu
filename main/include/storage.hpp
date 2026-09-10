@@ -22,7 +22,6 @@
 #include <nvs_flash.h>
 #include <nvs_handle.hpp>
 
-#include "config/concepts.hpp"
 #include "config/constants.hpp"
 
 template <typename T>

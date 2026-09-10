@@ -24,9 +24,9 @@ static constexpr std::uint16_t ErrorShiftECU{0};
 static constexpr std::uint16_t ErrorShiftGuard{2};
 static constexpr std::uint16_t ErrorShiftServo{3};
 static constexpr std::uint16_t ErrorShiftBluetooth{6};
-static constexpr std::uint16_t ErrorShiftIndicator{10};
-static constexpr std::uint16_t ErrorShiftPeripheral{11};
-static constexpr std::uint16_t ErrorShiftAccelerator{12};
+static constexpr std::uint16_t ErrorShiftIndicator{11};
+static constexpr std::uint16_t ErrorShiftPeripheral{12};
+static constexpr std::uint16_t ErrorShiftAccelerator{13};
 
 enum class SystemError : std::uint16_t {
   None = 0,
@@ -40,11 +40,12 @@ enum class SystemError : std::uint16_t {
   BluetoothSetPowerFault = 1 << (ErrorShiftBluetooth + 1),   // 7
   BluetoothSetMTUFault = 1 << (ErrorShiftBluetooth + 2),     // 8
   BluetoothConnectedFault = 1 << (ErrorShiftBluetooth + 3),  // 9
-  IndicatorInitFault = 1 << (ErrorShiftIndicator + 0),       // 10
-  PeripheralInitError = 1 << (ErrorShiftPeripheral + 0),     // 11
-  AcceleratorInitError = 1 << (ErrorShiftAccelerator + 0),   // 12
-  AcceleratorReadError = 1 << (ErrorShiftAccelerator + 1),   // 13
-  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),    // 14
+  BluetoothSendNotifyError = 1 << (ErrorShiftBluetooth + 4), // 10
+  IndicatorInitFault = 1 << (ErrorShiftIndicator + 0),       // 11
+  PeripheralInitError = 1 << (ErrorShiftPeripheral + 0),     // 12
+  AcceleratorInitError = 1 << (ErrorShiftAccelerator + 0),   // 13
+  AcceleratorReadError = 1 << (ErrorShiftAccelerator + 1),   // 14
+  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),    // 15
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {

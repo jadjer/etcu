@@ -64,30 +64,37 @@ class BLEManager {
 
   ~BLEManager() noexcept = default;
 
-  [[nodiscard]] constexpr auto init() noexcept -> type::SystemError {
+  [[nodiscard]] auto init() noexcept -> type::SystemError {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
-    if (!NimBLEDevice::init(constants::system::Name.data())) {
+    if (!NimBLEDevice::init(constants::system::Name.data())) [[unlikely]] {
       return type::SystemError::BluetoothInitFault;
     }
 
-    if (!NimBLEDevice::setPower(ESP_PWR_LVL_N24)) {
+    if (!NimBLEDevice::setPower(ESP_PWR_LVL_N24)) [[unlikely]] {
       return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault;
     }
 
-    if (!NimBLEDevice::setMTU(517)) {
+    if (!NimBLEDevice::setMTU(517)) [[unlikely]] {
       return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetMTUFault;
     }
 
+    NimBLEDevice::setSecurityAuth(true, true, true);
+    NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_ONLY);
+    NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+
     m_server = NimBLEDevice::createServer();
     m_server->setCallbacks(&m_server_callback);
+    m_server->advertiseOnDisconnect(true);
 
     NimBLEService* service = m_server->createService(constants::bluetooth::ServiceUUID.data());
-    m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharUUID.data(), WRITE | NOTIFY);
-    m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharUUID.data(), READ | WRITE | NOTIFY);
-    m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharUUID.data(), READ | NOTIFY);
-    m_calibration_characteristic = service->createCharacteristic(constants::bluetooth::CalibrationCharUUID.data(), READ | WRITE);
-    m_system_info_characteristic = service->createCharacteristic(constants::bluetooth::SysInfoCharUUID.data(), READ);
+
+    m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharUUID.data(), WRITE | NOTIFY | WRITE_ENC);
+    m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharUUID.data(), READ | WRITE | NOTIFY | READ_ENC | WRITE_ENC);
+    m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharUUID.data(), READ | NOTIFY | READ_ENC);
+    m_calibration_characteristic = service->createCharacteristic(constants::bluetooth::CalibrationCharUUID.data(), READ | WRITE | READ_ENC | WRITE_ENC);
+    m_system_info_characteristic = service->createCharacteristic(constants::bluetooth::SysInfoCharUUID.data(), READ | READ_ENC);
 
     m_ota_characteristic->setCallbacks(&m_ota_callback);
     m_control_characteristic->setCallbacks(&m_control_callback);
@@ -116,9 +123,9 @@ class BLEManager {
       return type::SystemError::BluetoothInitFault;
     }
 
-    type::dto::SystemTelemetryDTO const system_telemetry = data.to_dto();
-
-    std::ignore = m_telemetry_characteristic->notify(system_telemetry);
+    if (type::dto::SystemTelemetryDTO const system_telemetry = data.to_dto(); !m_telemetry_characteristic->notify(system_telemetry)) [[unlikely]] {
+      return type::SystemError::BluetoothSendNotifyError;
+    }
 
     return type::SystemError::None;
   }
@@ -132,7 +139,9 @@ class BLEManager {
       return type::SystemError::BluetoothInitFault;
     }
 
-    std::ignore = m_ota_characteristic->notify(status);
+    if (!m_ota_characteristic->notify(status)) [[unlikely]] {
+      return type::SystemError::BluetoothSendNotifyError;
+    }
 
     return type::SystemError::None;
   }
@@ -146,9 +155,9 @@ class BLEManager {
       return type::SystemError::BluetoothInitFault;
     }
 
-    type::dto::ControlDTO const control_dto = control.to_dto();
-
-    std::ignore = m_control_characteristic->notify(control_dto);
+    if (type::dto::ControlDTO const control_dto = control.to_dto(); !m_control_characteristic->notify(control_dto)) [[unlikely]] {
+      return type::SystemError::BluetoothSendNotifyError;
+    }
 
     return type::SystemError::None;
   }
