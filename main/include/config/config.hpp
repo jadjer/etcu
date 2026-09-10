@@ -38,7 +38,7 @@ using PowerEnable = ::driver::GPIO<constants::pin::PowerEnable, ::driver::GPIOCo
 using UARTEcu = ::driver::UART<constants::uart::ecu::Port, constants::uart::ecu::Tx, constants::uart::ecu::Rx, constants::uart::ecu::BaudRate>;
 using ECUWakeUp = ::driver::GPIO<constants::uart::ecu::Tx, ::driver::GPIOConfigMode::Output>;
 using ButtonMode = ::driver::GPIO<constants::pin::ButtonMode, ::driver::GPIOConfigMode::Input, true>;
-using LedMode = ::driver::GPIO<constants::pin::LedMode, ::driver::GPIOConfigMode::Output>;
+using Indicator = ::driver::GPIO<constants::pin::LedMode, ::driver::GPIOConfigMode::Output>;
 using SwitchBrake = ::driver::GPIO<constants::pin::SwitchBrake, ::driver::GPIOConfigMode::Input, true>;
 using SwitchGuard = ::driver::GPIO<constants::pin::SwitchGuard, ::driver::GPIOConfigMode::Input>;
 }  // namespace driver
@@ -48,7 +48,7 @@ using Accelerator = ::device::Accelerator<driver::ADC, constants::adc::ChannelA,
 using Servo = ::device::Servo<driver::UARTServo, driver::PowerEnable>;
 using ECU = ::device::ECU<driver::UARTEcu, driver::ECUWakeUp>;
 using ButtonMode = ::device::Button<driver::ButtonMode>;
-using LedMode = ::device::Indicator<driver::LedMode>;
+using Indicator = ::device::Indicator<driver::Indicator>;
 using Brake = ::device::Switch<driver::SwitchBrake>;
 using Guard = ::device::Switch<driver::SwitchGuard>;
 }  // namespace device

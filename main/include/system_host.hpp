@@ -32,63 +32,80 @@ concept ControllerConcept = requires(T controller) {
   { controller.process_calibration_loop() } noexcept -> std::same_as<void>;
 };
 
-template <class Controller, std::uint8_t SystemCore = 0, std::uint8_t CriticalCore = 1>
-  requires ControllerConcept<Controller> && (SystemCore <= 1) && (CriticalCore <= 1)
-
+template <class Controller,
+          std::uint8_t SystemCore = 0,
+          std::uint8_t CriticalCore = 1,
+          std::uint16_t CriticalPeriodMS = 10,
+          std::uint16_t SystemPeriodMS = 100,
+          std::uint16_t ControlPeriodMS = 1000>
+  requires ControllerConcept<Controller> && (SystemCore <= 1) && (CriticalCore <= 1) && (10 <= CriticalPeriodMS) && (CriticalPeriodMS <= SystemPeriodMS) &&
+           (SystemPeriodMS <= ControlPeriodMS)
 class SystemHost {
+  static constexpr std::uint8_t system_core{SystemCore};
+  static constexpr std::uint8_t critical_core{CriticalCore};
+  static constexpr std::uint16_t critical_period_ms{CriticalPeriodMS};
+  static constexpr std::uint16_t system_period_ms{SystemPeriodMS};
+  static constexpr std::uint16_t control_period_ms{ControlPeriodMS};
+
   Controller& m_controller;
 
   [[noreturn]] static auto ecu_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (true) {
       host->m_controller.process_ecu_loop();
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(system_period_ms));
     }
   }
 
   [[noreturn]] static auto ota_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (true) {
       host->m_controller.process_ota_loop();
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(system_period_ms));
     }
   }
 
   [[noreturn]] static auto control_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (true) {
       host->m_controller.process_control_loop();
-      vTaskDelay(pdMS_TO_TICKS(1000));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(control_period_ms));
     }
   }
 
   [[noreturn]] static auto telemetry_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (true) {
       host->m_controller.process_telemetry_loop();
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(system_period_ms));
     }
   }
 
   [[noreturn]] static auto calibration_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (true) {
       host->m_controller.process_calibration_loop();
-      vTaskDelay(pdMS_TO_TICKS(1000));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(control_period_ms));
     }
   }
 
   [[noreturn]] static auto system_task_adapter(void* parameters) -> void {
     auto* host = static_cast<SystemHost*>(parameters);
+    TickType_t last_wake_time = xTaskGetTickCount();
 
     while (true) {
       host->m_controller.process_system_loop();
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(critical_period_ms));
     }
   }
 
@@ -98,7 +115,7 @@ class SystemHost {
 
     while (true) {
       host->m_controller.process_critical_loop();
-      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(10));
+      vTaskDelayUntil(&last_wake_time, pdMS_TO_TICKS(critical_period_ms));
     }
   }
 
@@ -116,14 +133,14 @@ class SystemHost {
   constexpr ~SystemHost() noexcept = default;
 
   auto run() -> void {
-    xTaskCreatePinnedToCore(&SystemHost::ecu_task_adapter, "ECUTask", 4096, this, 0, nullptr, SystemCore);
-    xTaskCreatePinnedToCore(&SystemHost::ota_task_adapter, "OTATask", 4096, this, 0, nullptr, SystemCore);
-    xTaskCreatePinnedToCore(&SystemHost::control_task_adapter, "ControlTask", 4096, this, 0, nullptr, SystemCore);
-    xTaskCreatePinnedToCore(&SystemHost::telemetry_task_adapter, "TelemetryTask", 4096, this, 0, nullptr, SystemCore);
-    xTaskCreatePinnedToCore(&SystemHost::calibration_task_adapter, "CalibrationTask", 4096, this, 0, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::ecu_task_adapter, "ECUTask", 4096, this, 0, nullptr, system_core);
+    xTaskCreatePinnedToCore(&SystemHost::ota_task_adapter, "OTATask", 4096, this, 0, nullptr, system_core);
+    xTaskCreatePinnedToCore(&SystemHost::control_task_adapter, "ControlTask", 4096, this, 0, nullptr, system_core);
+    xTaskCreatePinnedToCore(&SystemHost::telemetry_task_adapter, "TelemetryTask", 4096, this, 0, nullptr, system_core);
+    xTaskCreatePinnedToCore(&SystemHost::calibration_task_adapter, "CalibrationTask", 4096, this, 0, nullptr, system_core);
 
-    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, SystemCore);
+    xTaskCreatePinnedToCore(&SystemHost::system_task_adapter, "SystemTask", 4096, this, 5, nullptr, system_core);
 
-    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, CriticalCore);
+    xTaskCreatePinnedToCore(&SystemHost::critical_task_adapter, "CriticalTask", 4096, this, 10, nullptr, critical_core);
   }
 };

@@ -25,10 +25,10 @@ namespace device {
 
 enum class IndicatorMode { Off, On, Blink };
 
-template <class Driver>
+template <class Driver, std::uint16_t UpdatePeriodMS = 10, std::uint16_t HalfPeriodMS = 250>
   requires concepts::GPIO<Driver>
 class Indicator {
-  static constexpr std::uint8_t ticks_per_half_period = 25;
+  static constexpr std::uint16_t ticks_per_half_period{(HalfPeriodMS + UpdatePeriodMS - 1) / UpdatePeriodMS};
 
   Driver& m_driver;
 

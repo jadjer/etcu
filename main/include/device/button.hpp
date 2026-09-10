@@ -39,9 +39,17 @@ constexpr auto BuildPattern(Args... args) noexcept -> std::uint16_t {
 
 enum class ButtonState : std::uint8_t { Idle = 0, Pressed, WaitNextPress, WaitReleaseLong };
 
-template <class Driver, std::uint16_t Debounce = 3, std::uint16_t LongPress = 50, std::uint16_t MultiClickTimeout = 35>
+template <class Driver,
+          std::uint16_t UpdatePeriodMS = 10,
+          std::uint16_t DebounceMS = 30,
+          std::uint16_t LongPressMS = 500,
+          std::uint16_t MultiClickTimeoutMS = 350>
   requires concepts::GPIO<Driver>
 class Button {
+  static constexpr std::uint16_t debounce_ticks{(DebounceMS + UpdatePeriodMS - 1) / UpdatePeriodMS};
+  static constexpr std::uint16_t long_press_ticks{(LongPressMS + UpdatePeriodMS - 1) / UpdatePeriodMS};
+  static constexpr std::uint16_t multi_click_timeout_ticks{(MultiClickTimeoutMS + UpdatePeriodMS - 1) / UpdatePeriodMS};
+
   Driver& m_driver;
 
   bool m_has_event{false};
@@ -88,7 +96,7 @@ class Button {
 
     switch (m_state) {
       case ButtonState::Idle:
-        if (is_pressed && ++m_ticks >= Debounce) {
+        if (is_pressed && ++m_ticks >= debounce_ticks) {
           change_state(ButtonState::Pressed);
         } else if (!is_pressed) {
           m_ticks = 0;
@@ -98,13 +106,13 @@ class Button {
       case ButtonState::Pressed:
         if (!is_pressed) {
           m_hold_ticks = 0;
-          if (++m_ticks >= Debounce) {
+          if (++m_ticks >= debounce_ticks) {
             push_click(ClickType::Short);
             change_state(ButtonState::WaitNextPress);
           }
         } else {
           m_ticks = 0;
-          if (++m_hold_ticks >= LongPress) {
+          if (++m_hold_ticks >= long_press_ticks) {
             push_click(ClickType::Long);
             change_state(ButtonState::WaitReleaseLong);
           }
@@ -113,12 +121,12 @@ class Button {
 
       case ButtonState::WaitNextPress:
         if (is_pressed) {
-          if (++m_ticks >= Debounce) {
+          if (++m_ticks >= debounce_ticks) {
             change_state(ButtonState::Pressed);
           }
         } else {
           m_ticks = 0;
-          if (++m_hold_ticks >= MultiClickTimeout) {
+          if (++m_hold_ticks >= multi_click_timeout_ticks) {
             m_ready_pattern = MakePattern(m_clicks_count, m_pattern_mask);
             m_has_event = true;
             reset();
@@ -127,7 +135,7 @@ class Button {
         break;
 
       case ButtonState::WaitReleaseLong:
-        if (!is_pressed && ++m_ticks >= Debounce) {
+        if (!is_pressed && ++m_ticks >= debounce_ticks) {
           change_state(ButtonState::WaitNextPress);
         } else if (is_pressed) {
           m_ticks = 0;

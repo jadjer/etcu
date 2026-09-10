@@ -29,11 +29,11 @@ config::driver::UARTEcu uart_ecu_driver;
 config::driver::ECUWakeUp ecu_wake_up_driver;
 config::device::ECU ecu{uart_ecu_driver, ecu_wake_up_driver};
 
-config::driver::ButtonMode button_mode_driver;
-config::device::ButtonMode mode_button{button_mode_driver};
+config::driver::ButtonMode button_driver;
+config::device::ButtonMode button{button_driver};
 
-config::driver::LedMode led_mode_driver;
-config::device::LedMode mode_indicator{led_mode_driver};
+config::driver::Indicator indicator_driver;
+config::device::Indicator indicator{indicator_driver};
 
 config::driver::SwitchBrake switch_brake_driver;
 config::device::Brake brake_switch{switch_brake_driver};
@@ -41,7 +41,7 @@ config::device::Brake brake_switch{switch_brake_driver};
 config::driver::SwitchGuard switch_guard_driver;
 config::device::Guard guard_switch{switch_guard_driver};
 
-Controller controller{accelerator, servo, ecu, mode_button, mode_indicator, brake_switch, guard_switch};
+Controller controller{accelerator, servo, ecu, button, indicator, brake_switch, guard_switch};
 
 SystemHost system_host{controller};
 
