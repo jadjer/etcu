@@ -30,22 +30,22 @@ static constexpr std::uint16_t ErrorShiftAccelerator{13};
 
 enum class SystemError : std::uint16_t {
   None = 0,
-  ECUInitFault = 1 << (ErrorShiftECU + 0),                   // 0
-  ECUReadError = 1 << (ErrorShiftECU + 1),                   // 1
-  GuardLock = 1 << (ErrorShiftGuard + 0),                    // 2
-  ServoInitError = 1 << (ErrorShiftServo + 0),               // 3
-  ServoReadError = 1 << (ErrorShiftServo + 1),               // 4
-  ServoWriteError = 1 << (ErrorShiftServo + 2),              // 5
-  BluetoothInitFault = 1 << (ErrorShiftBluetooth + 0),       // 6
-  BluetoothSetPowerFault = 1 << (ErrorShiftBluetooth + 1),   // 7
-  BluetoothSetMTUFault = 1 << (ErrorShiftBluetooth + 2),     // 8
-  BluetoothConnectedFault = 1 << (ErrorShiftBluetooth + 3),  // 9
-  BluetoothSendNotifyError = 1 << (ErrorShiftBluetooth + 4), // 10
-  IndicatorInitFault = 1 << (ErrorShiftIndicator + 0),       // 11
-  PeripheralInitError = 1 << (ErrorShiftPeripheral + 0),     // 12
-  AcceleratorInitError = 1 << (ErrorShiftAccelerator + 0),   // 13
-  AcceleratorReadError = 1 << (ErrorShiftAccelerator + 1),   // 14
-  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),    // 15
+  ECUInitFault = 1 << (ErrorShiftECU + 0),                    // 0
+  ECUReadError = 1 << (ErrorShiftECU + 1),                    // 1
+  GuardLock = 1 << (ErrorShiftGuard + 0),                     // 2
+  ServoInitError = 1 << (ErrorShiftServo + 0),                // 3
+  ServoReadError = 1 << (ErrorShiftServo + 1),                // 4
+  ServoWriteError = 1 << (ErrorShiftServo + 2),               // 5
+  BluetoothInitFault = 1 << (ErrorShiftBluetooth + 0),        // 6
+  BluetoothSetPowerFault = 1 << (ErrorShiftBluetooth + 1),    // 7
+  BluetoothSetMTUFault = 1 << (ErrorShiftBluetooth + 2),      // 8
+  BluetoothConnectedFault = 1 << (ErrorShiftBluetooth + 3),   // 9
+  BluetoothSendNotifyError = 1 << (ErrorShiftBluetooth + 4),  // 10
+  IndicatorInitFault = 1 << (ErrorShiftIndicator + 0),        // 11
+  PeripheralInitError = 1 << (ErrorShiftPeripheral + 0),      // 12
+  AcceleratorInitError = 1 << (ErrorShiftAccelerator + 0),    // 13
+  AcceleratorReadError = 1 << (ErrorShiftAccelerator + 1),    // 14
+  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),     // 15
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {

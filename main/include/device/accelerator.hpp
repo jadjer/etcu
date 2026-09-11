@@ -19,7 +19,7 @@
 #pragma once
 
 #include "common/atomic_container.hpp"
-#include "common/map_range.hpp"
+#include "common/range.hpp"
 #include "config/concepts.hpp"
 #include "type/calibration.hpp"
 #include "type/error.hpp"

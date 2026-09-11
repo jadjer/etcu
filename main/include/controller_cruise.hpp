@@ -20,38 +20,78 @@
 
 #include <algorithm>
 #include <cmath>
+
 #include "common/atomic_container.hpp"
-#include "common/map_range.hpp"
-#include "common/pid_regulator.hpp"
+#include "common/range.hpp"
 #include "type/control.hpp"
 #include "type/type.hpp"
 
+class PidController {
+  float const m_dt, m_min, m_max;
+
+  common::AtomicContainer<float> m_kp{0.0f};
+  common::AtomicContainer<float> m_ki{0.0f};
+  common::AtomicContainer<float> m_kd{0.0f};
+  common::AtomicContainer<float> m_integral{0.0f};
+  common::AtomicContainer<float> m_last_error{0.0f};
+
+ public:
+  constexpr explicit PidController(float const dt, float const min, float const max) noexcept : m_dt{dt}, m_min{min}, m_max{max} {}
+
+  auto set_coefficients(float const kp, float const ki, float const kd) noexcept -> void {
+    m_kp.store(kp);
+    m_ki.store(ki);
+    m_kd.store(kd);
+  }
+
+  auto update(float const error) noexcept -> type::Position {
+    float const kp = m_kp.load();
+    float const ki = m_ki.load();
+    float const kd = m_kd.load();
+    float const last_error = m_last_error.load();
+
+    float const p_term = kp * error;
+    float const next_integral = std::clamp(m_integral.load() + ki * error * m_dt, m_min, m_max);
+    m_integral.store(next_integral);
+
+    float const d_term = kd * ((error - last_error) / m_dt);
+    m_last_error.store(error);
+
+    float const output = p_term + next_integral + d_term;
+    float const rounded_output = std::roundf(output);
+
+    return type::Position{static_cast<std::int32_t>(rounded_output)};
+  }
+
+  auto reset_to(float const base_value, float const initial_error = 0.0f) noexcept -> void {
+    m_integral.store(std::clamp(base_value, m_min, m_max));
+    m_last_error.store(initial_error);
+  }
+};
+
 class ControllerCruise {
   static constexpr float dt_ecu{0.1f};
-  static constexpr float position_min_f{static_cast<float>(type::Position::value_min)};
-  static constexpr float position_max_f{static_cast<float>(type::Position::value_max)};
+  static constexpr type::Position position_min{type::Position::value_min};
+  static constexpr type::Position position_max{type::Position::value_max};
 
   common::AtomicContainer<bool> m_is_active{false};
-  common::AtomicContainer<float> m_pid_output{0.0f};
-  common::AtomicContainer<type::Speed> m_target_speed{type::Speed{0}};
+  common::AtomicContainer<type::Speed> m_target_speed{0};
+  common::AtomicContainer<type::Position> m_cruise_position{0};
 
   bool m_was_active_critical{false};
-  type::Position m_last_servo{type::Position::value_min};
-
-  common::PidController m_pid{10.0f, 0.4f, 2.0f, dt_ecu, -position_max_f, position_max_f};
+  PidController m_pid{dt_ecu, -position_max.get(), position_max.get()};
+  type::Position m_last_position{type::Position::value_min};
 
  public:
   constexpr ControllerCruise() noexcept = default;
 
   auto calculate_pid_target(type::Speed const current_speed, type::Control const& control) noexcept -> void {
-    type::Speed const target_speed = m_target_speed.load();
-
     m_pid.set_coefficients(control.cruise.p, control.cruise.i, control.cruise.d);
 
-    float const error = target_speed.as<float>() - current_speed.as<float>();
-    float const pid_output = m_pid.update(error, false);
+    float const error = m_target_speed.load().as<float>() - current_speed.as<float>();
 
-    m_pid_output.store(pid_output);
+    // ✅ Исправлено: Удален лишний аргумент false, так как PidController::update теперь принимает только error
+    m_cruise_position.store(m_pid.update(error));
   }
 
   [[nodiscard]] auto generate_servo_position(type::Position const accelerator,
@@ -65,39 +105,38 @@ class ControllerCruise {
       m_is_active.store(false);
     }
 
-    type::Position const max_change = control.cruise.limiter;
+    type::Position const driver_position =
+        common::map_range(accelerator, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);
 
-    type::Position const driver_pos = common::map_range(
-        accelerator, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);
+    auto const driver_position_f = driver_position.as<float>();
 
-    // Безопасная инициализация m_last_error при фронте активации круиза (обнуление Kd)
-    if (is_active && !m_was_active_critical) {
+    if (!is_active) {
+      m_was_active_critical = false;
+      m_pid.reset_to(driver_position_f, 0.0f);
+      m_last_position = driver_position;
+      return driver_position;
+    }
+
+    if (!m_was_active_critical) {
       float const initial_error = m_target_speed.load().as<float>() - current_speed.as<float>();
-      m_pid.reset_to(driver_pos.as<float>(), initial_error);
-      m_last_servo = driver_pos;
+      m_pid.reset_to(driver_position_f, initial_error);
+      m_last_position = driver_position;
       m_was_active_critical = true;
     }
 
-    float const clamped_pid = std::clamp(m_pid_output.load(), position_min_f, position_max_f);
-    type::Position const cruise_pos{static_cast<type::primitive::Position>(std::roundf(clamped_pid))};
-
-    // Логика перехвата: если рука водителя открыта сильнее расчетной позиции круиза
-    if (is_active && (driver_pos < cruise_pos)) {
-      auto const last_servo_raw = m_last_servo.as<std::int32_t>();
-      auto const max_change_raw = max_change.as<std::int32_t>();
-
-      m_last_servo = type::Position{std::clamp(cruise_pos.as<std::int32_t>(),
-                                               last_servo_raw - max_change_raw,
-                                               last_servo_raw + max_change_raw)};
-    } else {
-      m_last_servo = driver_pos;
-      if (!is_active) {
-        m_was_active_critical = false;
-        m_pid.reset_to(driver_pos.as<float>(), 0.0f); // Теневое копирование ручки
-      }
+    type::Position const cruise_position = m_cruise_position.load();
+    if (driver_position > cruise_position) {
+      m_last_position = driver_position;
+      return driver_position;
     }
 
-    return m_last_servo;
+    type::Position const limiter = control.cruise.limiter;
+    type::Position const cruise_position_minimal{m_last_position - limiter};
+    type::Position const cruise_position_maximal{m_last_position + limiter};
+
+    m_last_position = common::range(cruise_position, cruise_position_minimal, cruise_position_maximal);
+
+    return m_last_position;
   }
 
   auto set_active(bool const active) noexcept -> void { m_is_active.store(active); }

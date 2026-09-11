@@ -30,7 +30,7 @@ struct BoundedValue {
   static constexpr T value_max{MaxVal};
 
   T value{value_min};
-
+  
   constexpr BoundedValue(std::int32_t const val) noexcept  // NOLINT
       : value{static_cast<T>(std::clamp(val, static_cast<std::int32_t>(value_min), static_cast<std::int32_t>(value_max)))} {}
 

@@ -31,6 +31,18 @@ concept IsBoundedConcept = requires(T instance) {
   { instance = std::int32_t{} } -> std::same_as<T&>;
 };
 
+template <typename In>
+  requires IsBoundedConcept<In>
+constexpr auto range(In const value, In const fromMin, In const fromMax) -> In {
+  if (fromMax <= fromMin) [[unlikely]] {
+    return fromMin;
+  }
+
+  In const clamped = std::clamp(value, fromMin, fromMax);
+
+  return clamped;
+}
+
 template <typename In, typename Out>
   requires IsBoundedConcept<In> && IsBoundedConcept<Out>
 constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out const toMin, Out const toMax) -> Out {

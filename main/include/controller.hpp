@@ -151,23 +151,13 @@ class Controller {
         return false;
       }
 
-      if (speed < control.cruise.speed.min) {
-        m_logger.log_info("Cruise %s error: speed too low", context);
+      if (!control.cruise.speed.contains(speed)) {
+        m_logger.log_info("Cruise %s error: speed out of range", context);
         return false;
       }
 
-      if (speed > control.cruise.speed.max) {
-        m_logger.log_info("Cruise %s error: speed too fast", context);
-        return false;
-      }
-
-      if (current_rpm < control.cruise.rpm.min) {
-        m_logger.log_info("Cruise %s error: RPM too low", context);
-        return false;
-      }
-
-      if (current_rpm > control.cruise.rpm.max) {
-        m_logger.log_info("Cruise %s error: RPM too high", context);
+      if (!control.cruise.rpm.contains(current_rpm)) {
+        m_logger.log_info("Cruise %s error: RPM out of range", context);
         return false;
       }
 
@@ -413,32 +403,28 @@ class Controller {
     }
 
     type::SystemState const system_state = m_system_state.load();
+    bool const is_cruise_active = m_cruise.is_active();
 
     if (system_state == type::SystemState::Off) {
-      m_cruise.set_active(false);
-      m_cruise.set_target_speed(type::Speed{0});
-      m_indicator.turn_off();
-      m_logger.log_warn("System shutdown. Disable cruise force");
+      if (is_cruise_active) {
+        m_cruise.set_active(false);
+        m_cruise.set_target_speed(type::Speed{0});
+        m_indicator.turn_off();
+        m_logger.log_warn("System shutdown. Disable cruise force");
+      }
+      return;
     }
 
     type::ECUTelemetry const ecu = m_ecu_telemetry.load();
-
     type::Control control = m_control.load();
-
     bool const safety_active = is_safety_active(ecu, control);
 
     if (system_state == type::SystemState::Normal && m_mode_button.has_event()) {
       handle_mode_button(m_mode_button.get_pattern(), control, ecu.speed, ecu.rpm, safety_active);
     }
 
-    if (!m_cruise.is_active()) {
+    if (!is_cruise_active) {
       m_cruise.set_target_speed(ecu.speed);
-    }
-
-    if (m_cruise.is_active()) {
-      m_indicator.turn_on();
-    } else {
-      m_indicator.turn_off();
     }
   }
 
@@ -460,7 +446,7 @@ class Controller {
   }
 
   auto process_critical_loop() noexcept -> void {
-    if (type::SystemState const system_state = m_system_state.load(); system_state != type::SystemState::Normal) {
+    if (type::SystemState const system_state = m_system_state.load(); system_state != type::SystemState::Normal) [[unlikely]] {
       m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(type::Position{0}));
       return;
     }
@@ -472,9 +458,11 @@ class Controller {
     type::ECUTelemetry const ecu = m_ecu_telemetry.load();
 
     bool const safety_active = is_safety_active(ecu, control);
+    bool is_cruise_active = m_cruise.is_active();
 
-    if (m_cruise.is_active() && safety_active) [[unlikely]] {
-      m_cruise.set_active(false);
+    if (is_cruise_active && safety_active) [[unlikely]] {
+      is_cruise_active = false;
+      m_cruise.set_active(is_cruise_active);
       m_indicator.turn_off();
       m_logger.log_warn("Cruise force disabled by critical safety snapshot");
     }

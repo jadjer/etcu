@@ -21,7 +21,7 @@
 #include "common/atomic_container.hpp"
 #include "common/calculate.hpp"
 #include "common/convert.hpp"
-#include "common/map_range.hpp"
+#include "common/range.hpp"
 #include "device/servo/register.hpp"
 #include "device/servo/servo_message.hpp"
 #include "device/servo/servo_protocol.hpp"
