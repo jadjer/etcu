@@ -18,38 +18,38 @@
 
 #pragma once
 
-#include <algorithm>
-
 namespace common {
 
 class PidController {
-  float const m_kp, m_ki, m_kd, m_dt;
-  float const m_min, m_max;
+  float const m_dt, m_min, m_max;
+  float m_kp, m_ki, m_kd;
   float m_integral{0.0f};
   float m_last_error{0.0f};
 
 public:
-  constexpr PidController(float kp, float ki, float kd, float dt, float min, float max) noexcept
-      : m_kp(kp), m_ki(ki), m_kd(kd), m_dt(dt), m_min(min), m_max(max) {}
+  constexpr PidController(float const kp, float const ki, float const kd, float const dt, float const min, float const max) noexcept
+      : m_dt{dt}, m_min{min}, m_max{max}, m_kp{kp}, m_ki{ki}, m_kd{kd} {}
 
-  [[nodiscard]] auto calculate(float const error) const noexcept -> float {
-    float const p_term = m_kp * error;
-    float const i_term = m_integral;
-    float const d_term = m_kd * ((error - m_last_error) / m_dt);
-
-    return std::clamp(p_term + i_term + d_term, m_min, m_max);
+  auto set_coefficients(float const kp, float const ki, float const kd) noexcept -> void {
+    m_kp = kp; m_ki = ki; m_kd = kd;
   }
 
-  auto update(float const error, bool const freeze_integral) noexcept -> void {
+  auto update(float const error, bool const freeze_integral) noexcept -> float {
+    float const p_term = m_kp * error;
+
     if (!freeze_integral) {
-      m_integral = std::clamp(m_integral + m_ki * error * m_dt, m_min, m_max);
+      m_integral = m_integral + m_ki * error * m_dt;
     }
 
+    float const d_term = m_kd * ((error - m_last_error) / m_dt);
+
     m_last_error = error;
+
+    return std::clamp(p_term + m_integral + d_term, m_min, m_max);
   }
 
   auto reset_to(float const base_value, float const initial_error = 0.0f) noexcept -> void {
-    m_integral = std::clamp(base_value, m_min, m_max);
+    m_integral = base_value;
     m_last_error = initial_error;
   }
 };

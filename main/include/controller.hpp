@@ -20,7 +20,7 @@
 
 #include "bluetooth/ble_manager.hpp"
 #include "common/atomic_container.hpp"
-#include "controller_logic.hpp"
+#include "controller_cruise.hpp"
 #include "device/button.hpp"
 #include "logger.hpp"
 #include "ota_manager.hpp"
@@ -84,7 +84,6 @@ template <class Accelerator, class Servo, class ECU, class ModeButton, class Ind
   requires AcceleratorConcept<Accelerator> && ServoConcept<Servo> && ECUConcept<ECU> && ButtonConcept<ModeButton> && IndicatorConcept<Indicator> &&
            SwitchConcept<Brake> && SwitchConcept<Guard>
 class Controller {
-  static constexpr type::Speed cruise_minimal_speed{40};
   static constexpr type::ServoCalibrationData servo_calibration_factory{
       .position_minimal{600},
       .position_maximal{1250},
@@ -110,8 +109,6 @@ class Controller {
   ModeButton& m_mode_button;
   Accelerator& m_accelerator;
 
-  common::AtomicContainer<bool> m_is_cruise_active{false};
-  common::AtomicContainer<type::Speed> m_target_speed{0};
   common::AtomicContainer<type::Control> m_control{};
   common::AtomicContainer<DriveTelemetry> m_driver_telemetry{};
   common::AtomicContainer<type::Calibration> m_calibration{};
@@ -121,67 +118,100 @@ class Controller {
 
   Logger m_logger;
   Storage m_storage;
-  ControllerLogic m_logic;
   OTAManager m_ota_manager;
+  ControllerCruise m_cruise;
   std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
   SystemErrors m_system_errors;
   type::Control m_last_control{};
   type::Calibration m_last_calibration{};
   bluetooth::BLEManager m_ble_manager{m_control, m_calibration, m_ota_chunk};
 
-  auto handle_mode_button(std::uint16_t const pattern, type::Control& control, type::Speed const& current_speed, bool const safety_active) -> void {
-    bool const is_active = m_is_cruise_active.load();
-    type::Speed const target_speed = m_target_speed.load();
+  auto handle_mode_button(std::uint16_t const pattern,
+                          type::Control& control,
+                          type::Speed const& current_speed,
+                          type::RPM const& current_rpm,
+                          bool const safety_active) -> void {
+    bool const is_active = m_cruise.is_active();
 
     if (pattern == device::BuildPattern(device::ClickType::Short)) {
       if (is_active) {
-        m_is_cruise_active.store(false);
+        m_cruise.set_active(false);
         m_indicator.turn_off();
-        m_logger.log_info("Cruise paused");
-      } else {
-        if (safety_active) {
-          m_indicator.blink_times(2);
-          m_logger.log_info("Cruise resume error: safety active");
-          return;
-        }
+      }
 
-        if (target_speed < cruise_minimal_speed) {
-          m_indicator.blink_times(2);
-          m_logger.log_info("Cruise resume error: target speed very low");
-          return;
-        }
+      m_indicator.blink_times(1);
+      m_logger.log_info("Cruise paused");
 
-        m_is_cruise_active.store(true);
+      return;
+    }
+
+    auto const validate_and_log = [&](type::Speed const& speed, const char* context) noexcept -> bool {
+      if (safety_active) {
+        m_logger.log_info("Cruise %s error: safety active", context);
+        return false;
+      }
+
+      if (speed < control.cruise.speed.min) {
+        m_logger.log_info("Cruise %s error: speed too low", context);
+        return false;
+      }
+
+      if (speed > control.cruise.speed.max) {
+        m_logger.log_info("Cruise %s error: speed too fast", context);
+        return false;
+      }
+
+      if (current_rpm < control.cruise.rpm.min) {
+        m_logger.log_info("Cruise %s error: RPM too low", context);
+        return false;
+      }
+
+      if (current_rpm > control.cruise.rpm.max) {
+        m_logger.log_info("Cruise %s error: RPM too high", context);
+        return false;
+      }
+
+      return true;
+    };
+
+    if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
+      if (is_active) {
+        m_indicator.blink_times(1);
+        return;
+      }
+
+      type::Speed const target = m_cruise.get_target_speed();
+
+      if (validate_and_log(target, "resume")) {
+        m_cruise.set_active(true);
         m_indicator.turn_on();
-        m_logger.log_info("Cruise resumed");
+        m_logger.log_info("Cruise resumed at: %d km/h", target.get());
+      } else {
+        m_indicator.blink_times(2);
       }
 
       return;
     }
 
-    if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
-      if (safety_active) {
-        m_indicator.blink_times(2);
-        m_logger.log_info("Cruise enable error: safety active");
+    if (pattern == device::BuildPattern(device::ClickType::Long)) {
+      if (is_active) {
+        m_indicator.blink_times(1);
         return;
       }
 
-      if (current_speed < cruise_minimal_speed) {
+      if (validate_and_log(current_speed, "enable")) {
+        m_cruise.set_target_speed(current_speed);
+        m_cruise.set_active(true);
+        m_indicator.turn_on();
+        m_logger.log_info("Cruise enabled and set at: %d km/h", current_speed.get());
+      } else {
         m_indicator.blink_times(2);
-        m_logger.log_info("Cruise enable error: current speed very low");
-        return;
       }
-
-      m_target_speed.store(current_speed);
-      m_is_cruise_active.store(true);
-      m_indicator.turn_on();
-      m_logger.log_info("Cruise enabled");
 
       return;
     }
 
     type::Position max_servo{0};
-
     if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
       max_servo = type::Position{300};
     } else if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short)) {
@@ -197,6 +227,15 @@ class Controller {
       m_logger.log_info("Set servo max as %d", max_servo.get());
       m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_control(control));
     }
+  }
+
+  [[nodiscard]] auto is_safety_active(type::ECUTelemetry const& ecu, type::Control const& control) const noexcept -> bool {
+    bool const is_rpm_valid = control.cruise.rpm.contains(ecu.rpm);
+    bool const is_speed_valid = control.cruise.speed.contains(ecu.speed);
+    bool const is_brake_active = m_brake.is_active();
+    bool const is_gearbox_neutral = ecu.is_neutral;
+
+    return !is_rpm_valid || !is_speed_valid || is_brake_active || is_gearbox_neutral;
   }
 
  public:
@@ -262,7 +301,6 @@ class Controller {
     }
 
     m_logger.log_info("Initialization...Done");
-
     return true;
   }
 
@@ -301,6 +339,9 @@ class Controller {
 
     if (type::ECUTelemetry ecu_telemetry; m_ecu.get_telemetry(ecu_telemetry)) {
       m_ecu_telemetry.store(ecu_telemetry);
+
+      type::Control const control = m_control.load();
+      m_cruise.calculate_pid_target(ecu_telemetry.speed, control);
     }
   }
 
@@ -308,7 +349,6 @@ class Controller {
     type::SystemState const state = m_system_state.load();
 
     auto const [size, total, index, data] = m_ota_chunk.load();
-
     if (size == 0 || index == m_chunk_index) {
       return;
     }
@@ -335,7 +375,6 @@ class Controller {
       if (!m_ota_manager.start_update(size)) {
         return handle_error("Start OTA error");
       }
-
       m_logger.log_info("Start OTA (Size: %d bytes, Chunks: %d)", size, total);
       m_system_state.store(type::SystemState::Update);
     }
@@ -370,29 +409,36 @@ class Controller {
     if (m_guard.is_active()) {
       m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLock);
       m_system_state.store(type::SystemState::Off);
-      m_logger.log_warn("Guard is active. System shout down");
+      m_logger.log_warn("Guard is active. System shutdown");
     }
 
     type::SystemState const system_state = m_system_state.load();
 
     if (system_state == type::SystemState::Off) {
-      m_is_cruise_active.store(false);
-      m_target_speed.store(type::Speed{0});
+      m_cruise.set_active(false);
+      m_cruise.set_target_speed(type::Speed{0});
       m_indicator.turn_off();
-      m_logger.log_warn("System shout down. Disable cruise force");
+      m_logger.log_warn("System shutdown. Disable cruise force");
     }
 
-    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
-    bool const is_brake_active = m_brake.is_active();
-    bool const is_gearbox_neutral = ecu_telemetry.is_neutral;
-    bool const safety_active = is_brake_active || is_gearbox_neutral;
-    type::Speed const current_speed = ecu_telemetry.speed;
-    std::uint16_t const button_patern = m_mode_button.get_pattern();
+    type::ECUTelemetry const ecu = m_ecu_telemetry.load();
 
     type::Control control = m_control.load();
 
+    bool const safety_active = is_safety_active(ecu, control);
+
     if (system_state == type::SystemState::Normal && m_mode_button.has_event()) {
-      handle_mode_button(button_patern, control, current_speed, safety_active);
+      handle_mode_button(m_mode_button.get_pattern(), control, ecu.speed, ecu.rpm, safety_active);
+    }
+
+    if (!m_cruise.is_active()) {
+      m_cruise.set_target_speed(ecu.speed);
+    }
+
+    if (m_cruise.is_active()) {
+      m_indicator.turn_on();
+    } else {
+      m_indicator.turn_off();
     }
   }
 
@@ -422,24 +468,18 @@ class Controller {
     type::AcceleratorTelemetry accelerator_telemetry;
     m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.get_telemetry(accelerator_telemetry));
 
-    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
+    type::Control const control = m_control.load();
+    type::ECUTelemetry const ecu = m_ecu_telemetry.load();
 
-    bool const is_brake_active = m_brake.is_active();
-    bool const is_gearbox_neutral = ecu_telemetry.is_neutral;
+    bool const safety_active = is_safety_active(ecu, control);
 
-    bool is_cruise_active = m_is_cruise_active.load();
-
-    if (is_cruise_active && (is_brake_active || is_gearbox_neutral)) [[unlikely]] {
-      is_cruise_active = false;
-      m_is_cruise_active.store(false);
+    if (m_cruise.is_active() && safety_active) [[unlikely]] {
+      m_cruise.set_active(false);
       m_indicator.turn_off();
+      m_logger.log_warn("Cruise force disabled by critical safety snapshot");
     }
 
-    type::Speed const target_speed = m_target_speed.load();
-    type::Control const control = m_control.load();
-
-    type::Position const servo_position =
-        m_logic.calculate_servo_position(accelerator_telemetry.position, ecu_telemetry.speed, target_speed, is_cruise_active, control);
+    type::Position const servo_position = m_cruise.generate_servo_position(accelerator_telemetry.position, safety_active, control, ecu.speed);
     m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(servo_position));
 
     type::ServoTelemetry servo_telemetry;
@@ -453,7 +493,7 @@ class Controller {
   }
 
   auto process_telemetry_loop() noexcept -> void {
-    type::Speed const target_speed = m_target_speed.load();
+    type::Speed const target_speed = m_cruise.get_target_speed();
     type::SystemState const system_state = m_system_state.load();
     type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
 

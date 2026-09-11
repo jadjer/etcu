@@ -47,9 +47,27 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
   }
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
-    auto const [servo, accelerator] = characteristic->getValue<type::dto::ControlDTO>();
+    auto const [cruise, servo, accelerator] = characteristic->getValue<type::dto::ControlDTO>();
 
     type::Control const control{
+        .cruise =
+            type::Cruise{
+                .p = cruise.p,
+                .i = cruise.i,
+                .d = cruise.d,
+                .rpm =
+                    type::RPMRange{
+                        .min = cruise.rpm.min,
+                        .max = cruise.rpm.max,
+                    },
+                .limiter = cruise.limiter,
+                .speed =
+                    type::SpeedRange{
+                        .min = cruise.speed.min,
+                        .max = cruise.speed.max,
+                    },
+
+            },
         .servo =
             type::PositionRange{
                 .min = servo.min,

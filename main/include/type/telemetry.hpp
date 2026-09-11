@@ -18,8 +18,6 @@
 
 #pragma once
 
-#include <array>
-
 #include "type/dto.hpp"
 #include "type/error.hpp"
 #include "type/state.hpp"
@@ -89,7 +87,7 @@ struct AcceleratorTelemetry {
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::AcceleratorTelemetryDTO {
     return dto::AcceleratorTelemetryDTO{
         .hall_a = hall_a.get(),
-        .hall_b = hall_a.get(),
+        .hall_b = hall_b.get(),
         .position = position.get(),
     };
   }

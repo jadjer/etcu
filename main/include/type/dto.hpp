@@ -26,15 +26,38 @@
 
 namespace type::dto {
 
+struct RPMRangeDTO {
+  primitive::RPM min{0};  // 2
+  primitive::RPM max{0};  // 2
+
+} __attribute__((packed));
+
+struct SpeedRangeDTO {
+  primitive::Speed min{0};  // 1
+  primitive::Speed max{0};  // 1
+
+} __attribute__((packed));
+
 struct PositionRangeDTO {
   primitive::Position min{0};  // 2
   primitive::Position max{0};  // 2
 
 } __attribute__((packed));
 
+struct CruiseDTO {
+  float p{};                // 4
+  float i{};                // 4
+  float d{};                // 4
+  RPMRangeDTO rpm{};        // 4
+  SpeedRangeDTO speed{};    // 2
+  std::uint16_t limiter{};  // 2
+
+} __attribute__((packed));
+
 struct ControlDTO {
-  PositionRangeDTO servo;        // 4
-  PositionRangeDTO accelerator;  // 4
+  CruiseDTO cruise{};              // 20
+  PositionRangeDTO servo{};        // 4
+  PositionRangeDTO accelerator{};  // 4
 
 } __attribute__((packed));
 

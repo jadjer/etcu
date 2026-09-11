@@ -22,37 +22,37 @@
 
 namespace type::limit {
 
-inline constexpr primitive::Load load_min{0};
-inline constexpr primitive::Load load_max{1000};
+static constexpr primitive::Load load_min{0};
+static constexpr primitive::Load load_max{1000};
 
-inline constexpr primitive::Volt volt_min{0};
-inline constexpr primitive::Volt volt_max{100};
+static constexpr primitive::Volt volt_min{0};
+static constexpr primitive::Volt volt_max{100};
 
-inline constexpr primitive::AccPosition acc_pos_min{0};
-inline constexpr primitive::AccPosition acc_pos_max{3100};
+static constexpr primitive::AccPosition acc_pos_min{0};
+static constexpr primitive::AccPosition acc_pos_max{3100};
 
-inline constexpr primitive::Position pos_min{0};
-inline constexpr primitive::Position pos_max{1000};
+static constexpr primitive::Position pos_min{0};
+static constexpr primitive::Position pos_max{1000};
 
-inline constexpr primitive::ServoPosition servo_pos_min{0};
-inline constexpr primitive::ServoPosition servo_pos_max{4095};
+static constexpr primitive::ServoPosition servo_pos_min{0};
+static constexpr primitive::ServoPosition servo_pos_max{4095};
 
-inline constexpr primitive::RPM rpm_min{0};
-inline constexpr primitive::RPM rpm_max{9000};
+static constexpr primitive::RPM rpm_min{0};
+static constexpr primitive::RPM rpm_max{9000};
 
-inline constexpr primitive::Speed speed_min{0};
-inline constexpr primitive::Speed speed_max{200};
+static constexpr primitive::Speed speed_min{0};
+static constexpr primitive::Speed speed_max{200};
 
-inline constexpr primitive::Current current_min{0};
-inline constexpr primitive::Current current_max{2500};
+static constexpr primitive::Current current_min{0};
+static constexpr primitive::Current current_max{2500};
 
-inline constexpr primitive::Temperature temperature_min{0};
-inline constexpr primitive::Temperature temperature_max{150};
+static constexpr primitive::Temperature temperature_min{0};
+static constexpr primitive::Temperature temperature_max{150};
 
-inline constexpr primitive::MilliSec milli_sec_min{0};
-inline constexpr primitive::MilliSec milli_sec_max{1000};
+static constexpr primitive::MilliSec milli_sec_min{0};
+static constexpr primitive::MilliSec milli_sec_max{1000};
 
-inline constexpr primitive::Pressure pressure_min{0};
-inline constexpr primitive::Pressure pressure_max{100};
+static constexpr primitive::Pressure pressure_min{0};
+static constexpr primitive::Pressure pressure_max{100};
 
 }  // namespace type::limit

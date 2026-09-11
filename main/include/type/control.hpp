@@ -18,11 +18,70 @@
 
 #pragma once
 
+#include "type/dto.hpp"
+#include "type/type.hpp"
+
 namespace type {
 
+struct RPMRange {
+  RPM min{};
+  RPM max{};
+
+  [[nodiscard]] constexpr auto contains(RPM const& current_rpm) const noexcept -> bool { return current_rpm >= min && current_rpm <= max; }
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::RPMRangeDTO {
+    return dto::RPMRangeDTO{
+        .min = min.get(),
+        .max = max.get(),
+    };
+  }
+
+  [[nodiscard]] auto operator<=>(RPMRange const&) const = default;
+};
+
+struct SpeedRange {
+  Speed min{};
+  Speed max{};
+
+  [[nodiscard]] constexpr auto contains(Speed const& current_speed) const noexcept -> bool { return current_speed >= min && current_speed <= max; }
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::SpeedRangeDTO {
+    return dto::SpeedRangeDTO{
+        .min = min.get(),
+        .max = max.get(),
+    };
+  }
+
+  [[nodiscard]] auto operator<=>(SpeedRange const&) const = default;
+};
+
+struct Cruise {
+  float p{};
+  float i{};
+  float d{};
+  RPMRange rpm{};
+  Position limiter{};
+  SpeedRange speed{};
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseDTO {
+    return dto::CruiseDTO{
+        .p = p,
+        .i = i,
+        .d = d,
+        .rpm = rpm.to_dto(),
+        .speed = speed.to_dto(),
+        .limiter = limiter.get(),
+    };
+  }
+
+  [[nodiscard]] auto operator<=>(Cruise const&) const = default;
+};
+
 struct PositionRange {
-  Position min{Position::value_min};
-  Position max{Position::value_max};
+  Position min{};
+  Position max{};
+
+  [[nodiscard]] constexpr auto contains(Position const& current_position) const noexcept -> bool { return current_position >= min && current_position <= max; }
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::PositionRangeDTO {
     return dto::PositionRangeDTO{
@@ -36,15 +95,17 @@ struct PositionRange {
 
 struct Control {
   static constexpr std::string_view name{"control"};
-  static constexpr std::uint32_t current_version{1};
+  static constexpr std::uint32_t current_version{2};
 
-  std::uint32_t version{0};
+  std::uint32_t version{};
 
+  Cruise cruise{};
   PositionRange servo{};
   PositionRange accelerator{};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ControlDTO {
     return dto::ControlDTO{
+        .cruise = cruise.to_dto(),
         .servo = servo.to_dto(),
         .accelerator = accelerator.to_dto(),
     };
