@@ -120,76 +120,81 @@ class Controller {
   Storage m_storage;
   OTAManager m_ota_manager;
   ControllerCruise m_cruise;
-  std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
   SystemErrors m_system_errors;
+
   type::Control m_last_control{};
   type::Calibration m_last_calibration{};
   bluetooth::BLEManager m_ble_manager{m_control, m_calibration, m_ota_chunk};
 
-  auto handle_mode_button(std::uint16_t const pattern,
-                          type::Control& control,
-                          type::Speed const& current_speed,
-                          type::RPM const& current_rpm,
-                          bool const safety_active) -> void {
-    bool const is_active = m_cruise.is_active();
-
-    if (pattern == device::BuildPattern(device::ClickType::Short)) {
-      if (is_active) {
-        m_cruise.set_active(false);
-        m_indicator.turn_off();
-      }
-
-      m_indicator.blink_times(1);
-      m_logger.log_info("Cruise paused");
-
-      return;
+  [[nodiscard]] auto validate_cruise_activation(type::Control const& control,
+                                                type::RPM const& current_rpm,
+                                                type::Speed const& current_speed,
+                                                type::Speed const& target_speed,
+                                                bool const safety_active,
+                                                const char* context) noexcept -> bool {
+    if (safety_active) {
+      m_logger.log_info("Cruise %s error: safety active", context);
+      return false;
     }
 
-    auto const validate_and_log = [&](type::Speed const& speed, const char* context) noexcept -> bool {
-      if (safety_active) {
-        m_logger.log_info("Cruise %s error: safety active", context);
-        return false;
-      }
+    if (!control.cruise.rpm.contains(current_rpm)) {
+      m_logger.log_info("Cruise %s error: RPM out of range", context);
+      return false;
+    }
 
-      if (!control.cruise.speed.contains(speed)) {
-        m_logger.log_info("Cruise %s error: speed out of range", context);
-        return false;
-      }
+    // Защита от случайного включения в зоне низких скоростей
+    if (!control.cruise.speed.contains(current_speed)) {
+      m_logger.log_info("Cruise %s error: Current Speed (%d km/h) out of range", context, current_speed.get());
+      return false;
+    }
 
-      if (!control.cruise.rpm.contains(current_rpm)) {
-        m_logger.log_info("Cruise %s error: RPM out of range", context);
-        return false;
-      }
+    // Защита от битых/нулевых данных скорости в памяти устройства
+    if (!control.cruise.speed.contains(target_speed)) {
+      m_logger.log_info("Cruise %s error: Target Speed (%d km/h) out of range", context, target_speed.get());
+      return false;
+    }
 
-      return true;
-    };
+    return true;
+  }
 
-    if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
-      if (is_active) {
+  auto handle_mode_button(std::uint16_t const pattern, type::Control& control, type::Speed const& current_speed, type::RPM const& current_rpm, bool const safety_active) -> void {
+    bool const is_cruise_active = m_cruise.is_active();
+
+    // Паттерн 1: Одиночное короткое нажатие (Пауза ИЛИ Возобновление скорости)
+    if (pattern == device::BuildPattern(device::ClickType::Short)) {
+
+      // Сценарий А: Круиз РАБОТАЕТ -> Ставим на Паузу (плавный спуск газа за 1 секунду)
+      if (is_cruise_active) {
+        m_cruise.set_active(false);
+        m_indicator.turn_off();
         m_indicator.blink_times(1);
+        m_logger.log_info("Cruise paused");
         return;
       }
 
+      // Сценарий Б: Круиз ВЫКЛЮЧЕН -> Выполняем Возобновление (Resume к сохраненной скорости)
       type::Speed const target = m_cruise.get_target_speed();
 
-      if (validate_and_log(target, "resume")) {
+      // ✅ Исправлено: Передаем валидатору и current_speed, и target для сквозной проверки зон безопасности
+      if (validate_cruise_activation(control, current_rpm, current_speed, target, safety_active, "resume")) {
         m_cruise.set_active(true);
         m_indicator.turn_on();
         m_logger.log_info("Cruise resumed at: %d km/h", target.get());
       } else {
-        m_indicator.blink_times(2);
+        m_indicator.blink_times(2); // Отказ: скорость слишком низкая или активны тормоза
       }
-
       return;
     }
 
+    // Паттерн 2: Длинное нажатие (Set - Фиксация текущей скорости)
     if (pattern == device::BuildPattern(device::ClickType::Long)) {
-      if (is_active) {
+      if (is_cruise_active) {
         m_indicator.blink_times(1);
         return;
       }
 
-      if (validate_and_log(current_speed, "enable")) {
+      // При фиксации текущая скорость одновременно является и целевой
+      if (validate_cruise_activation(control, current_rpm, current_speed, current_speed, safety_active, "enable")) {
         m_cruise.set_target_speed(current_speed);
         m_cruise.set_active(true);
         m_indicator.turn_on();
@@ -197,10 +202,10 @@ class Controller {
       } else {
         m_indicator.blink_times(2);
       }
-
       return;
     }
 
+    // Паттерн 3: Сервисная настройка шага отклика (Режимы заслонки 300, 600, 900)
     type::Position max_servo{0};
     if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
       max_servo = type::Position{300};
@@ -219,13 +224,9 @@ class Controller {
     }
   }
 
+  // Проверка условий комплексной безопасности
   [[nodiscard]] auto is_safety_active(type::ECUTelemetry const& ecu, type::Control const& control) const noexcept -> bool {
-    bool const is_rpm_valid = control.cruise.rpm.contains(ecu.rpm);
-    bool const is_speed_valid = control.cruise.speed.contains(ecu.speed);
-    bool const is_brake_active = m_brake.is_active();
-    bool const is_gearbox_neutral = ecu.is_neutral;
-
-    return !is_rpm_valid || !is_speed_valid || is_brake_active || is_gearbox_neutral;
+    return !control.cruise.rpm.contains(ecu.rpm) || !control.cruise.speed.contains(ecu.speed) || m_brake.is_active() || ecu.is_neutral;
   }
 
  public:
@@ -239,17 +240,16 @@ class Controller {
       : m_ecu(ecu), m_servo(servo), m_brake(brake), m_guard(guard), m_indicator(indicator), m_mode_button(mode_button), m_accelerator(accelerator) {}
 
   constexpr Controller() noexcept = delete;
-
   Controller(Controller const&) noexcept = delete;
   auto operator=(Controller const&) noexcept -> Controller& = delete;
-
   Controller(Controller&&) noexcept = delete;
   auto operator=(Controller&&) noexcept -> Controller& = delete;
-
   constexpr ~Controller() noexcept = default;
 
+  // Инициализация аппаратных модулей системы
   auto init() noexcept -> bool {
     Logger::init();
+
     m_logger.log_info("Initialization...");
 
     if (!m_storage.init()) [[unlikely]] {
@@ -257,40 +257,34 @@ class Controller {
       return false;
     }
 
+    // Оптимизированный плоский цикл инициализации периферии
     struct InitStep {
       type::SystemError mask;
       type::SystemError error;
     };
-
-    InitStep const steps[] = {{.mask = type::ErrorMaskECU, .error = m_ecu.init()},
-                              {.mask = type::ErrorMaskServo, .error = m_servo.init()},
-                              {.mask = type::ErrorMaskPeripheral, .error = m_brake.init()},
-                              {.mask = type::ErrorMaskGuard, .error = m_guard.init()},
-                              {.mask = type::ErrorMaskPeripheral, .error = m_mode_button.init()},
-                              {.mask = type::ErrorMaskAccelerator, .error = m_accelerator.init()},
-                              {.mask = type::ErrorMaskBluetooth, .error = m_ble_manager.init()},
-                              {.mask = type::ErrorMaskIndicator, .error = m_indicator.init()}};
+    InitStep const steps[] = {{type::ErrorMaskECU, m_ecu.init()},
+                              {type::ErrorMaskServo, m_servo.init()},
+                              {type::ErrorMaskPeripheral, m_brake.init()},
+                              {type::ErrorMaskGuard, m_guard.init()},
+                              {type::ErrorMaskPeripheral, m_mode_button.init()},
+                              {type::ErrorMaskAccelerator, m_accelerator.init()},
+                              {type::ErrorMaskBluetooth, m_ble_manager.init()},
+                              {type::ErrorMaskIndicator, m_indicator.init()}};
 
     for (auto const& step : steps) {
       m_system_errors.update(step.mask, step.error);
     }
 
-    struct CriticalCheck {
-      type::SystemError mask;
-      char const* error_msg;
-    };
+    if (m_system_errors.has(type::ErrorMaskServo)) {
+      return m_logger.log_error("Servo init fault"), false;
+    }
 
-    CriticalCheck const critical_checks[] = {{.mask = type::ErrorMaskServo, .error_msg = "Servo init fault"},
-                                             {.mask = type::ErrorMaskAccelerator, .error_msg = "Accelerator init fault"}};
-
-    for (auto const& check : critical_checks) {
-      if (m_system_errors.has(check.mask)) [[unlikely]] {
-        m_logger.log_error(check.error_msg);
-        return false;
-      }
+    if (m_system_errors.has(type::ErrorMaskAccelerator)) {
+      return m_logger.log_error("Accelerator init fault"), false;
     }
 
     m_logger.log_info("Initialization...Done");
+
     return true;
   }
 
@@ -303,14 +297,12 @@ class Controller {
 
     auto load_or_factory = [this](auto& out_calib, auto const& factory_calib, auto& device, const char* name) {
       auto temp = factory_calib;
+
       if (!m_storage.load(temp)) {
         m_logger.log_warn("%s factory calibration loading...", name);
-        if (m_storage.save(factory_calib)) {
-          m_logger.log_warn("%s factory calibration loading...Done", name);
-        } else {
-          m_logger.log_error("%s factory calibration loading...Error", name);
-        }
+        m_storage.save(factory_calib);
       }
+
       device.set_calibration(temp);
       out_calib = temp;
     };
@@ -319,19 +311,17 @@ class Controller {
     load_or_factory(m_last_calibration.servo, servo_calibration_factory, m_servo, "Servo");
 
     m_calibration.store(m_last_calibration);
+
     m_logger.log_info("Configuration...Done");
 
     return true;
   }
-
   auto process_ecu_loop() noexcept -> void {
     m_system_errors.update(type::ErrorMaskECU, m_ecu.update());
 
-    if (type::ECUTelemetry ecu_telemetry; m_ecu.get_telemetry(ecu_telemetry)) {
+    if (type::ECUTelemetry ecu_telemetry; m_ecu.get_telemetry(ecu_telemetry)) [[likely]] {
       m_ecu_telemetry.store(ecu_telemetry);
-
-      type::Control const control = m_control.load();
-      m_cruise.calculate_pid_target(ecu_telemetry.speed, control);
+      m_cruise.calculate_pid_target(ecu_telemetry.speed, m_control.load());
     }
   }
 
@@ -339,49 +329,40 @@ class Controller {
     type::SystemState const state = m_system_state.load();
 
     auto const [size, total, index, data] = m_ota_chunk.load();
-    if (size == 0 || index == m_chunk_index) {
+
+    if (size == 0) {
       return;
     }
 
     if (state != type::SystemState::Normal && state != type::SystemState::Update) {
       m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::Error));
-      m_chunk_index = std::numeric_limits<std::size_t>::max();
-      m_logger.log_error("System not ready for update (state: %d). Abort update", state);
-
+      m_logger.log_error("System not ready for update. Abort update");
       return;
     }
 
-    auto handle_error = [this](const char* log_msg, auto... args) {
-      if (log_msg) {
-        m_logger.log_error(log_msg, args...);
-      }
-
+    auto handle_error = [this](const char* msg) {
+      m_logger.log_error(msg);
       m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::Error));
       m_system_state.store(type::SystemState::Normal);
-      m_chunk_index = std::numeric_limits<std::size_t>::max();
     };
 
     if (!m_ota_manager.is_active()) {
-      if (!m_ota_manager.start_update(size)) {
+      if (!m_ota_manager.start_update(size))
         return handle_error("Start OTA error");
-      }
-      m_logger.log_info("Start OTA (Size: %d bytes, Chunks: %d)", size, total);
+      m_logger.log_info("Start OTA (Size: %d bytes)", size);
       m_system_state.store(type::SystemState::Update);
     }
 
     if (!m_ota_manager.write_chunk(index, data)) {
-      return handle_error("Failed to write chunk %d", index);
+      return handle_error("Failed to write chunk");
     }
-
-    m_chunk_index = index;
-    m_logger.log_info("Written chunk [%d/%d]", index + 1, total);
 
     if (index == total - 1) {
       if (!m_ota_manager.end_update()) {
         return handle_error("Failed to finalize OTA update");
       }
 
-      m_logger.log_info("OTA successfully written. Rebooting...");
+      m_logger.log_info("OTA written. Rebooting...");
       m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_ota_status(type::OTAStatus::Completed));
 
       OTAManager::reboot();
@@ -396,34 +377,31 @@ class Controller {
     m_mode_button.update();
     m_indicator.update();
 
-    if (m_guard.is_active()) {
+    if (m_guard.is_active()) [[unlikely]] {
       m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLock);
       m_system_state.store(type::SystemState::Off);
-      m_logger.log_warn("Guard is active. System shutdown");
+      m_logger.log_warn("Guard active. System shutdown");
     }
 
     type::SystemState const system_state = m_system_state.load();
-    bool const is_cruise_active = m_cruise.is_active();
 
     if (system_state == type::SystemState::Off) {
-      if (is_cruise_active) {
+      if (m_cruise.is_active()) {
         m_cruise.set_active(false);
-        m_cruise.set_target_speed(type::Speed{0});
         m_indicator.turn_off();
-        m_logger.log_warn("System shutdown. Disable cruise force");
       }
       return;
     }
 
     type::ECUTelemetry const ecu = m_ecu_telemetry.load();
     type::Control control = m_control.load();
-    bool const safety_active = is_safety_active(ecu, control);
 
+    bool const safety_active = is_safety_active(ecu, control);
     if (system_state == type::SystemState::Normal && m_mode_button.has_event()) {
       handle_mode_button(m_mode_button.get_pattern(), control, ecu.speed, ecu.rpm, safety_active);
     }
 
-    if (!is_cruise_active) {
+    if (!m_cruise.is_active()) {
       m_cruise.set_target_speed(ecu.speed);
     }
   }
@@ -431,22 +409,20 @@ class Controller {
   auto process_control_loop() noexcept -> void {
     type::Control const control = m_control.load();
 
-    if (control == m_last_control) [[likely]] {
+    if (control == m_last_control) {
       return;
     }
 
-    if (!m_storage.save(control)) [[unlikely]] {
+    if (!m_storage.save(control)) {
       m_logger.log_error("Control data save error");
     }
 
-    m_control.store(control);
     m_last_control = control;
-
     m_logger.log_info("Control updated");
   }
 
   auto process_critical_loop() noexcept -> void {
-    if (type::SystemState const system_state = m_system_state.load(); system_state != type::SystemState::Normal) [[unlikely]] {
+    if (m_system_state.load() != type::SystemState::Normal) [[unlikely]] {
       m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(type::Position{0}));
       return;
     }
@@ -456,49 +432,33 @@ class Controller {
 
     type::Control const control = m_control.load();
     type::ECUTelemetry const ecu = m_ecu_telemetry.load();
-
     bool const safety_active = is_safety_active(ecu, control);
-    bool is_cruise_active = m_cruise.is_active();
 
-    if (is_cruise_active && safety_active) [[unlikely]] {
-      is_cruise_active = false;
-      m_cruise.set_active(is_cruise_active);
-      m_indicator.turn_off();
-      m_logger.log_warn("Cruise force disabled by critical safety snapshot");
-    }
-
-    type::Position const servo_position = m_cruise.generate_servo_position(accelerator_telemetry.position, safety_active, control, ecu.speed);
-    m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(servo_position));
+    type::Position const throttle_position = m_cruise.generate_throttle_position(accelerator_telemetry.position, safety_active, control, ecu.speed);
+    m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(throttle_position));
 
     type::ServoTelemetry servo_telemetry;
     m_system_errors.update(type::ErrorMaskServo, m_servo.get_telemetry(servo_telemetry));
 
     m_driver_telemetry.store(DriveTelemetry{
-        .throttle_position = servo_position,
+        .throttle_position = throttle_position,
         .servo_telemetry = servo_telemetry,
         .accelerator_telemetry = accelerator_telemetry,
     });
   }
 
   auto process_telemetry_loop() noexcept -> void {
-    type::Speed const target_speed = m_cruise.get_target_speed();
-    type::SystemState const system_state = m_system_state.load();
-    type::ECUTelemetry const ecu_telemetry = m_ecu_telemetry.load();
-
-    bool const is_guard_active = m_guard.is_active();
-    bool const is_brake_active = m_brake.is_active();
-
     auto const [throttle_position, servo_telemetry, accelerator_telemetry] = m_driver_telemetry.load();
 
     type::SystemTelemetry const system_telemetry{
-        .is_guard_active = is_guard_active,
-        .is_brake_enabled = is_brake_active,
-        .ecu_telemetry = ecu_telemetry,
+        .is_guard_active = m_guard.is_active(),
+        .is_brake_enabled = m_brake.is_active(),
+        .ecu_telemetry = m_ecu_telemetry.load(),
         .servo_telemetry = servo_telemetry,
         .accelerator_telemetry = accelerator_telemetry,
-        .target_speed = target_speed,
+        .target_speed = m_cruise.get_target_speed(),
         .throttle_position = throttle_position,
-        .system_state = system_state,
+        .system_state = m_system_state.load(),
         .system_errors = m_system_errors.get_error_mask(),
     };
 
@@ -508,24 +468,23 @@ class Controller {
   auto process_calibration_loop() noexcept -> void {
     type::Calibration const calibration = m_calibration.load();
 
-    if (calibration == m_last_calibration) [[likely]] {
+    if (calibration == m_last_calibration) {
       return;
     }
 
-    auto update_calibration = [this](auto& current, auto& last, auto& device, auto const& name) {
+    auto update_calibration = [this](auto& current, auto& last, auto& device, const char* name) {
       if (current == last) {
         return;
       }
 
       if (!m_storage.save(current)) {
-        m_logger.log_error("%s calibration set error", name);
-        return;
+        return m_logger.log_error("%s calibration set error", name);
       }
 
       device.set_calibration(current);
       last = current;
 
-      m_logger.log_info("%s calibration set ", name);
+      m_logger.log_info("%s calibration set", name);
     };
 
     update_calibration(calibration.servo, m_last_calibration.servo, m_servo, "Servo");
