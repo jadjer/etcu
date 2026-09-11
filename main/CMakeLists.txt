@@ -6,7 +6,13 @@ set(BOARD_VERSION "v1.0")
 set(INCLUDE_DIRS "include")
 set(SOURCES "app_main.cpp")
 
-idf_component_register(INCLUDE_DIRS ${INCLUDE_DIRS} SRCS ${SOURCES})
+set(REQUIRES
+        "esp_adc"
+        "esp_driver_uart"
+        "app_update"
+)
+
+idf_component_register(INCLUDE_DIRS ${INCLUDE_DIRS} SRCS ${SOURCES} REQUIRES ${REQUIRES})
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
         -DFW_VERSION="${CMAKE_PROJECT_VERSION}"
