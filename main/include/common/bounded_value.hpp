@@ -24,15 +24,18 @@
 namespace common {
 
 template <typename T, T MinVal, T MaxVal>
-  requires std::integral<T> && (MinVal <= MaxVal)
+  requires std::convertible_to<T, float> && (MinVal <= MaxVal)
 struct BoundedValue {
   static constexpr T value_min{MinVal};
   static constexpr T value_max{MaxVal};
 
   T value{value_min};
-  
-  constexpr BoundedValue(std::int32_t const val) noexcept  // NOLINT
-      : value{static_cast<T>(std::clamp(val, static_cast<std::int32_t>(value_min), static_cast<std::int32_t>(value_max)))} {}
+
+  constexpr BoundedValue(std::integral auto const val) noexcept // NOLINT
+    : value{static_cast<T>(std::clamp(static_cast<T>(val), value_min, value_max))} {}
+
+  constexpr BoundedValue(std::floating_point auto const val) noexcept  // NOLINT
+      : value{static_cast<T>(std::clamp(static_cast<T>(val), value_min, value_max))} {}
 
   constexpr BoundedValue() = default;
 
@@ -48,10 +51,10 @@ struct BoundedValue {
 
   constexpr auto operator<=>(BoundedValue const&) const = default;
 
-  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) * other.value}; }
-  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) / other.value}; }
-  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) + other.value}; }
-  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<std::int32_t>(value) - other.value}; }
+  constexpr auto operator*(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<float>(value) * static_cast<float>(other.value)}; }
+  constexpr auto operator/(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<float>(value) / static_cast<float>(other.value)}; }
+  constexpr auto operator+(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<float>(value) + static_cast<float>(other.value)}; }
+  constexpr auto operator-(BoundedValue const& other) const noexcept -> BoundedValue { return BoundedValue{static_cast<float>(value) - static_cast<float>(other.value)}; }
 };
 
 }  // namespace common

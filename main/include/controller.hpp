@@ -137,19 +137,17 @@ class Controller {
       return false;
     }
 
-    if (!control.cruise.rpm.contains(current_rpm)) {
+    if (current_rpm < control.cruise.rpm_min || current_rpm > control.cruise.rpm_max) {
       m_logger.log_info("Cruise %s error: RPM out of range", context);
       return false;
     }
 
-    // Защита от случайного включения в зоне низких скоростей
-    if (!control.cruise.speed.contains(current_speed)) {
+    if (current_speed < control.cruise.speed_min || current_speed > control.cruise.speed_max) {
       m_logger.log_info("Cruise %s error: Current Speed (%d km/h) out of range", context, current_speed.get());
       return false;
     }
 
-    // Защита от битых/нулевых данных скорости в памяти устройства
-    if (!control.cruise.speed.contains(target_speed)) {
+    if (target_speed < control.cruise.speed_min || target_speed > control.cruise.speed_max) {
       m_logger.log_info("Cruise %s error: Target Speed (%d km/h) out of range", context, target_speed.get());
       return false;
     }
@@ -157,13 +155,14 @@ class Controller {
     return true;
   }
 
-  auto handle_mode_button(std::uint16_t const pattern, type::Control& control, type::Speed const& current_speed, type::RPM const& current_rpm, bool const safety_active) -> void {
+  auto handle_mode_button(std::uint16_t const pattern,
+                          type::Control& control,
+                          type::Speed const& current_speed,
+                          type::RPM const& current_rpm,
+                          bool const safety_active) -> void {
     bool const is_cruise_active = m_cruise.is_active();
 
-    // Паттерн 1: Одиночное короткое нажатие (Пауза ИЛИ Возобновление скорости)
     if (pattern == device::BuildPattern(device::ClickType::Short)) {
-
-      // Сценарий А: Круиз РАБОТАЕТ -> Ставим на Паузу (плавный спуск газа за 1 секунду)
       if (is_cruise_active) {
         m_cruise.set_active(false);
         m_indicator.turn_off();
@@ -172,28 +171,24 @@ class Controller {
         return;
       }
 
-      // Сценарий Б: Круиз ВЫКЛЮЧЕН -> Выполняем Возобновление (Resume к сохраненной скорости)
       type::Speed const target = m_cruise.get_target_speed();
 
-      // ✅ Исправлено: Передаем валидатору и current_speed, и target для сквозной проверки зон безопасности
       if (validate_cruise_activation(control, current_rpm, current_speed, target, safety_active, "resume")) {
         m_cruise.set_active(true);
         m_indicator.turn_on();
         m_logger.log_info("Cruise resumed at: %d km/h", target.get());
       } else {
-        m_indicator.blink_times(2); // Отказ: скорость слишком низкая или активны тормоза
+        m_indicator.blink_times(2);
       }
       return;
     }
 
-    // Паттерн 2: Длинное нажатие (Set - Фиксация текущей скорости)
     if (pattern == device::BuildPattern(device::ClickType::Long)) {
       if (is_cruise_active) {
         m_indicator.blink_times(1);
         return;
       }
 
-      // При фиксации текущая скорость одновременно является и целевой
       if (validate_cruise_activation(control, current_rpm, current_speed, current_speed, safety_active, "enable")) {
         m_cruise.set_target_speed(current_speed);
         m_cruise.set_active(true);
@@ -205,7 +200,6 @@ class Controller {
       return;
     }
 
-    // Паттерн 3: Сервисная настройка шага отклика (Режимы заслонки 300, 600, 900)
     type::Position max_servo{0};
     if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
       max_servo = type::Position{300};
@@ -216,7 +210,7 @@ class Controller {
     }
 
     if (max_servo > 0) {
-      control.servo.max = max_servo;
+      control.servo_max = max_servo;
       m_control.store(control);
       m_indicator.blink_times(1);
       m_logger.log_info("Set servo max as %d", max_servo.get());
@@ -224,9 +218,9 @@ class Controller {
     }
   }
 
-  // Проверка условий комплексной безопасности
   [[nodiscard]] auto is_safety_active(type::ECUTelemetry const& ecu, type::Control const& control) const noexcept -> bool {
-    return !control.cruise.rpm.contains(ecu.rpm) || !control.cruise.speed.contains(ecu.speed) || m_brake.is_active() || ecu.is_neutral;
+    return ecu.rpm < control.cruise.rpm_min || ecu.rpm > control.cruise.rpm_max || ecu.speed < control.cruise.speed_min ||
+           ecu.speed > control.cruise.speed_max || m_brake.is_active() || ecu.is_neutral;
   }
 
  public:
@@ -246,7 +240,6 @@ class Controller {
   auto operator=(Controller&&) noexcept -> Controller& = delete;
   constexpr ~Controller() noexcept = default;
 
-  // Инициализация аппаратных модулей системы
   auto init() noexcept -> bool {
     Logger::init();
 
@@ -257,19 +250,18 @@ class Controller {
       return false;
     }
 
-    // Оптимизированный плоский цикл инициализации периферии
     struct InitStep {
       type::SystemError mask;
       type::SystemError error;
     };
-    InitStep const steps[] = {{type::ErrorMaskECU, m_ecu.init()},
-                              {type::ErrorMaskServo, m_servo.init()},
-                              {type::ErrorMaskPeripheral, m_brake.init()},
-                              {type::ErrorMaskGuard, m_guard.init()},
-                              {type::ErrorMaskPeripheral, m_mode_button.init()},
-                              {type::ErrorMaskAccelerator, m_accelerator.init()},
-                              {type::ErrorMaskBluetooth, m_ble_manager.init()},
-                              {type::ErrorMaskIndicator, m_indicator.init()}};
+    InitStep const steps[] = {{.mask = type::ErrorMaskECU, .error = m_ecu.init()},
+                              {.mask = type::ErrorMaskServo, .error = m_servo.init()},
+                              {.mask = type::ErrorMaskPeripheral, .error = m_brake.init()},
+                              {.mask = type::ErrorMaskGuard, .error = m_guard.init()},
+                              {.mask = type::ErrorMaskPeripheral, .error = m_mode_button.init()},
+                              {.mask = type::ErrorMaskAccelerator, .error = m_accelerator.init()},
+                              {.mask = type::ErrorMaskBluetooth, .error = m_ble_manager.init()},
+                              {.mask = type::ErrorMaskIndicator, .error = m_indicator.init()}};
 
     for (auto const& step : steps) {
       m_system_errors.update(step.mask, step.error);
@@ -321,7 +313,6 @@ class Controller {
 
     if (type::ECUTelemetry ecu_telemetry; m_ecu.get_telemetry(ecu_telemetry)) [[likely]] {
       m_ecu_telemetry.store(ecu_telemetry);
-      m_cruise.calculate_pid_target(ecu_telemetry.speed, m_control.load());
     }
   }
 

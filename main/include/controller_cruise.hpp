@@ -18,96 +18,155 @@
 
 #pragma once
 
-#include <algorithm>
-
 #include "common/atomic_container.hpp"
 #include "common/range.hpp"
 #include "type/control.hpp"
 #include "type/type.hpp"
 
-class PidController {
+class PIDController {
   float const m_dt;
-  float const m_min{-250.0f};
-  float const m_max{250.0f};
-
-  common::AtomicContainer<float> m_kp{0.0f};
-  common::AtomicContainer<float> m_ki{0.0f};
-  common::AtomicContainer<float> m_kd{0.0f};
-  common::AtomicContainer<float> m_integral{0.0f};
-  common::AtomicContainer<float> m_last_error{0.0f};
+  float m_kp{0.0f};
+  float m_ki{0.0f};
+  float m_kd{0.0f};
+  float m_integral{0.0f};
+  float m_last_error{0.0f};
 
  public:
-  constexpr explicit PidController(float const dt) noexcept : m_dt{dt} {}
+  constexpr explicit PIDController(float const dt) noexcept : m_dt{dt} {}
 
-  constexpr PidController() noexcept = delete;
-  PidController(PidController const&) noexcept = delete;
-  auto operator=(PidController const&) noexcept -> PidController& = delete;
-  PidController(PidController&&) noexcept = delete;
-  auto operator=(PidController&&) noexcept -> PidController& = delete;
-  constexpr ~PidController() noexcept = default;
+  constexpr PIDController() noexcept = delete;
+  PIDController(PIDController const&) noexcept = delete;
+  auto operator=(PIDController const&) noexcept -> PIDController& = delete;
+  PIDController(PIDController&&) noexcept = delete;
+  auto operator=(PIDController&&) noexcept -> PIDController& = delete;
+  constexpr ~PIDController() noexcept = default;
 
   auto set_coefficients(float const kp, float const ki, float const kd) noexcept -> void {
-    m_kp.store(kp);
-    m_ki.store(ki);
-    m_kd.store(kd);
+    m_kp = kp;
+    m_ki = ki;
+    m_kd = kd;
   }
 
-  auto update(float const error) noexcept -> type::Position {
-    float const kp = m_kp.load();
-    float const ki = m_ki.load();
-    float const kd = m_kd.load();
-    float const last_error = m_last_error.load();
+  auto update(float const error, float const integral_limit_min, float const integral_limit_max) noexcept -> type::Position {
+    float const p_term = m_kp * error;
+    float const integral = m_integral + m_ki * error * m_dt;
+    float const integral_limit = std::clamp(integral, integral_limit_min, integral_limit_max);
 
-    float const p_term = kp * error;
-    float const next_integral = std::clamp(m_integral.load() + ki * error * m_dt, m_min, m_max);
-    m_integral.store(next_integral);
+    m_integral = integral_limit;
 
-    float const d_term = kd * ((error - last_error) / m_dt);
-    m_last_error.store(error);
+    float const d_term = m_kd * ((error - m_last_error) / m_dt);
+    m_last_error = error;
 
-    float const output = p_term + next_integral + d_term;
-
-    return type::Position{static_cast<std::int32_t>(output)};
+    float const output = p_term + integral_limit + d_term;
+    return type::Position{output};
   }
 
-  auto reset_to(float const base_value, float const initial_error = 0.0f) noexcept -> void {
-    m_integral.store(std::clamp(base_value, m_min, m_max));
-    m_last_error.store(initial_error);
+  auto reset_to(float const base_value, float const integral_limit_min, float const integral_limit_max, float const initial_error = 0.0f) noexcept -> void {
+    m_integral = std::clamp(base_value, integral_limit_min, integral_limit_max);
+    m_last_error = initial_error;
   }
 };
 
+// =============================================================================
+// КЛАСС УПРАВЛЕНИЯ КРУИЗ-КОНТРОЛЕМ (Строго в типах Position и Speed)
+// =============================================================================
 class ControllerCruise {
-  static constexpr float dt_ecu{0.1f};                   // 100 мс опрос K-Line
-  static constexpr float fade_duration_s{1.0f};          // Плавный сброс за 1 сек
-  static constexpr float critical_task_period_s{0.01f};  // 10 мс такт CriticalTask
-  static constexpr float ticks_per_second{fade_duration_s / critical_task_period_s};
-  static constexpr type::Position pid_min_position{0};
-  static constexpr type::Position pid_max_position{1000};
+  static constexpr float critical_task_period_s{0.01f};  // 10 мс такт CriticalTask (Core 1)
 
-  // Межъядерный интерфейс обмена данными (Core 0 <-> Core 1)
-  struct InterCoreInterface {
-    common::AtomicContainer<bool> is_active{false};
-    common::AtomicContainer<bool> is_fading{false};
-    common::AtomicContainer<type::Speed> target_speed{0};
-    common::AtomicContainer<type::Position> cruise_position{0};
-  };
+  // Межпоточный интерфейс (Связь с Core 0)
+  common::AtomicContainer<bool> m_is_active{false};
+  common::AtomicContainer<type::Speed> m_target_speed{0};
 
-  // Состояние потока ECUTask (Core 0)
-  struct EcuTaskState {
-    PidController pid{dt_ecu};
-    float filtered_speed{0.0f};
-  };
+  // Переменные внутреннего состояния контура управления Core 1
+  bool m_is_fading{false};
+  bool m_was_active{false};
+  float m_filtered_speed{0.0f};
+  type::Position m_last_position{type::Position::value_min};
+  PIDController m_pid{critical_task_period_s};
 
-  // Состояние потока CriticalTask (Core 1)
-  struct CriticalTaskState {
-    bool was_active_critical{false};
-    float fade_position_f{0.0f};
-    type::Position last_position{type::Position::value_min};
-  };
+  // 🔴 Линейный блок А: Экстренный аварийный сброс заслонки
+  auto process_safety_cutoff(type::Position const driver_position) noexcept -> type::Position {
+    m_is_active.store(false);
+    m_is_fading = false;
+    m_was_active = false;
+    m_filtered_speed = 0.0f;
+    m_last_position = driver_position;
+    return driver_position;
+  }
 
-  InterCoreInterface m_ipc{};
-  EcuTaskState m_ecu_state{};
-  CriticalTaskState m_critical_state{};
+  // 🟡 Линейный блок Б: Плавный линейный спуск газа за 1 секунду
+  auto process_fade_out(type::Position const driver_position, type::Control const& control) noexcept -> type::Position {
+    m_was_active = false;
+    m_filtered_speed = 0.0f;
+
+    // Шаг 1: Ранний возврат, если спуск завершен или ручка водителя открыта сильнее
+    if (!m_is_fading && m_last_position <= driver_position) {
+      m_last_position = driver_position;
+      return driver_position;
+    }
+
+    // Шаг 2: Взведение триггера при первом такте отключения
+    if (!m_is_fading) {
+      m_is_fading = true;
+    }
+
+    // Шаг 3: Линейный спуск на основе физического максимума сервопривода
+    float const ticks_per_second = control.cruise.fade_duration / critical_task_period_s;
+    float const fade_step = control.servo_max.as<float>() / ticks_per_second;
+    type::Position const next_position = m_last_position - fade_step;
+
+    // Шаг 4: Проверка условия завершения режима fade по реальной ручке водителя
+    if (next_position <= driver_position || next_position <= type::Position::value_min) {
+      m_is_fading = false;
+      m_last_position = driver_position;
+      return driver_position;
+    }
+
+    m_last_position = next_position;
+    return m_last_position;
+  }
+
+  // 🟢 Линейный блок В: Активное ПИД-удержание целевой скорости
+  auto process_active_cruise(type::Position const driver_position, type::Control const& control, type::Speed const current_speed) noexcept -> type::Position {
+    m_is_fading = false;
+    m_pid.set_coefficients(control.cruise.p, control.cruise.i, control.cruise.d);
+
+    // Фильтрация низких частот скорости (ФНЧ) в типе type::Speed
+    if (m_filtered_speed == 0.0f) {
+      m_filtered_speed = current_speed.as<float>();
+    } else {
+      float const alpha = control.cruise.filter_alpha;
+      m_filtered_speed = current_speed.as<float>() * alpha + m_filtered_speed * (1.0f - alpha);
+    }
+
+    type::Speed const target_speed = m_target_speed.load();
+
+    // Синхронизация ПИД-контура при первом запуске
+    if (!m_was_active) {
+      float const initial_error = target_speed.as<float>() - current_speed.as<float>();
+      m_pid.reset_to(driver_position.as<float>(), control.cruise.integral_min, control.cruise.integral_max, initial_error);
+      m_last_position = driver_position;
+      m_was_active = true;
+    }
+
+    // Расчет целевой физической позиции ПИД
+    float const error = target_speed.as<float>() - m_filtered_speed;
+    type::Position const cruise_position_physical = m_pid.update(error, control.cruise.integral_min, control.cruise.integral_max);
+
+    // Приоритет человека (Обгон): если ручка водителя открыта сильнее — выходим по раннему возврату
+    if (driver_position > cruise_position_physical) {
+      m_last_position = driver_position;
+      return driver_position;
+    }
+
+    // Ограничение скользящего окна безопасности
+    type::Position const cruise_position_minimal{m_last_position - control.cruise.limiter_left};
+    type::Position const cruise_position_maximal{m_last_position + control.cruise.limiter_right};
+
+    m_last_position = common::range(cruise_position_physical, cruise_position_minimal, cruise_position_maximal);
+
+    return m_last_position;
+  }
 
  public:
   constexpr ControllerCruise() noexcept = default;
@@ -117,119 +176,35 @@ class ControllerCruise {
   auto operator=(ControllerCruise&&) noexcept -> ControllerCruise& = delete;
   constexpr ~ControllerCruise() noexcept = default;
 
-  // 🔄 ВЫЗЫВАЕТСЯ НА CORE 0 (ECUTask - 100 мс)
-  auto calculate_pid_target(type::Speed const current_speed, type::Control const& control) noexcept -> void {
-    m_ecu_state.pid.set_coefficients(control.cruise.p, control.cruise.i, control.cruise.d);
-
-    // ФНЧ для подавления дискретного шума K-Line скорости
-    if (m_ecu_state.filtered_speed == 0.0f) {
-      m_ecu_state.filtered_speed = current_speed.as<float>();
-    } else {
-      m_ecu_state.filtered_speed = current_speed.as<float>() * 0.25f + m_ecu_state.filtered_speed * 0.75f;
-    }
-
-    if (!m_ipc.is_active.load() && !m_ipc.is_fading.load()) {
-      return;
-    }
-
-    float const error = m_ipc.target_speed.load().as<float>() - m_ecu_state.filtered_speed;
-    m_ipc.cruise_position.store(m_ecu_state.pid.update(error));
-  }
-
-  // 🔄 ВЫЗЫВАЕТСЯ НА CORE 1 (CriticalTask - 10 мс)
+  // 🔄 ИДЕАЛЬНО ЛИНЕЙНЫЙ ДИСПЕТЧЕР-КАЛИБРОВЩИК (Core 1 - CriticalTask 10 мс)
   [[nodiscard]] auto generate_throttle_position(type::Position const accelerator,
-                                             bool const safety_active,
-                                             type::Control const& control,
-                                             type::Speed const current_speed) noexcept -> type::Position {
-    type::Position const driver_position =
-        common::map_range(accelerator, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);
+                                                bool const safety_active,
+                                                type::Control const& control,
+                                                type::Speed const current_speed) noexcept -> type::Position {
+    // 1. Входная калибровка ручки: перевод сырого положения акселератора в физический тип Position
+    type::Position const driver_position{accelerator};
 
-    // 🔴 СЦЕНАРИЙ А: Экстренное прерывание
+    // 2. Линейный сквозной выбор сценария работы на основе ранних возвратов (Early Returns)
     if (safety_active) {
-      m_ipc.is_active.store(false);
-      m_ipc.is_fading.store(false);
-      m_critical_state.was_active_critical = false;
-      m_critical_state.last_position = driver_position;
-      return driver_position;
+      type::Position const safety_target = process_safety_cutoff(driver_position);
+      return common::map_range(safety_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
     }
 
-    bool const is_cruise_active = m_ipc.is_active.load();
-    bool const is_fade_active = m_ipc.is_fading.load();
-
-    // 🟡 СЦЕНАРИЙ Б: Плавный выход за 1 секунду
-    if (!is_cruise_active) {
-      m_critical_state.was_active_critical = false;
-
-      if (!is_fade_active) {
-        if (m_critical_state.last_position > driver_position) {
-          m_ipc.is_fading.store(true);
-          m_critical_state.fade_position_f = m_critical_state.last_position.as<float>();
-        } else {
-          m_critical_state.last_position = driver_position;
-          return driver_position;
-        }
-      }
-
-      if (is_fade_active) {
-        float const fade_step_per_tick = static_cast<float>(control.servo.max.get()) / ticks_per_second;
-        m_critical_state.fade_position_f -= fade_step_per_tick;
-
-        type::Position const current_fade_position{static_cast<std::int32_t>(m_critical_state.fade_position_f)};
-
-        if (current_fade_position <= driver_position || m_critical_state.fade_position_f <= 0.0f) {
-          m_ipc.is_fading.store(false);
-          m_critical_state.last_position = driver_position;
-          return driver_position;
-        }
-
-        m_critical_state.last_position = current_fade_position;
-        return m_critical_state.last_position;
-      }
-
-      m_critical_state.last_position = driver_position;
-      return driver_position;
+    if (!m_is_active.load()) {
+      type::Position const fade_target = process_fade_out(driver_position, control);
+      return common::map_range(fade_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
     }
 
-    // 🟢 СЦЕНАРИЙ В: Штатный круиз
-    if (is_fade_active) {
-      m_ipc.is_fading.store(false);
-    }
+    type::Position const cruise_target = process_active_cruise(driver_position, control, current_speed);
 
-    if (!m_critical_state.was_active_critical) {
-      float const initial_error = m_ipc.target_speed.load().as<float>() - current_speed.as<float>();
-
-      type::Position const driver_pos_normalized = common::map_range(driver_position, control.servo.min, control.servo.max, pid_min_position, pid_max_position);
-
-      m_ecu_state.pid.reset_to(driver_pos_normalized.as<float>(), initial_error);
-      m_critical_state.last_position = driver_position;
-      m_critical_state.was_active_critical = true;
-    }
-
-    type::Position const cruise_position =
-        common::map_range(m_ipc.cruise_position.load(), pid_min_position, pid_max_position, control.servo.min, control.servo.max);
-
-    if (driver_position > cruise_position) {
-      m_critical_state.last_position = driver_position;
-      return driver_position;
-    }
-
-    std::int32_t scaled_limiter = control.cruise.limiter.get() / 10;
-    if (scaled_limiter < 1) {
-      scaled_limiter = 1;
-    }
-
-    // Асимметрия: с горы закрываем в 5 раз быстрее для удержания веса Варадеро
-    type::Position const cruise_position_minimal{m_critical_state.last_position.get() - (scaled_limiter * 5)};
-    type::Position const cruise_position_maximal{m_critical_state.last_position.get() + scaled_limiter};
-
-    m_critical_state.last_position = common::range(cruise_position, cruise_position_minimal, cruise_position_maximal);
-
-    return m_critical_state.last_position;
+    // 3. ✅ ЕДИНАЯ ДЕНОРМАЛИЗАЦИЯ: Перевод физического значения Position в ход сервопривода строго в самом конце
+    return common::map_range(cruise_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
   }
 
-  auto set_active(bool const active) noexcept -> void { m_ipc.is_active.store(active); }
-  auto set_target_speed(type::Speed const speed) noexcept -> void { m_ipc.target_speed.store(speed); }
+  // Сервисные методы сопряжения с ядром Core 0
+  auto set_active(bool const active) noexcept -> void { m_is_active.store(active); }
+  auto set_target_speed(type::Speed const speed) noexcept -> void { m_target_speed.store(speed); }
 
-  [[nodiscard]] auto is_active() const noexcept -> bool { return m_ipc.is_active.load(); }
-  [[nodiscard]] auto get_target_speed() const noexcept -> type::Speed { return m_ipc.target_speed.load(); }
+  [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
+  [[nodiscard]] auto get_target_speed() const noexcept -> type::Speed { return m_target_speed.load(); }
 };

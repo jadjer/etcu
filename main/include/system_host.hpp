@@ -32,20 +32,14 @@ concept ControllerConcept = requires(T controller) {
   { controller.process_calibration_loop() } noexcept -> std::same_as<void>;
 };
 
-template <class Controller,
-          std::uint8_t SystemCore = 0,
-          std::uint8_t CriticalCore = 1,
-          std::uint16_t CriticalPeriodMS = 10,
-          std::uint16_t SystemPeriodMS = 100,
-          std::uint16_t ControlPeriodMS = 1000>
-  requires ControllerConcept<Controller> && (SystemCore <= 1) && (CriticalCore <= 1) && (10 <= CriticalPeriodMS) && (CriticalPeriodMS <= SystemPeriodMS) &&
-           (SystemPeriodMS <= ControlPeriodMS)
+template <class Controller>
+  requires ControllerConcept<Controller>
 class SystemHost {
-  static constexpr std::uint8_t system_core{SystemCore};
-  static constexpr std::uint8_t critical_core{CriticalCore};
-  static constexpr std::uint16_t critical_period_ms{CriticalPeriodMS};
-  static constexpr std::uint16_t system_period_ms{SystemPeriodMS};
-  static constexpr std::uint16_t control_period_ms{ControlPeriodMS};
+  static constexpr std::uint8_t system_core{0};
+  static constexpr std::uint8_t critical_core{1};
+  static constexpr std::uint16_t critical_period_ms{10};
+  static constexpr std::uint16_t system_period_ms{100};
+  static constexpr std::uint16_t control_period_ms{1000};
 
   Controller& m_controller;
 

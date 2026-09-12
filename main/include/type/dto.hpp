@@ -26,38 +26,29 @@
 
 namespace type::dto {
 
-struct RPMRangeDTO {
-  primitive::RPM min{0};  // 2
-  primitive::RPM max{0};  // 2
-
-} __attribute__((packed));
-
-struct SpeedRangeDTO {
-  primitive::Speed min{0};  // 1
-  primitive::Speed max{0};  // 1
-
-} __attribute__((packed));
-
-struct PositionRangeDTO {
-  primitive::Position min{0};  // 2
-  primitive::Position max{0};  // 2
-
-} __attribute__((packed));
-
 struct CruiseDTO {
-  float p{};                // 4
-  float i{};                // 4
-  float d{};                // 4
-  RPMRangeDTO rpm{};        // 4
-  SpeedRangeDTO speed{};    // 2
-  std::uint16_t limiter{};  // 2
+  float p{};                            // 4
+  float i{};                            // 4
+  float d{};                            // 4
+  float integral_min{};                 // 4
+  float integral_max{};                 // 4
+  float filter_alpha{};                 // 4
+  float fade_duration{};                // 4
+  primitive::RPM rpm_min{};             // 2
+  primitive::RPM rpm_max{};             // 2
+  primitive::Speed speed_min{};         // 1
+  primitive::Speed speed_max{};         // 1
+  primitive::Position limiter_left{};   // 2
+  primitive::Position limiter_right{};  // 2
 
 } __attribute__((packed));
 
 struct ControlDTO {
-  CruiseDTO cruise{};              // 20
-  PositionRangeDTO servo{};        // 4
-  PositionRangeDTO accelerator{};  // 4
+  CruiseDTO cruise{};                     // 38
+  primitive::Position servo_min{};        // 2
+  primitive::Position servo_max{};        // 2
+  primitive::Position accelerator_min{};  // 2
+  primitive::Position accelerator_max{};  // 2
 
 } __attribute__((packed));
 

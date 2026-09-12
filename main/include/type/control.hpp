@@ -23,91 +23,61 @@
 
 namespace type {
 
-struct RPMRange {
-  RPM min{};
-  RPM max{};
-
-  [[nodiscard]] constexpr auto contains(RPM const& current_rpm) const noexcept -> bool { return current_rpm >= min && current_rpm <= max; }
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::RPMRangeDTO {
-    return dto::RPMRangeDTO{
-        .min = min.get(),
-        .max = max.get(),
-    };
-  }
-
-  [[nodiscard]] auto operator<=>(RPMRange const&) const = default;
-};
-
-struct SpeedRange {
-  Speed min{};
-  Speed max{};
-
-  [[nodiscard]] constexpr auto contains(Speed const& current_speed) const noexcept -> bool { return current_speed >= min && current_speed <= max; }
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::SpeedRangeDTO {
-    return dto::SpeedRangeDTO{
-        .min = min.get(),
-        .max = max.get(),
-    };
-  }
-
-  [[nodiscard]] auto operator<=>(SpeedRange const&) const = default;
-};
-
 struct Cruise {
   float p{};
   float i{};
   float d{};
-  RPMRange rpm{};
-  Position limiter{};
-  SpeedRange speed{};
+  RPM rpm_min{};
+  RPM rpm_max{};
+  Speed speed_min{};
+  Speed speed_max{};
+  float filter_alpha{};
+  float fade_duration{};
+  float integral_min{};
+  float integral_max{};
+  Position limiter_left{};
+  Position limiter_right{};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseDTO {
     return dto::CruiseDTO{
         .p = p,
         .i = i,
         .d = d,
-        .rpm = rpm.to_dto(),
-        .speed = speed.to_dto(),
-        .limiter = limiter.get(),
+        .integral_min = integral_min,
+        .integral_max = integral_max,
+        .filter_alpha = filter_alpha,
+        .fade_duration = fade_duration,
+        .rpm_min = rpm_min.get(),
+        .rpm_max = rpm_max.get(),
+        .speed_min = speed_min.get(),
+        .speed_max = speed_max.get(),
+        .limiter_left = limiter_left.get(),
+        .limiter_right = limiter_right.get(),
     };
   }
 
   [[nodiscard]] auto operator<=>(Cruise const&) const = default;
 };
 
-struct PositionRange {
-  Position min{};
-  Position max{};
-
-  [[nodiscard]] constexpr auto contains(Position const& current_position) const noexcept -> bool { return current_position >= min && current_position <= max; }
-
-  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::PositionRangeDTO {
-    return dto::PositionRangeDTO{
-        .min = min.get(),
-        .max = max.get(),
-    };
-  }
-
-  [[nodiscard]] auto operator<=>(PositionRange const&) const = default;
-};
-
 struct Control {
   static constexpr std::string_view name{"control"};
-  static constexpr std::uint32_t current_version{2};
+  static constexpr std::uint32_t current_version{3};
 
   std::uint32_t version{};
 
   Cruise cruise{};
-  PositionRange servo{};
-  PositionRange accelerator{};
+  Position servo_min{};
+  Position servo_max{};
+  Position accelerator_min{};
+  Position accelerator_max{};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::ControlDTO {
     return dto::ControlDTO{
         .cruise = cruise.to_dto(),
-        .servo = servo.to_dto(),
-        .accelerator = accelerator.to_dto(),
+        .servo_min = servo_min.get(),
+        .servo_max = servo_max.get(),
+        .accelerator_min = accelerator_min.get(),
+        .accelerator_max = accelerator_max.get(),
     };
   }
 

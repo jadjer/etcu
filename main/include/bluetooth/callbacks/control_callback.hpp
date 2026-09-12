@@ -47,7 +47,7 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
   }
 
   auto onWrite(NimBLECharacteristic* characteristic, NimBLEConnInfo&) -> void override {
-    auto const [cruise, servo, accelerator] = characteristic->getValue<type::dto::ControlDTO>();
+    auto const [cruise, servo_min, servo_max, accelerator_min, accelerator_max] = characteristic->getValue<type::dto::ControlDTO>();
 
     type::Control const control{
         .cruise =
@@ -55,29 +55,21 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
                 .p = cruise.p,
                 .i = cruise.i,
                 .d = cruise.d,
-                .rpm =
-                    type::RPMRange{
-                        .min = cruise.rpm.min,
-                        .max = cruise.rpm.max,
-                    },
-                .limiter = cruise.limiter,
-                .speed =
-                    type::SpeedRange{
-                        .min = cruise.speed.min,
-                        .max = cruise.speed.max,
-                    },
-
+                .rpm_min = cruise.rpm_min,
+                .rpm_max = cruise.rpm_max,
+                .speed_min = cruise.speed_min,
+                .speed_max = cruise.speed_max,
+                .filter_alpha = cruise.filter_alpha,
+                .fade_duration = cruise.fade_duration,
+                .integral_min = cruise.integral_min,
+                .integral_max = cruise.integral_max,
+                .limiter_left = cruise.limiter_left,
+                .limiter_right = cruise.limiter_right,
             },
-        .servo =
-            type::PositionRange{
-                .min = servo.min,
-                .max = servo.max,
-            },
-        .accelerator =
-            type::PositionRange{
-                .min = accelerator.min,
-                .max = accelerator.max,
-            },
+        .servo_min = servo_min,
+        .servo_max = servo_max,
+        .accelerator_min = accelerator_min,
+        .accelerator_max = accelerator_max,
     };
 
     m_container.store(control);
