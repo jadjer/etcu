@@ -18,12 +18,8 @@
 
 #pragma once
 
-#include <driver/gpio.h>
-#include <driver/uart.h>
 #include <esp_adc/adc_oneshot.h>
 #include <array>
-#include <cstdint>
-#include <string_view>
 
 namespace type::primitive {
 
@@ -33,6 +29,7 @@ using AccPosition = std::uint16_t;
 using Position = std::uint16_t;
 using ServoPosition = std::uint16_t;
 using ServoSpeed = std::uint16_t;
+using ServoVolt = float;
 using RPM = std::uint16_t;
 using Speed = std::uint8_t;
 using Current = std::uint16_t;

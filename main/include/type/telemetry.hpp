@@ -30,7 +30,7 @@ struct ServoTelemetry {
   bool is_enabled{false};
   bool is_moved{false};
 
-  Volt voltage{0};
+  ServoVolt voltage{0};
   Current current{0};
   ServoPosition position{0};
   Temperature temperature{0};
@@ -41,8 +41,8 @@ struct ServoTelemetry {
         .is_enabled = is_enabled,
         .is_moved = is_moved,
 
-        .voltage = voltage.get(),
         .current = current.get(),
+        .voltage = voltage.get(),
         .position = position.get(),
         .temperature = temperature.get(),
     };

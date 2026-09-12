@@ -26,6 +26,7 @@ namespace type {
 
 using Load = common::BoundedValue<primitive::Load, limit::load_min, limit::load_max>;
 using Volt = common::BoundedValue<primitive::Volt, limit::volt_min, limit::volt_max>;
+using ServoVolt = common::BoundedValue<primitive::ServoVolt, limit::servo_volt_min, limit::servo_volt_max>;
 using Position = common::BoundedValue<primitive::Position, limit::pos_min, limit::pos_max>;
 using AccPosition = common::BoundedValue<primitive::AccPosition, limit::acc_pos_min, limit::acc_pos_max>;
 using ServoPosition = common::BoundedValue<primitive::ServoPosition, limit::servo_pos_min, limit::servo_pos_max>;

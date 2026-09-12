@@ -37,6 +37,9 @@ static constexpr primitive::Position pos_max{1000};
 static constexpr primitive::ServoPosition servo_pos_min{0};
 static constexpr primitive::ServoPosition servo_pos_max{4095};
 
+static constexpr primitive::ServoVolt servo_volt_min{0.0};
+static constexpr primitive::ServoVolt servo_volt_max{14.0};
+
 static constexpr primitive::RPM rpm_min{0};
 static constexpr primitive::RPM rpm_max{9000};
 

@@ -32,8 +32,8 @@ static auto calculateValueDivide16(std::uint16_t const value) -> std::uint8_t {
   return value * 10 / 16;
 }
 
-static auto calculateValueDivide10(std::uint8_t const value) -> std::uint8_t {
-  return value / 10;
+static auto calculateValueDivide10(std::uint8_t const value) -> float {
+  return static_cast<float>(value) / 10;
 }
 
 static auto calculateValueMultiply10(std::uint16_t const value) -> std::uint16_t {

@@ -95,12 +95,11 @@ struct ECUTelemetryDTO {
 } __attribute__((packed));
 
 struct ServoTelemetryDTO {
-  bool is_connected{false};  // 1
-  bool is_enabled{false};    // 1
-  bool is_moved{false};      // 1
-
-  primitive::Volt voltage{0};             // 1
+  bool is_connected{false};               // 1
+  bool is_enabled{false};                 // 1
+  bool is_moved{false};                   // 1
   primitive::Current current{0};          // 2
+  primitive::ServoVolt voltage{0};        // 4
   primitive::ServoPosition position{0};   // 2
   primitive::Temperature temperature{0};  // 1
 
@@ -118,7 +117,7 @@ struct SystemTelemetryDTO {
   bool is_brake_enabled{false};  // 1
 
   ECUTelemetryDTO ecu_telemetry{};                  // 12
-  ServoTelemetryDTO servo_telemetry{};              // 9
+  ServoTelemetryDTO servo_telemetry{};              // 12
   AcceleratorTelemetryDTO accelerator_telemetry{};  // 6
 
   primitive::Speed target_speed{0};          // 1
