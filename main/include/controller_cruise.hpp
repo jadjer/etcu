@@ -79,8 +79,8 @@ class ControllerCruise {
         .kp = control.cruise.p,
         .ki = control.cruise.i,
         .kd = control.cruise.d,
-        .max_output = control.cruise.integral_max,
-        .min_output = control.cruise.integral_min,
+        .max_output = control.cruise.limiter_right.as<float>(),
+        .min_output = -control.cruise.limiter_left.as<float>(),
         .max_integral = control.cruise.integral_max,
         .min_integral = control.cruise.integral_min,
         .cal_type = PID_CAL_TYPE_POSITIONAL,
@@ -101,8 +101,7 @@ class ControllerCruise {
       return driver_position;
     }
 
-    type::Position const total_target = m_base_throttle + pid_correction;
-    type::Position const cruise_position = common::range(total_target, control.accelerator_min, control.accelerator_max);
+    type::Position const cruise_position = m_base_throttle + pid_correction;
 
     if (driver_position > cruise_position) {
       m_last_position = driver_position;
@@ -113,6 +112,7 @@ class ControllerCruise {
     type::Position const cruise_position_maximal{m_last_position + control.cruise.limiter_right};
 
     m_last_position = common::range(cruise_position, cruise_position_minimal, cruise_position_maximal);
+
     return m_last_position;
   }
 
