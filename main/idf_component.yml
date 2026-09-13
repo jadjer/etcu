@@ -1,3 +1,4 @@
 dependencies:
   idf: ^6.1.0
   h2zero/esp-nimble-cpp: ^2.5.0
+  espressif/pid_ctrl: ^0.3.1

@@ -122,6 +122,7 @@ class Controller {
   ControllerCruise m_cruise;
   SystemErrors m_system_errors;
 
+  std::size_t m_chunk_index{std::numeric_limits<std::size_t>::max()};
   type::Control m_last_control{};
   type::Calibration m_last_calibration{};
   bluetooth::BLEManager m_ble_manager{m_control, m_calibration, m_ota_chunk};
@@ -166,54 +167,73 @@ class Controller {
       if (is_cruise_active) {
         m_cruise.set_active(false);
         m_indicator.turn_off();
-        m_indicator.blink_times(1);
         m_logger.log_info("Cruise paused");
         return;
       }
 
-      type::Speed const target = m_cruise.get_target_speed();
+      type::Speed const target_speed = m_cruise.get_target_speed();
 
-      if (validate_cruise_activation(control, current_rpm, current_speed, target, safety_active, "resume")) {
+      if (validate_cruise_activation(control, current_rpm, current_speed, target_speed, safety_active, "resume")) {
         m_cruise.set_active(true);
         m_indicator.turn_on();
-        m_logger.log_info("Cruise resumed at: %d km/h", target.get());
-      } else {
-        m_indicator.blink_times(2);
-      }
-      return;
-    }
-
-    if (pattern == device::BuildPattern(device::ClickType::Long)) {
-      if (is_cruise_active) {
-        m_indicator.blink_times(1);
+        m_logger.log_info("Cruise resumed at: %d km/h", target_speed.get());
         return;
       }
 
-      if (validate_cruise_activation(control, current_rpm, current_speed, current_speed, safety_active, "enable")) {
-        m_cruise.set_target_speed(current_speed);
-        m_cruise.set_active(true);
-        m_indicator.turn_on();
-        m_logger.log_info("Cruise enabled and set at: %d km/h", current_speed.get());
-      } else {
-        m_indicator.blink_times(2);
-      }
+      m_indicator.blink_times(2);
       return;
     }
 
-    type::Position max_servo{0};
-    if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
-      max_servo = type::Position{300};
-    } else if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short)) {
-      max_servo = type::Position{600};
-    } else if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short, device::ClickType::Short)) {
-      max_servo = type::Position{900};
+    if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
+
     }
 
-    if (max_servo > 0) {
-      control.servo_max = max_servo;
+    if (pattern == device::BuildPattern(device::ClickType::Long)) {
+      if (validate_cruise_activation(control, current_rpm, current_speed, current_speed, safety_active, "enable")) {
+        m_cruise.reset_target();
+        m_indicator.turn_on();
+        m_logger.log_info("Cruise enabled and set at: %d km/h", current_speed.get());
+        return;
+      }
+
+      m_indicator.blink_times(2);
+      return;
+    }
+
+    if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short)) {
+      control.servo_max = type::Position{300};
+
       m_control.store(control);
       m_indicator.blink_times(1);
-      m_logger.log_info("Set servo max as %d", max_servo.get());
+
+      m_logger.log_info("Set servo max as 300");
+
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_control(control));
+
+      return;
+    }
+
+    if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short)) {
+      control.servo_max = type::Position{600};
+
+      m_control.store(control);
+      m_indicator.blink_times(1);
+
+      m_logger.log_info("Set servo max as 600");
+
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_control(control));
+
+      return;
+    }
+
+    if (pattern == device::BuildPattern(device::ClickType::Long, device::ClickType::Short, device::ClickType::Short, device::ClickType::Short)) {
+      control.servo_max = type::Position{900};
+
+      m_control.store(control);
+      m_indicator.blink_times(1);
+
+      m_logger.log_info("Set servo max as 900");
+
       m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_control(control));
     }
   }
@@ -250,22 +270,14 @@ class Controller {
       return false;
     }
 
-    struct InitStep {
-      type::SystemError mask;
-      type::SystemError error;
-    };
-    InitStep const steps[] = {{.mask = type::ErrorMaskECU, .error = m_ecu.init()},
-                              {.mask = type::ErrorMaskServo, .error = m_servo.init()},
-                              {.mask = type::ErrorMaskPeripheral, .error = m_brake.init()},
-                              {.mask = type::ErrorMaskGuard, .error = m_guard.init()},
-                              {.mask = type::ErrorMaskPeripheral, .error = m_mode_button.init()},
-                              {.mask = type::ErrorMaskAccelerator, .error = m_accelerator.init()},
-                              {.mask = type::ErrorMaskBluetooth, .error = m_ble_manager.init()},
-                              {.mask = type::ErrorMaskIndicator, .error = m_indicator.init()}};
-
-    for (auto const& step : steps) {
-      m_system_errors.update(step.mask, step.error);
-    }
+    m_system_errors.update(type::ErrorMaskECU, m_ecu.init());
+    m_system_errors.update(type::ErrorMaskServo, m_servo.init());
+    m_system_errors.update(type::ErrorMaskPeripheral, m_brake.init());
+    m_system_errors.update(type::ErrorMaskGuard, m_guard.init());
+    m_system_errors.update(type::ErrorMaskPeripheral, m_mode_button.init());
+    m_system_errors.update(type::ErrorMaskAccelerator, m_accelerator.init());
+    m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.init());
+    m_system_errors.update(type::ErrorMaskIndicator, m_indicator.init());
 
     if (m_system_errors.has(type::ErrorMaskServo)) {
       return m_logger.log_error("Servo init fault"), false;
@@ -308,6 +320,7 @@ class Controller {
 
     return true;
   }
+
   auto process_ecu_loop() noexcept -> void {
     m_system_errors.update(type::ErrorMaskECU, m_ecu.update());
 
@@ -321,7 +334,7 @@ class Controller {
 
     auto const [size, total, index, data] = m_ota_chunk.load();
 
-    if (size == 0) {
+    if (size == 0 || index == m_chunk_index) {
       return;
     }
 
@@ -338,8 +351,10 @@ class Controller {
     };
 
     if (!m_ota_manager.is_active()) {
-      if (!m_ota_manager.start_update(size))
+      if (!m_ota_manager.start_update(size)) {
         return handle_error("Start OTA error");
+      }
+
       m_logger.log_info("Start OTA (Size: %d bytes)", size);
       m_system_state.store(type::SystemState::Update);
     }
@@ -347,6 +362,9 @@ class Controller {
     if (!m_ota_manager.write_chunk(index, data)) {
       return handle_error("Failed to write chunk");
     }
+
+    m_chunk_index = index;
+    m_logger.log_info("Written chunk [%d/%d]", index + 1, total);
 
     if (index == total - 1) {
       if (!m_ota_manager.end_update()) {
@@ -392,8 +410,10 @@ class Controller {
       handle_mode_button(m_mode_button.get_pattern(), control, ecu.speed, ecu.rpm, safety_active);
     }
 
-    if (!m_cruise.is_active()) {
-      m_cruise.set_target_speed(ecu.speed);
+    if (m_cruise.is_active()) {
+      m_indicator.turn_on();
+    } else {
+      m_indicator.turn_off();
     }
   }
 
@@ -413,7 +433,7 @@ class Controller {
   }
 
   auto process_critical_loop() noexcept -> void {
-    if (m_system_state.load() != type::SystemState::Normal) [[unlikely]] {
+    if (type::SystemState const system_state = m_system_state.load(); system_state != type::SystemState::Normal) [[unlikely]] {
       m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(type::Position{0}));
       return;
     }
