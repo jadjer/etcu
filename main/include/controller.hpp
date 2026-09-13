@@ -165,7 +165,7 @@ class Controller {
 
     if (pattern == device::BuildPattern(device::ClickType::Short)) {
       if (is_cruise_active) {
-        m_cruise.set_running(false);
+        m_cruise.set_active(false);
         m_indicator.turn_off();
         m_logger.log_info("Cruise paused");
         return;
@@ -174,7 +174,7 @@ class Controller {
       type::Speed const target_speed = m_cruise.get_target_speed();
 
       if (validate_cruise_activation(control, current_rpm, current_speed, target_speed, safety_active, "resume")) {
-        m_cruise.set_running(true);
+        m_cruise.set_active(true);
         m_indicator.turn_on();
         m_logger.log_info("Cruise resumed at: %d km/h", target_speed.get());
         return;
@@ -422,7 +422,7 @@ class Controller {
       handle_mode_button(m_mode_button.get_pattern(), control, ecu.speed, ecu.rpm, safety_active);
     }
 
-    if (m_cruise.is_running()) {
+    if (m_cruise.is_active()) {
       m_indicator.turn_on();
     } else {
       m_indicator.turn_off();
