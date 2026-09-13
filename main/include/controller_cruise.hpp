@@ -22,15 +22,16 @@
 
 #include "common/atomic_container.hpp"
 #include "common/range.hpp"
+#include "esp_log.h"
 #include "type/control.hpp"
 #include "type/type.hpp"
 
 class ControllerCruise {
   static constexpr float critical_task_period_s{0.01f};
 
-  // Два потокобезопасных флага стейт-машины (поменяли местами active и enable)
   common::AtomicContainer<bool> m_is_enable{false};  // true — скорость установлена и сохранена в памяти
   common::AtomicContainer<bool> m_is_active{false};  // true — ПИД активен и удерживает скорость прямо сейчас
+  common::AtomicContainer<bool> m_need_reset{true};
 
   float m_filtered_speed{0.0f};
   type::Speed m_target_speed{0};
@@ -56,14 +57,18 @@ class ControllerCruise {
       return driver_position;
     }
 
-    // Если ПИД ещё не запущен (первый старт после паузы или принудительный перехват скорости)
-    if (!m_is_active.load()) {
-      // Если целевая скорость обнулена (LONG Click / первый запуск) — фиксируем новые значения
-      if (m_target_speed.get() == 0) {
+    bool const is_reset_request = m_need_reset.load();
+    if (is_reset_request) {
+      m_need_reset.store(false);
+    }
+
+    bool const is_active = m_is_active.load();
+
+    if (!is_active || is_reset_request) {
+      if (is_reset_request) {
         m_target_speed = current_speed;
         m_base_throttle = driver_position;
       }
-      // Если m_target_speed > 0 — это возобновление (Resume). Оставляем старые значения базы из памяти.
 
       m_is_active.store(true);  // Взводим физическую активность в true
       m_last_position = driver_position;
@@ -99,18 +104,20 @@ class ControllerCruise {
       return driver_position;
     }
 
-    type::Position const cruise_position = m_base_throttle + pid_correction;
-    type::Position const cruise_position_minimal{m_last_position - control.cruise.limiter_left};
-    type::Position const cruise_position_maximal{m_last_position + control.cruise.limiter_right};
-    type::Position const cruise_position_limited = common::range(cruise_position, cruise_position_minimal, cruise_position_maximal);
+    type::Position const cruise_position = m_base_throttle.as<float>() + pid_correction;
+    type::Position const cruise_position_minimal{m_last_position.as<float>() - control.cruise.limiter_left.as<float>()};
+    type::Position const cruise_position_maximal{m_last_position.as<float>() + control.cruise.limiter_right.as<float>()};
+    type::Position const cruise_position_limited = std::clamp(cruise_position.as<float>(), cruise_position_minimal.as<float>(), cruise_position_maximal.as<float>());
+
+    ESP_LOGI("LOG", "SPEED: %f, PID: %f, BASE: %d, POS: %d, LIM: %d", m_filtered_speed, pid_correction, m_base_throttle.get(), cruise_position.get(), cruise_position_limited.get());
 
     // Перехват управления ручкой газа водителем
-    if (driver_position > cruise_position_limited) {
+    if (driver_position > cruise_position) {
       m_last_position = driver_position;
       return driver_position;
     }
 
-    m_last_position = cruise_position_limited;
+    m_last_position = cruise_position;
     return m_last_position;
   }
 
@@ -126,7 +133,7 @@ class ControllerCruise {
                        .min_integral = 0.0f,
                        .cal_type = PID_CAL_TYPE_POSITIONAL},
     };
-    pid_new_control_block_f(&pid_config, &m_pid_handle);
+    pid_new_control_block(&pid_config, &m_pid_handle);
   }
 
   ControllerCruise(ControllerCruise const&) noexcept = delete;
@@ -146,8 +153,10 @@ class ControllerCruise {
                                                 type::Speed const current_speed) noexcept -> type::Position {
     type::Position const driver_position{accelerator};
 
+    bool const is_active = m_is_active.load();
+
     // Отсечка по безопасности или если физическая активность сброшена в Паузу (m_is_active == false)
-    if (safety_active || !m_is_active.load()) {
+    if (safety_active || !is_active) {
       type::Position const inactive_target = process_inactive_cruise(driver_position);
       return common::map_range(inactive_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
     }
@@ -164,9 +173,9 @@ class ControllerCruise {
    * Стирает старую цель. Устанавливает enable = true, active = true
    */
   auto reset_target() noexcept -> void {
-    m_target_speed = type::Speed{0};
     m_is_enable.store(true);
     m_is_active.store(true);
+    m_need_reset.store(true);
   }
 
   /**
@@ -176,15 +185,22 @@ class ControllerCruise {
   auto forget_target() noexcept -> void {
     m_is_enable.store(false);
     m_is_active.store(false);
-    m_target_speed = type::Speed{0};
-    m_base_throttle = type::Position::value_min;
+    m_need_reset.store(true);
   }
 
-  /**
-   * Переключение состояния удержания (SHORT Click или Тормоз)
-   * Меняет ТОЛЬКО m_is_active, сохраняя m_is_enable = true
-   */
-  auto set_active(bool const active) noexcept -> void { m_is_active.store(active); }
+  auto activate() noexcept -> bool {
+    if (bool const is_enabled = m_is_enable.load(); !is_enabled) {
+      return false;
+    }
+
+    m_is_active.store(true);
+
+    return true;
+  }
+
+  auto deactivate() noexcept -> void {
+    m_is_active.store(false);
+  }
 
   [[nodiscard]] auto is_enable() const noexcept -> bool { return m_is_enable.load(); }
   [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
