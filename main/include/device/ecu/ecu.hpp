@@ -50,10 +50,10 @@ struct EngineData {
   std::uint8_t tps_voltage{0};
   std::uint8_t map_voltage{0};
   std::uint8_t map_pressure{99};
-  std::uint8_t battery_voltage{0};
   std::uint8_t ignition_advance{0};
   std::uint16_t rpm{0};
   std::uint16_t fuel_inject{0};
+  float battery_voltage{0};
 };
 
 template <class DriverUart, class DriverGPIO>
@@ -217,7 +217,7 @@ class ECU {
       telemetry.air = type::Temperature{0};
       telemetry.coolant = type::Temperature{0};
 
-      return false;
+      return true;
     }
 
     telemetry.is_started = m_engine_data.is_running;

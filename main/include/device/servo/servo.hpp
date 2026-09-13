@@ -107,7 +107,7 @@ class Servo {
     }
 
     telemetry.is_connected = true;
-    telemetry.is_enabled = (response.payload[0] != 0);
+    telemetry.is_enabled = response.payload[0] != 0;
     telemetry.position = common::as_ulong(response.payload[17], response.payload[16]) & 0x7FFF;
     telemetry.voltage = common::calculateValueDivide10(response.payload[22]);
     telemetry.temperature = response.payload[23];

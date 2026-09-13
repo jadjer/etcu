@@ -165,7 +165,7 @@ class Controller {
 
     if (pattern == device::BuildPattern(device::ClickType::Short)) {
       if (is_cruise_active) {
-        m_cruise.set_active(false);
+        m_cruise.set_running(false);
         m_indicator.turn_off();
         m_logger.log_info("Cruise paused");
         return;
@@ -174,7 +174,7 @@ class Controller {
       type::Speed const target_speed = m_cruise.get_target_speed();
 
       if (validate_cruise_activation(control, current_rpm, current_speed, target_speed, safety_active, "resume")) {
-        m_cruise.set_active(true);
+        m_cruise.set_running(true);
         m_indicator.turn_on();
         m_logger.log_info("Cruise resumed at: %d km/h", target_speed.get());
         return;
@@ -185,7 +185,11 @@ class Controller {
     }
 
     if (pattern == device::BuildPattern(device::ClickType::Short, device::ClickType::Short)) {
-
+      if (is_cruise_active) {
+        m_cruise.forget_target();
+        m_indicator.turn_off();
+        m_logger.log_info("Cruise deactivated via double click");
+      }
     }
 
     if (pattern == device::BuildPattern(device::ClickType::Long)) {
@@ -238,9 +242,32 @@ class Controller {
     }
   }
 
-  [[nodiscard]] auto is_safety_active(type::ECUTelemetry const& ecu, type::Control const& control) const noexcept -> bool {
-    return ecu.rpm < control.cruise.rpm_min || ecu.rpm > control.cruise.rpm_max || ecu.speed < control.cruise.speed_min ||
-           ecu.speed > control.cruise.speed_max || m_brake.is_active() || ecu.is_neutral;
+  [[nodiscard]] auto is_safety_active(type::ECUTelemetry const& ecu, type::Control const& control) noexcept -> bool {
+    if (ecu.rpm < control.cruise.rpm_min) {
+      return true;
+    }
+
+    if (ecu.rpm > control.cruise.rpm_max) {
+      return true;
+    }
+
+    if (ecu.speed < control.cruise.speed_min) {
+      return true;
+    }
+
+    if (ecu.speed > control.cruise.speed_max) {
+      return true;
+    }
+
+    if (m_brake.is_active()) {
+      return true;
+    }
+
+    if (ecu.is_neutral) {
+      return true;
+    }
+
+    return false;
   }
 
  public:
@@ -386,22 +413,7 @@ class Controller {
     m_mode_button.update();
     m_indicator.update();
 
-    if (m_guard.is_active()) [[unlikely]] {
-      m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLock);
-      m_system_state.store(type::SystemState::Off);
-      m_logger.log_warn("Guard active. System shutdown");
-    }
-
     type::SystemState const system_state = m_system_state.load();
-
-    if (system_state == type::SystemState::Off) {
-      if (m_cruise.is_active()) {
-        m_cruise.set_active(false);
-        m_indicator.turn_off();
-      }
-      return;
-    }
-
     type::ECUTelemetry const ecu = m_ecu_telemetry.load();
     type::Control control = m_control.load();
 
@@ -410,7 +422,7 @@ class Controller {
       handle_mode_button(m_mode_button.get_pattern(), control, ecu.speed, ecu.rpm, safety_active);
     }
 
-    if (m_cruise.is_active()) {
+    if (m_cruise.is_running()) {
       m_indicator.turn_on();
     } else {
       m_indicator.turn_off();

@@ -24,12 +24,11 @@
 namespace type::primitive {
 
 using Load = std::uint16_t;
-using Volt = std::uint8_t;
+using Volt = float;
 using AccPosition = std::uint16_t;
 using Position = std::uint16_t;
 using ServoPosition = std::uint16_t;
 using ServoSpeed = std::uint16_t;
-using ServoVolt = float;
 using RPM = std::uint16_t;
 using Speed = std::uint8_t;
 using Current = std::uint16_t;

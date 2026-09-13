@@ -28,9 +28,9 @@
 class ControllerCruise {
   static constexpr float critical_task_period_s{0.01f};
 
-  common::AtomicContainer<bool> m_is_active{false};
-  common::AtomicContainer<bool> m_need_reset{false};
-  common::AtomicContainer<bool> m_is_running{false};
+  // Два потокобезопасных флага стейт-машины
+  common::AtomicContainer<bool> m_is_active{false};   // true — скорость установлена и сохранена в памяти
+  common::AtomicContainer<bool> m_is_running{false};  // true — ПИД активен и удерживает скорость прямо сейчас
 
   float m_filtered_speed{0.0f};
   type::Speed m_target_speed{0};
@@ -40,7 +40,7 @@ class ControllerCruise {
   pid_ctrl_block_handle_f_t m_pid_handle{nullptr};
 
   auto process_inactive_cruise(type::Position const driver_position) noexcept -> type::Position {
-    m_is_running.store(false);
+    m_is_running.store(false);  // При паузе/тормозе сбрасываем ТОЛЬКО running в false
     m_filtered_speed = 0.0f;
     m_last_position = driver_position;
 
@@ -56,37 +56,35 @@ class ControllerCruise {
       return driver_position;
     }
 
-    bool const is_reset_requested = m_need_reset.load();
-    if (is_reset_requested) {
-      m_need_reset.store(false);
-    }
-
-    bool const is_running = m_is_running.load();
-
-    if (!is_running || is_reset_requested) {
-      if (is_reset_requested) {
+    // Если ПИД ещё не запущен (первый старт после паузы или принудительный перехват скорости)
+    if (!m_is_running.load()) {
+      // Если целевая скорость обнулена (LONG Click / первый запуск) — фиксируем новые значения
+      if (m_target_speed.get() == 0) {
         m_target_speed = current_speed;
         m_base_throttle = driver_position;
       }
+      // Если m_target_speed > 0 — это возобновление (Resume). Оставляем старые значения базы из памяти.
 
-      m_is_running.store(true);
+      m_is_running.store(true);  // Взводим running в true
       m_last_position = driver_position;
 
       pid_reset_ctrl_block(m_pid_handle);
     }
 
+    // Параметры ПИД
     pid_ctrl_parameter_f_t const pid_params = {
         .kp = control.cruise.p,
         .ki = control.cruise.i,
         .kd = control.cruise.d,
-        .max_output = control.cruise.limiter_right.as<float>(),
-        .min_output = -control.cruise.limiter_left.as<float>(),
+        .max_output = type::Position::value_max,
+        .min_output = -type::Position::value_max,
         .max_integral = control.cruise.integral_max,
         .min_integral = control.cruise.integral_min,
         .cal_type = PID_CAL_TYPE_POSITIONAL,
     };
     pid_update_parameters(m_pid_handle, &pid_params);
 
+    // ФНЧ скорости ТС
     if (m_filtered_speed == 0.0f) {
       m_filtered_speed = current_speed.as<float>();
     } else {
@@ -102,17 +100,17 @@ class ControllerCruise {
     }
 
     type::Position const cruise_position = m_base_throttle + pid_correction;
+    type::Position const cruise_position_minimal{m_last_position - control.cruise.limiter_left};
+    type::Position const cruise_position_maximal{m_last_position + control.cruise.limiter_right};
+    type::Position const cruise_position_limited = common::range(cruise_position, cruise_position_minimal, cruise_position_maximal);
 
-    if (driver_position > cruise_position) {
+    // Перехват управления ручкой газа водителем
+    if (driver_position > cruise_position_limited) {
       m_last_position = driver_position;
       return driver_position;
     }
 
-    type::Position const cruise_position_minimal{m_last_position - control.cruise.limiter_left};
-    type::Position const cruise_position_maximal{m_last_position + control.cruise.limiter_right};
-
-    m_last_position = common::range(cruise_position, cruise_position_minimal, cruise_position_maximal);
-
+    m_last_position = cruise_position_limited;
     return m_last_position;
   }
 
@@ -148,23 +146,47 @@ class ControllerCruise {
                                                 type::Speed const current_speed) noexcept -> type::Position {
     type::Position const driver_position{accelerator};
 
-    if (safety_active || !m_is_active.load()) {
+    // Отсечка по безопасности или если круиз переведен в Паузу пользователем (m_is_running == false)
+    if (safety_active || !m_is_running.load()) {
       type::Position const inactive_target = process_inactive_cruise(driver_position);
       return common::map_range(inactive_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
     }
 
+    // Если круиз активен (m_is_active == true && m_is_running == true)
     type::Position const cruise_target = process_active_cruise(driver_position, control, current_speed);
     return common::map_range(cruise_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
   }
 
+  // --- ИНТЕРФЕЙС УПРАВЛЕНИЯ ФЛАГАМИ (Core 0) ---
+
+  /**
+   * Принудительный сброс и фиксация новой скорости (LONG Click)
+   * Стирает старую цель. Устанавливает active = true, running = true
+   */
   auto reset_target() noexcept -> void {
+    m_target_speed = type::Speed{0};
     m_is_active.store(true);
-    m_need_reset.store(true);
+    m_is_running.store(true);
   }
 
-  auto set_active(bool const active) noexcept -> void { m_is_active.store(active); }
+  /**
+   * Полное выключение системы (DOUBLE Click)
+   * Сбрасывает ВСЕ флаги в false и полностью очищает память
+   */
+  auto forget_target() noexcept -> void {
+    m_is_active.store(false);
+    m_is_running.store(false);
+    m_target_speed = type::Speed{0};
+    m_base_throttle = type::Position::value_min;
+  }
+
+  /**
+   * Переключение состояния удержания (SHORT Click или Тормоз)
+   * Меняет ТОЛЬКО m_is_running, сохраняя m_is_active = true
+   */
+  auto set_running(bool const running) noexcept -> void { m_is_running.store(running); }
 
   [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
-
+  [[nodiscard]] auto is_running() const noexcept -> bool { return m_is_running.load(); }
   [[nodiscard]] auto get_target_speed() const noexcept -> type::Speed { return m_target_speed; }
 };

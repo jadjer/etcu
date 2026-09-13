@@ -25,8 +25,8 @@ namespace type::limit {
 static constexpr primitive::Load load_min{0};
 static constexpr primitive::Load load_max{1000};
 
-static constexpr primitive::Volt volt_min{0};
-static constexpr primitive::Volt volt_max{100};
+static constexpr primitive::Volt volt_min{0.0f};
+static constexpr primitive::Volt volt_max{18.0f};
 
 static constexpr primitive::AccPosition acc_pos_min{0};
 static constexpr primitive::AccPosition acc_pos_max{3100};
@@ -36,9 +36,6 @@ static constexpr primitive::Position pos_max{1000};
 
 static constexpr primitive::ServoPosition servo_pos_min{0};
 static constexpr primitive::ServoPosition servo_pos_max{4095};
-
-static constexpr primitive::ServoVolt servo_volt_min{0.0};
-static constexpr primitive::ServoVolt servo_volt_max{14.0};
 
 static constexpr primitive::RPM rpm_min{0};
 static constexpr primitive::RPM rpm_max{9000};

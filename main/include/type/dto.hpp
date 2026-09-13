@@ -85,7 +85,7 @@ struct ECUTelemetryDTO {
   bool is_neutral{false};    // 1
 
   primitive::RPM rpm{0};              // 2
-  primitive::Volt battery{0};         // 1
+  primitive::Volt battery{0};         // 4
   primitive::Speed speed{0};          // 1
   primitive::Pressure map{0};         // 1
   primitive::Position tps{0};         // 2
@@ -99,7 +99,7 @@ struct ServoTelemetryDTO {
   bool is_enabled{false};                 // 1
   bool is_moved{false};                   // 1
   primitive::Current current{0};          // 2
-  primitive::ServoVolt voltage{0};        // 4
+  primitive::Volt voltage{0};             // 4
   primitive::ServoPosition position{0};   // 2
   primitive::Temperature temperature{0};  // 1
 
@@ -116,7 +116,7 @@ struct SystemTelemetryDTO {
   bool is_guard_active{false};   // 1
   bool is_brake_enabled{false};  // 1
 
-  ECUTelemetryDTO ecu_telemetry{};                  // 12
+  ECUTelemetryDTO ecu_telemetry{};                  // 15
   ServoTelemetryDTO servo_telemetry{};              // 12
   AcceleratorTelemetryDTO accelerator_telemetry{};  // 6
 
