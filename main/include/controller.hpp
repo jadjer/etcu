@@ -481,12 +481,12 @@ class Controller {
 
         .error = m_cruise.get_error(),
         .correction = m_cruise.get_correction(),
-        .derivation = m_cruise.get_derivation(),
+        .derivation = 0.0f,
 
         .target_speed = m_cruise.get_target_speed(),
         .current_speed = ecu_telemetry.speed,
 
-        .last_position = m_cruise.get_last_position(),
+        .last_position = m_cruise.get_target_position(),
         .current_position = throttle_position,
     };
 

@@ -32,32 +32,25 @@ class ControllerCruise {
 
   common::AtomicContainer<float> m_error{0.0f};
   common::AtomicContainer<float> m_correction{0.0f};
-  common::AtomicContainer<float> m_derivative{0.0f};
-  common::AtomicContainer<float> m_filtered_speed{0.0f};
 
-  common::AtomicContainer<type::Speed> m_last_speed{0};
   common::AtomicContainer<type::Speed> m_target_speed{0};
-  common::AtomicContainer<type::Position> m_last_position{0};
+  common::AtomicContainer<type::Position> m_target_position{0};
 
   pid_ctrl_block_handle_f_t m_pid_handle{nullptr};
 
   auto process_inactive_cruise(type::Position const driver_position) noexcept -> type::Position {
     m_is_active.store(false);
-    m_derivative.store(0.0f);
-    m_last_speed.store(0.0f);
-    m_filtered_speed.store(0.0f);
+    m_target_speed.store(0.0f);
+    m_target_position.store(0.0f);
 
     if (m_pid_handle != nullptr) {
       pid_reset_ctrl_block(m_pid_handle);
     }
 
-    m_last_position.store(driver_position);
     return driver_position;
   }
 
   auto process_active_cruise(type::Position const driver_position, type::Speed const current_speed, type::Cruise const& control) noexcept -> type::Position {
-    static constexpr float alpha_f{0.2};
-
     if (m_pid_handle == nullptr) [[unlikely]] {
       return process_inactive_cruise(driver_position);
     }
@@ -65,7 +58,7 @@ class ControllerCruise {
     if (bool const is_reset_request = m_need_reset.load(); is_reset_request) {
       m_need_reset.store(false);
       m_target_speed.store(current_speed);
-      m_last_position.store(driver_position);
+      m_target_position.store(driver_position);
       pid_reset_ctrl_block(m_pid_handle);
     }
 
@@ -83,30 +76,11 @@ class ControllerCruise {
       return process_inactive_cruise(driver_position);
     }
 
-    float filtered_speed_f = m_filtered_speed.load();
-    auto const current_speed_f = current_speed.as<float>();
-
-    if (filtered_speed_f == 0.0f) {
-      filtered_speed_f = current_speed_f;
-      m_last_speed.store(current_speed_f);
-      m_derivative.store(0.0f);
-    } else if (type::Speed const last_speed = m_last_speed.load(); last_speed != current_speed) {
-      float const new_filtered = current_speed_f * alpha_f + filtered_speed_f * (1.0f - alpha_f);
-      float const derivative = (new_filtered - filtered_speed_f) / 10.0f;
-
-      m_derivative.store(derivative);
-      m_last_speed.store(current_speed);
-
-      filtered_speed_f = new_filtered;
-    } else {
-      float const derivative = m_derivative.load();
-      filtered_speed_f += derivative;
-    }
-    m_filtered_speed.store(filtered_speed_f);
 
     type::Speed const target_speed = m_target_speed.load();
     auto const target_speed_f = target_speed.as<float>();
-    float const error_f = target_speed_f - filtered_speed_f;
+    auto const current_speed_f = current_speed.as<float>();
+    float const error_f = target_speed_f - current_speed_f;
     m_error.store(error_f);
 
     float pid_correction_f{0.0f};
@@ -115,15 +89,13 @@ class ControllerCruise {
     }
     m_correction.store(pid_correction_f);
 
-    type::Position const last_position = m_last_position.load();
-    type::Position const cruise_position = last_position + pid_correction_f;
+    type::Position const target_position = m_target_position.load();
+    type::Position const cruise_position = target_position + pid_correction_f;
 
     if (driver_position > cruise_position) {
-      m_last_position.store(driver_position);
       return driver_position;
     }
 
-    m_last_position.store(cruise_position);
     return cruise_position;
   }
 
@@ -181,9 +153,8 @@ class ControllerCruise {
   [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
   [[nodiscard]] auto get_error() const noexcept -> float { return m_error.load(); }
   [[nodiscard]] auto get_correction() const noexcept -> float { return m_correction.load(); }
-  [[nodiscard]] auto get_derivation() const noexcept -> float { return m_derivative.load(); }
   [[nodiscard]] auto get_target_speed() const noexcept -> type::Speed { return m_target_speed.load(); }
-  [[nodiscard]] auto get_last_position() const noexcept -> type::Position { return m_last_position.load(); }
+  [[nodiscard]] auto get_target_position() const noexcept -> type::Position { return m_target_position.load(); }
 
   auto enable() noexcept -> void {
     m_is_enable.store(true);
