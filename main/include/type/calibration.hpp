@@ -25,28 +25,39 @@
 
 namespace type {
 
+struct AccPositionRange {
+  AccPosition min{0};
+  AccPosition max{0};
+
+  [[nodiscard]] auto operator<=>(AccPositionRange const&) const = default;
+};
+
 struct AcceleratorCalibrationData {
   static constexpr std::string_view name{"acc_calib"};
-  static constexpr std::uint32_t current_version{1};
+  static constexpr std::uint32_t current_version{2};
 
   std::uint32_t version{0};
 
-  AccPosition hall_a_minimal{0};
-  AccPosition hall_a_maximal{0};
-  AccPosition hall_b_minimal{0};
-  AccPosition hall_b_maximal{0};
+  AccPositionRange hall_a{};
+  AccPositionRange hall_b{};
 
   [[nodiscard]] auto operator<=>(AcceleratorCalibrationData const&) const = default;
 };
 
+struct ServoPositionRange {
+  ServoPosition min{0};
+  ServoPosition max{0};
+
+  [[nodiscard]] auto operator<=>(ServoPositionRange const&) const = default;
+};
+
 struct ServoCalibrationData {
   static constexpr std::string_view name{"servo_calib"};
-  static constexpr std::uint32_t current_version{1};
+  static constexpr std::uint32_t current_version{2};
 
   std::uint32_t version{0};
 
-  ServoPosition position_minimal{0};
-  ServoPosition position_maximal{0};
+  ServoPositionRange position{};
 
   [[nodiscard]] auto operator<=>(ServoCalibrationData const&) const = default;
 };
@@ -57,13 +68,13 @@ struct Calibration {
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CalibrationDTO {
     return dto::CalibrationDTO{
-        .hall_a_min = accelerator.hall_a_minimal.get(),
-        .hall_a_max = accelerator.hall_a_maximal.get(),
-        .hall_b_min = accelerator.hall_b_minimal.get(),
-        .hall_b_max = accelerator.hall_b_maximal.get(),
+        .hall_a_min = accelerator.hall_a.min.get(),
+        .hall_a_max = accelerator.hall_a.max.get(),
+        .hall_b_min = accelerator.hall_b.min.get(),
+        .hall_b_max = accelerator.hall_b.max.get(),
 
-        .servo_min = servo.position_minimal.get(),
-        .servo_max = servo.position_maximal.get(),
+        .servo_min = servo.position.min.get(),
+        .servo_max = servo.position.max.get(),
     };
   }
 

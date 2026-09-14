@@ -69,7 +69,7 @@ class Servo {
     type::ServoCalibrationData const calibration_data = m_calibration_data.load();
 
     type::ServoPosition const servo_position =
-        common::map_range(target_position, position_min, position_max, calibration_data.position_minimal, calibration_data.position_maximal);
+        common::map_range(target_position, position_min, position_max, calibration_data.position.min, calibration_data.position.max);
 
     std::array const params{
         common::as_byte(ServoRegister::TargetPosition),

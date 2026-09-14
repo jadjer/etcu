@@ -24,11 +24,10 @@ namespace common {
 
 template <typename T>
 concept IsBoundedConcept = requires(T instance) {
-  requires std::constructible_from<T, std::int32_t>;
-  { T::value_min } -> std::convertible_to<std::int32_t>;
-  { T::value_max } -> std::convertible_to<std::int32_t>;
+  requires std::constructible_from<T, float> || std::constructible_from<T, std::int32_t>;
+  requires std::three_way_comparable<T>;
   { instance.value } -> std::convertible_to<std::int32_t>;
-  { instance = std::int32_t{} } -> std::same_as<T&>;
+  { instance.template as<float>() } -> std::same_as<float>;
 };
 
 template <typename In>
@@ -38,9 +37,7 @@ constexpr auto range(In const value, In const fromMin, In const fromMax) -> In {
     return fromMin;
   }
 
-  In const clamped = std::clamp(value, fromMin, fromMax);
-
-  return clamped;
+  return std::clamp(value, fromMin, fromMax, [](In const& a, In const& b) { return a.template as<float>() < b.template as<float>(); });
 }
 
 template <typename In, typename Out>
@@ -69,5 +66,54 @@ constexpr auto map_range(In const value, In const fromMin, In const fromMax, Out
 
   return static_cast<Out>(scaled_raw);
 }
+
+namespace range_tests {
+
+// ИСПРАВЛЕНИЕ: Один универсальный конструктор на концептах убирает двусмысленность для clangd
+template <typename T, T MinVal, T MaxVal>
+struct DummyBounded {
+  static constexpr T value_min{MinVal};
+  static constexpr T value_max{MaxVal};
+
+  T value;
+
+  constexpr DummyBounded(std::convertible_to<float> auto const val) noexcept
+      : value{static_cast<T>(std::clamp(static_cast<float>(val), static_cast<float>(value_min), static_cast<float>(value_max)))} {}
+
+  template <typename R>
+  [[nodiscard]] constexpr auto as() const noexcept -> R {
+    return static_cast<R>(value);
+  }
+
+  constexpr auto operator<=>(DummyBounded const&) const = default;
+};
+
+using TestBounded = DummyBounded<std::uint16_t, 600, 1250>;
+
+// 1. Проверяем валидацию концепта компилятором
+static_assert(IsBoundedConcept<TestBounded>, "CRITICAL: IsBoundedConcept failed to validate TestBounded structure!");
+
+// 2. Проверяем рантайм-логику функции range на этапе compile-time
+constexpr TestBounded val1{1000};
+constexpr TestBounded val2{-1000};
+constexpr TestBounded val3{0};
+constexpr TestBounded min_gate{600};
+constexpr TestBounded max_gate{900};
+
+static_assert(range(val1, min_gate, max_gate) == max_gate, "Range compile-time test with .as<float>() failed!");
+static_assert(range(val2, min_gate, max_gate) == min_gate, "Range compile-time test with .as<float>() failed!");
+static_assert(range(val3, min_gate, max_gate) == min_gate, "Range compile-time test with .as<float>() failed!");
+
+// 3. Тест для верификации функции масштабирования map_range
+using OutBounded = DummyBounded<std::int32_t, 0, 100>;
+constexpr TestBounded input_pos{925};
+constexpr TestBounded in_min{600};
+constexpr TestBounded in_max{1250};
+constexpr OutBounded out_min{0};
+constexpr OutBounded out_max{100};
+
+static_assert(map_range(input_pos, in_min, in_max, out_min, out_max) == 50, "Map_range compile-time test failed!");
+
+}  // namespace range_tests
 
 }  // namespace common

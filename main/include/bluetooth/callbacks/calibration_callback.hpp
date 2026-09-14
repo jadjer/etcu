@@ -55,15 +55,12 @@ class CalibrationCallback : public NimBLECharacteristicCallbacks {
     type::Calibration const calibration{
         .servo =
             type::ServoCalibrationData{
-                .position_minimal = servo_min,
-                .position_maximal = servo_max,
+                .position = {servo_min, servo_max},
             },
         .accelerator =
             type::AcceleratorCalibrationData{
-                .hall_a_minimal = hall_a_min,
-                .hall_a_maximal = hall_a_max,
-                .hall_b_minimal = hall_b_min,
-                .hall_b_maximal = hall_b_max,
+                .hall_a = {.min = hall_a_min, .max = hall_a_max},
+                .hall_b = {.min = hall_b_min, .max = hall_b_max},
             },
     };
 

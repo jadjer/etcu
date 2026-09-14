@@ -22,187 +22,192 @@
 
 #include "common/atomic_container.hpp"
 #include "common/range.hpp"
-#include "esp_log.h"
 #include "type/control.hpp"
 #include "type/type.hpp"
 
 class ControllerCruise {
-  static constexpr float critical_task_period_s{0.01f};
-
-  common::AtomicContainer<bool> m_is_enable{false};  // true — скорость установлена и сохранена в памяти
-  common::AtomicContainer<bool> m_is_active{false};  // true — ПИД активен и удерживает скорость прямо сейчас
+  common::AtomicContainer<bool> m_is_enable{false};
+  common::AtomicContainer<bool> m_is_active{false};
   common::AtomicContainer<bool> m_need_reset{true};
 
-  float m_filtered_speed{0.0f};
-  type::Speed m_target_speed{0};
-  type::Position m_base_throttle{type::Position::value_min};
-  type::Position m_last_position{type::Position::value_min};
+  common::AtomicContainer<float> m_error{0.0f};
+  common::AtomicContainer<float> m_correction{0.0f};
+  common::AtomicContainer<float> m_derivative{0.0f};
+  common::AtomicContainer<float> m_filtered_speed{0.0f};
+
+  common::AtomicContainer<type::Speed> m_last_speed{0};
+  common::AtomicContainer<type::Speed> m_target_speed{0};
+  common::AtomicContainer<type::Position> m_last_position{0};
 
   pid_ctrl_block_handle_f_t m_pid_handle{nullptr};
 
   auto process_inactive_cruise(type::Position const driver_position) noexcept -> type::Position {
-    m_is_active.store(false);  // При паузе/тормозе сбрасываем ТОЛЬКО физическую активность в false
-    m_filtered_speed = 0.0f;
-    m_last_position = driver_position;
+    m_last_speed.store(0.0f);
+    m_filtered_speed.store(0.0f);
+    m_derivative.store(0.0f);
 
     if (m_pid_handle != nullptr) {
       pid_reset_ctrl_block(m_pid_handle);
     }
 
+    m_last_position.store(driver_position);
     return driver_position;
   }
 
-  auto process_active_cruise(type::Position const driver_position, type::Control const& control, type::Speed const current_speed) noexcept -> type::Position {
+  auto process_active_cruise(type::Position const driver_position, type::Speed const current_speed, type::Cruise const& control) noexcept -> type::Position {
+    static constexpr float alpha_f{0.2};
+
     if (m_pid_handle == nullptr) [[unlikely]] {
-      return driver_position;
+      return process_inactive_cruise(driver_position);
     }
 
-    bool const is_reset_request = m_need_reset.load();
-    if (is_reset_request) {
+    if (bool const is_reset_request = m_need_reset.load(); is_reset_request) {
       m_need_reset.store(false);
-    }
-
-    bool const is_active = m_is_active.load();
-
-    if (!is_active || is_reset_request) {
-      if (is_reset_request) {
-        m_target_speed = current_speed;
-        m_base_throttle = driver_position;
-      }
-
-      m_is_active.store(true);  // Взводим физическую активность в true
-      m_last_position = driver_position;
-
+      m_target_speed.store(current_speed);
+      m_last_position.store(driver_position);
       pid_reset_ctrl_block(m_pid_handle);
     }
 
-    // Параметры ПИД
     pid_ctrl_parameter_f_t const pid_params = {
-        .kp = control.cruise.p,
-        .ki = control.cruise.i,
-        .kd = control.cruise.d,
-        .max_output = type::Position::value_max,
-        .min_output = -type::Position::value_max,
-        .max_integral = control.cruise.integral_max,
-        .min_integral = control.cruise.integral_min,
-        .cal_type = PID_CAL_TYPE_POSITIONAL,
+        .kp = control.p,
+        .ki = control.i,
+        .kd = control.d,
+        .max_output = control.limiter_up.as<float>(),
+        .min_output = -control.limiter_down.as<float>(),
+        .max_integral = 0.0f,
+        .min_integral = 0.0f,
+        .cal_type = PID_CAL_TYPE_INCREMENTAL,
     };
     pid_update_parameters(m_pid_handle, &pid_params);
 
-    // ФНЧ скорости ТС
-    if (m_filtered_speed == 0.0f) {
-      m_filtered_speed = current_speed.as<float>();
+    float filtered_speed_f = m_filtered_speed.load();
+    auto const current_speed_f = current_speed.as<float>();
+
+    if (filtered_speed_f == 0.0f) {
+      filtered_speed_f = current_speed_f;
+      m_last_speed.store(current_speed_f);
+      m_derivative.store(0.0f);
+    } else if (type::Speed const last_speed = m_last_speed.load(); last_speed != current_speed) {
+      float const new_filtered = current_speed_f * alpha_f + filtered_speed_f * (1.0f - alpha_f);
+      float const derivative = (new_filtered - filtered_speed_f) / 10.0f;
+
+      m_derivative.store(derivative);
+      m_last_speed.store(current_speed);
+
+      filtered_speed_f = new_filtered;
     } else {
-      float const alpha = control.cruise.filter_alpha;
-      m_filtered_speed = current_speed.as<float>() * alpha + m_filtered_speed * (1.0f - alpha);
+      float const derivative = m_derivative.load();
+      filtered_speed_f += derivative;
     }
+    m_filtered_speed.store(filtered_speed_f);
 
-    float const error = m_target_speed.as<float>() - m_filtered_speed;
-    float pid_correction{0.0f};
+    type::Speed const target_speed = m_target_speed.load();
+    auto const target_speed_f = target_speed.as<float>();
+    float const error_f = target_speed_f - filtered_speed_f;
+    m_error.store(error_f);
 
-    if (pid_compute(m_pid_handle, error, &pid_correction) != ESP_OK) [[unlikely]] {
+    float pid_correction_f{0.0f};
+    if (pid_compute(m_pid_handle, error_f, &pid_correction_f) != ESP_OK) [[unlikely]] {
+      m_correction.store(0.0f);
+      m_last_position.store(driver_position);
       return driver_position;
     }
+    m_correction.store(pid_correction_f);
 
-    type::Position const cruise_position = m_base_throttle.as<float>() + pid_correction;
-    type::Position const cruise_position_minimal{m_last_position.as<float>() - control.cruise.limiter_left.as<float>()};
-    type::Position const cruise_position_maximal{m_last_position.as<float>() + control.cruise.limiter_right.as<float>()};
-    type::Position const cruise_position_limited = std::clamp(cruise_position.as<float>(), cruise_position_minimal.as<float>(), cruise_position_maximal.as<float>());
+    type::Position const last_position = m_last_position.load();
+    type::Position const cruise_position = last_position + pid_correction_f;
 
-    ESP_LOGI("LOG", "SPEED: %f, PID: %f, BASE: %d, POS: %d, LIM: %d", m_filtered_speed, pid_correction, m_base_throttle.get(), cruise_position.get(), cruise_position_limited.get());
-
-    // Перехват управления ручкой газа водителем
     if (driver_position > cruise_position) {
-      m_last_position = driver_position;
+      m_last_position.store(driver_position);
       return driver_position;
     }
 
-    m_last_position = cruise_position;
-    return m_last_position;
+    m_last_position.store(cruise_position);
+    return cruise_position;
   }
 
  public:
-  constexpr ControllerCruise() noexcept {
+  constexpr ControllerCruise() noexcept = default;
+
+  ControllerCruise(ControllerCruise const&) noexcept = delete;
+  auto operator=(ControllerCruise const&) noexcept -> ControllerCruise& = delete;
+
+  ControllerCruise(ControllerCruise&&) noexcept = delete;
+  auto operator=(ControllerCruise&&) noexcept -> ControllerCruise& = delete;
+
+  constexpr ~ControllerCruise() noexcept = default;
+
+  auto init() noexcept {
     static constexpr pid_ctrl_config_f_t pid_config{
-        .init_param = {.kp = 0.0f,
-                       .ki = 0.0f,
-                       .kd = 0.0f,
-                       .max_output = 0.0f,
-                       .min_output = 0.0f,
-                       .max_integral = 0.0f,
-                       .min_integral = 0.0f,
-                       .cal_type = PID_CAL_TYPE_POSITIONAL},
+        .init_param =
+            {
+                .kp = 0.0f,
+                .ki = 0.0f,
+                .kd = 0.0f,
+                .max_output = 0.0f,
+                .min_output = 0.0f,
+                .max_integral = 0.0f,
+                .min_integral = 0.0f,
+                .cal_type = PID_CAL_TYPE_INCREMENTAL,
+            },
     };
     pid_new_control_block(&pid_config, &m_pid_handle);
   }
 
-  ControllerCruise(ControllerCruise const&) noexcept = delete;
-  auto operator=(ControllerCruise const&) noexcept -> ControllerCruise& = delete;
-  ControllerCruise(ControllerCruise&&) noexcept = delete;
-  auto operator=(ControllerCruise&&) noexcept -> ControllerCruise& = delete;
-
-  ~ControllerCruise() noexcept {
-    if (m_pid_handle != nullptr) {
-      pid_del_control_block(m_pid_handle);
-    }
-  }
-
   [[nodiscard]] auto generate_throttle_position(type::Position const accelerator,
-                                                bool const safety_active,
-                                                type::Control const& control,
-                                                type::Speed const current_speed) noexcept -> type::Position {
-    type::Position const driver_position{accelerator};
+                                                type::Speed const speed,
+                                                bool const is_safety_active,
+                                                type::Control const& control) noexcept -> type::Position {
+    type::Position target_position{accelerator};
 
-    bool const is_active = m_is_active.load();
+    bool const is_enabled = m_is_enable.load();  // NOLINT
+    bool const is_active = m_is_active.load();   // NOLINT
 
-    // Отсечка по безопасности или если физическая активность сброшена в Паузу (m_is_active == false)
-    if (safety_active || !is_active) {
-      type::Position const inactive_target = process_inactive_cruise(driver_position);
-      return common::map_range(inactive_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
+    if (!is_enabled || !is_active || is_safety_active) {
+      target_position = process_inactive_cruise(accelerator);
+    } else {
+      target_position = process_active_cruise(accelerator, speed, control.cruise);
     }
 
-    // Если круиз активен и удерживает скорость (m_is_enable == true && m_is_active == true)
-    type::Position const cruise_target = process_active_cruise(driver_position, control, current_speed);
-    return common::map_range(cruise_target, control.accelerator_min, control.accelerator_max, control.servo_min, control.servo_max);
+    return common::map_range(target_position, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);
   }
 
-  // --- ИНТЕРФЕЙС УПРАВЛЕНИЯ ФЛАГАМИ (Core 0) ---
+  [[nodiscard]] auto is_enable() const noexcept -> bool { return m_is_enable.load(); }
+  [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
 
-  /**
-   * Принудительный сброс и фиксация новой скорости (LONG Click)
-   * Стирает старую цель. Устанавливает enable = true, active = true
-   */
-  auto reset_target() noexcept -> void {
+  [[nodiscard]] auto get_error() const noexcept -> float { return m_error.load(); }
+  [[nodiscard]] auto get_correction() const noexcept -> float { return m_correction.load(); }
+  [[nodiscard]] auto get_derivation() const noexcept -> float { return m_derivative.load(); }
+  [[nodiscard]] auto get_target_speed() const noexcept -> type::Speed { return m_target_speed.load(); }
+  [[nodiscard]] auto get_last_position() const noexcept -> type::Position { return m_last_position.load(); }
+
+  auto enable() noexcept -> void {
     m_is_enable.store(true);
     m_is_active.store(true);
     m_need_reset.store(true);
   }
 
-  /**
-   * Полное выключение системы (DOUBLE Click)
-   * Сбрасывает ВСЕ флаги в false и полностью очищает память
-   */
-  auto forget_target() noexcept -> void {
+  auto disable() noexcept -> void {
     m_is_enable.store(false);
     m_is_active.store(false);
     m_need_reset.store(true);
   }
 
-  auto activate() noexcept -> bool {
+  auto resume() noexcept -> bool {
     if (bool const is_enabled = m_is_enable.load(); !is_enabled) {
       return false;
     }
 
     m_is_active.store(true);
-
     return true;
   }
 
-  auto deactivate() noexcept -> void {
-    m_is_active.store(false);
-  }
+  auto pause() noexcept -> bool {
+    if (bool const is_enabled = m_is_enable.load(); !is_enabled) {
+      return false;
+    }
 
-  [[nodiscard]] auto is_enable() const noexcept -> bool { return m_is_enable.load(); }
-  [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
-  [[nodiscard]] auto get_target_speed() const noexcept -> type::Speed { return m_target_speed; }
+    m_is_active.store(false);
+    return true;
+  }
 };

@@ -93,8 +93,8 @@ class Accelerator {
       telemetry.hall_b = adc_value_b;
     }
 
-    type::Position const pos_a = common::map_range(adc_value_a, calibration_data.hall_a_minimal, calibration_data.hall_a_maximal, value_min, value_max);
-    type::Position const pos_b = common::map_range(adc_value_b, calibration_data.hall_b_minimal, calibration_data.hall_b_maximal, value_min, value_max);
+    type::Position const pos_a = common::map_range(adc_value_a, calibration_data.hall_a.min, calibration_data.hall_a.max, value_min, value_max);
+    type::Position const pos_b = common::map_range(adc_value_b, calibration_data.hall_b.min, calibration_data.hall_b.max, value_min, value_max);
 
     telemetry.position = pos_a;
 

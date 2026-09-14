@@ -24,7 +24,7 @@
 namespace type::primitive {
 
 using Load = std::uint16_t;
-using Volt = float;
+using Voltage = float;
 using AccPosition = std::uint16_t;
 using Position = std::uint16_t;
 using ServoPosition = std::uint16_t;

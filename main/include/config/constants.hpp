@@ -34,7 +34,7 @@ inline constexpr std::string_view CalibrationCharUUID{"01a07de1-71b0-730f-a4cc-d
 }  // namespace bluetooth
 
 namespace pin {
-inline constexpr int ButtonMode{7};
+inline constexpr int ButtonMode{0};
 inline constexpr int SwitchBrake{15};
 inline constexpr int SwitchGuard{16};
 inline constexpr int LedMode{6};

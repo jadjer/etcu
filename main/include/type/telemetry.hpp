@@ -30,8 +30,8 @@ struct ServoTelemetry {
   bool is_enabled{false};
   bool is_moved{false};
 
-  Volt voltage{0};
   Current current{0};
+  Voltage voltage{0};
   ServoPosition position{0};
   Temperature temperature{0};
 
@@ -55,7 +55,7 @@ struct ECUTelemetry {
   bool is_neutral{false};
 
   RPM rpm{0};
-  Volt battery{0};
+  Voltage battery{0};
   Speed speed{0};
   Pressure map{0};
   Position tps{0};
@@ -69,10 +69,10 @@ struct ECUTelemetry {
         .is_neutral = is_neutral,
 
         .rpm = rpm.get(),
-        .battery = battery.get(),
         .speed = speed.get(),
         .map = map.get(),
         .tps = tps.get(),
+        .battery = battery.get(),
         .air = air.get(),
         .coolant = coolant.get(),
     };
@@ -93,16 +93,48 @@ struct AcceleratorTelemetry {
   }
 };
 
+struct CruiseTelemetry {
+  bool is_enabled{false};
+  bool is_activated{false};
+
+  float error{0.0f};
+  float correction{0};
+  float derivation{0};
+
+  Speed target_speed{0};
+  Speed current_speed{0};
+
+  Position last_position{0};
+  Position current_position{0};
+
+  [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseTelemetryDTO {
+    return dto::CruiseTelemetryDTO{
+        .is_enabled = is_enabled,
+        .is_activated = is_activated,
+
+        .error = error,
+        .correction = correction,
+        .derivation = derivation,
+
+        .target_speed = target_speed.get(),
+        .current_speed = current_speed.get(),
+
+        .last_position = last_position.get(),
+        .current_position = current_position.get(),
+    };
+  }
+};
+
 struct SystemTelemetry {
   bool is_guard_active{false};
   bool is_brake_enabled{false};
 
+  Position throttle_position{0};
+
   ECUTelemetry ecu_telemetry{};
   ServoTelemetry servo_telemetry{};
+  CruiseTelemetry cruise_telemetry{};
   AcceleratorTelemetry accelerator_telemetry{};
-
-  Speed target_speed{0};
-  Position throttle_position{0};
 
   SystemState system_state{SystemState::Off};
   SystemError system_errors{SystemError::None};
@@ -112,12 +144,12 @@ struct SystemTelemetry {
         .is_guard_active = is_guard_active,
         .is_brake_enabled = is_brake_enabled,
 
+        .throttle_position = throttle_position.get(),
+
         .ecu_telemetry = ecu_telemetry.to_dto(),
         .servo_telemetry = servo_telemetry.to_dto(),
+        .cruise_telemetry = cruise_telemetry.to_dto(),
         .accelerator_telemetry = accelerator_telemetry.to_dto(),
-
-        .target_speed = target_speed.get(),
-        .throttle_position = throttle_position.get(),
 
         .system_state = system_state,
         .system_errors = system_errors,

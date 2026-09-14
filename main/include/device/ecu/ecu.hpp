@@ -158,7 +158,7 @@ class ECU {
 
       case 0xD1:
         m_engine_data.state = static_cast<EngineState>(payload[header_size + 0]);
-        m_engine_data.is_running = (payload[header_size + 4] != 0);
+        m_engine_data.is_running = payload[header_size + 4] != 0;
         break;
 
       default:
@@ -210,10 +210,10 @@ class ECU {
       telemetry.is_neutral = true;
 
       telemetry.rpm = type::RPM{0};
-      telemetry.battery = type::Volt{0};
       telemetry.speed = type::Speed{0};
       telemetry.map = type::Pressure{0};
       telemetry.tps = type::Position{0};
+      telemetry.battery = type::Voltage{0};
       telemetry.air = type::Temperature{0};
       telemetry.coolant = type::Temperature{0};
 
@@ -221,13 +221,13 @@ class ECU {
     }
 
     telemetry.is_started = m_engine_data.is_running;
-    telemetry.is_neutral = (m_engine_data.state != EngineState::GEAR_ON);
+    telemetry.is_neutral = m_engine_data.state != EngineState::GEAR_ON;
 
     telemetry.rpm = type::RPM{m_engine_data.rpm};
-    telemetry.battery = type::Volt{m_engine_data.battery_voltage};
     telemetry.speed = type::Speed{m_engine_data.speed};
     telemetry.map = type::Pressure{m_engine_data.map_pressure};
     telemetry.tps = type::Position{static_cast<std::int32_t>(std::roundf(m_engine_data.tps_percent))};
+    telemetry.battery = type::Voltage{m_engine_data.battery_voltage};
     telemetry.air = type::Temperature{static_cast<std::int32_t>(m_engine_data.iat_temp)};
     telemetry.coolant = type::Temperature{static_cast<std::int32_t>(m_engine_data.ect_temp)};
 

@@ -25,8 +25,8 @@ namespace type::limit {
 static constexpr primitive::Load load_min{0};
 static constexpr primitive::Load load_max{1000};
 
-static constexpr primitive::Volt volt_min{0.0f};
-static constexpr primitive::Volt volt_max{18.0f};
+static constexpr primitive::Voltage volt_min{0.0f};
+static constexpr primitive::Voltage volt_max{25.5f};
 
 static constexpr primitive::AccPosition acc_pos_min{0};
 static constexpr primitive::AccPosition acc_pos_max{3100};
