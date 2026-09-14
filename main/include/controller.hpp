@@ -275,6 +275,8 @@ class Controller {
       return false;
     }
 
+    m_cruise.init();
+    
     m_system_errors.update(type::ErrorMaskECU, m_ecu.init());
     m_system_errors.update(type::ErrorMaskServo, m_servo.init());
     m_system_errors.update(type::ErrorMaskPeripheral, m_brake.init());
