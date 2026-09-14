@@ -275,8 +275,11 @@ class Controller {
       return false;
     }
 
-    m_cruise.init();
-    
+    if (!m_cruise.init()) [[unlikely]] {
+      m_logger.log_error("Cruise init fault");
+      return false;
+    }
+
     m_system_errors.update(type::ErrorMaskECU, m_ecu.init());
     m_system_errors.update(type::ErrorMaskServo, m_servo.init());
     m_system_errors.update(type::ErrorMaskPeripheral, m_brake.init());

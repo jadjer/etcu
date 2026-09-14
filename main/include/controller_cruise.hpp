@@ -42,9 +42,10 @@ class ControllerCruise {
   pid_ctrl_block_handle_f_t m_pid_handle{nullptr};
 
   auto process_inactive_cruise(type::Position const driver_position) noexcept -> type::Position {
+    m_is_active.store(false);
+    m_derivative.store(0.0f);
     m_last_speed.store(0.0f);
     m_filtered_speed.store(0.0f);
-    m_derivative.store(0.0f);
 
     if (m_pid_handle != nullptr) {
       pid_reset_ctrl_block(m_pid_handle);
@@ -68,7 +69,7 @@ class ControllerCruise {
       pid_reset_ctrl_block(m_pid_handle);
     }
 
-    pid_ctrl_parameter_f_t const pid_params = {
+    pid_ctrl_parameter_f_t const pid_params{
         .kp = control.p,
         .ki = control.i,
         .kd = control.d,
@@ -78,7 +79,9 @@ class ControllerCruise {
         .min_integral = 0.0f,
         .cal_type = PID_CAL_TYPE_INCREMENTAL,
     };
-    pid_update_parameters(m_pid_handle, &pid_params);
+    if (pid_update_parameters(m_pid_handle, &pid_params) != ESP_OK) [[unlikely]] {
+      return process_inactive_cruise(driver_position);
+    }
 
     float filtered_speed_f = m_filtered_speed.load();
     auto const current_speed_f = current_speed.as<float>();
@@ -108,9 +111,7 @@ class ControllerCruise {
 
     float pid_correction_f{0.0f};
     if (pid_compute(m_pid_handle, error_f, &pid_correction_f) != ESP_OK) [[unlikely]] {
-      m_correction.store(0.0f);
-      m_last_position.store(driver_position);
-      return driver_position;
+      return process_inactive_cruise(driver_position);
     }
     m_correction.store(pid_correction_f);
 
@@ -137,7 +138,7 @@ class ControllerCruise {
 
   constexpr ~ControllerCruise() noexcept = default;
 
-  auto init() noexcept {
+  auto init() noexcept -> bool {
     static constexpr pid_ctrl_config_f_t pid_config{
         .init_param =
             {
@@ -151,7 +152,11 @@ class ControllerCruise {
                 .cal_type = PID_CAL_TYPE_INCREMENTAL,
             },
     };
-    pid_new_control_block(&pid_config, &m_pid_handle);
+    if (pid_new_control_block(&pid_config, &m_pid_handle) != ESP_OK) [[unlikely]] {
+      return false;
+    }
+
+    return true;
   }
 
   [[nodiscard]] auto generate_throttle_position(type::Position const accelerator,
@@ -174,7 +179,6 @@ class ControllerCruise {
 
   [[nodiscard]] auto is_enable() const noexcept -> bool { return m_is_enable.load(); }
   [[nodiscard]] auto is_active() const noexcept -> bool { return m_is_active.load(); }
-
   [[nodiscard]] auto get_error() const noexcept -> float { return m_error.load(); }
   [[nodiscard]] auto get_correction() const noexcept -> float { return m_correction.load(); }
   [[nodiscard]] auto get_derivation() const noexcept -> float { return m_derivative.load(); }
