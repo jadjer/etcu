@@ -40,8 +40,6 @@ class ControllerCruise {
 
   auto process_inactive_cruise(type::Position const driver_position) noexcept -> type::Position {
     m_is_active.store(false);
-    m_target_speed.store(0.0f);
-    m_target_position.store(0.0f);
 
     if (m_pid_handle != nullptr) {
       pid_reset_ctrl_block(m_pid_handle);
@@ -76,7 +74,6 @@ class ControllerCruise {
       return process_inactive_cruise(driver_position);
     }
 
-
     type::Speed const target_speed = m_target_speed.load();
     auto const target_speed_f = target_speed.as<float>();
     auto const current_speed_f = current_speed.as<float>();
@@ -93,6 +90,7 @@ class ControllerCruise {
     type::Position const cruise_position = target_position + pid_correction_f;
 
     if (driver_position > cruise_position) {
+      pid_reset_ctrl_block(m_pid_handle);
       return driver_position;
     }
 
