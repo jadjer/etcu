@@ -49,10 +49,12 @@ SystemHost system_host{controller};
 
 extern "C" void app_main() {
   if (!controller.init()) [[unlikely]] {
+    ESP_LOGE("MAIN", "Controller init fault");
     return;
   }
 
   if (!controller.configure()) [[unlikely]] {
+    ESP_LOGE("MAIN", "Controller configuration fault");
     return;
   }
 

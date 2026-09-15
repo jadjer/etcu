@@ -27,6 +27,19 @@
 
 class ControllerCruise {
   static constexpr float filter_alpha{0.10f};
+  static constexpr pid_ctrl_parameter_f_t pid_config_default{
+      .kp = 0.0f,
+      .ki = 0.0f,
+      .kd = 0.0f,
+      .max_output = 0.0f,
+      .min_output = 0.0f,
+      .max_integral = 0.0f,
+      .min_integral = 0.0f,
+      .cal_type = PID_CAL_TYPE_INCREMENTAL,
+  };
+  static constexpr pid_ctrl_config_f_t pid_config_init{
+      .init_param = pid_config_default,
+  };
 
   float m_filtered_speed{0};
 
@@ -62,10 +75,7 @@ class ControllerCruise {
     return driver_position;
   }
 
-  auto process_active_cruise(type::Position const driver_position,
-                             type::Speed const current_speed,
-                             type::RPM const current_rpm,
-                             type::Cruise const& control) noexcept -> type::Position {
+  auto process_active_cruise(type::Position const driver_position, type::Speed const current_speed, type::Cruise const& control) noexcept -> type::Position {
     if (m_pid_handle == nullptr) [[unlikely]] {
       return process_inactive_cruise(driver_position);
     }
@@ -84,28 +94,21 @@ class ControllerCruise {
     float const error_f = target_speed_f - smooth_speed_f;
     m_error.store(error_f);
 
-    pid_ctrl_parameter_f_t pid_params{
-        .kp = 0.0f,
-        .ki = 0.0f,
-        .kd = 0.0f,
-        .max_output = control.limiter_up.as<float>(),
-        .min_output = -control.limiter_down.as<float>(),
-        .max_integral = 0.0f,
-        .min_integral = 0.0f,
-        .cal_type = PID_CAL_TYPE_INCREMENTAL,
-    };
+    auto pid_config = pid_config_default;
+    pid_config.max_output = control.limiter_up.as<float>();
+    pid_config.min_output = -control.limiter_down.as<float>();
 
     if (error_f >= 0.0f) {
-      pid_params.kp = control.acc.p;
-      pid_params.ki = control.acc.i;
-      pid_params.kd = control.acc.d;
+      pid_config.kp = control.acc.p;
+      pid_config.ki = control.acc.i;
+      pid_config.kd = control.acc.d;
     } else {
-      pid_params.kp = control.dec.p;
-      pid_params.ki = control.dec.i;
-      pid_params.kd = control.dec.d;
+      pid_config.kp = control.dec.p;
+      pid_config.ki = control.dec.i;
+      pid_config.kd = control.dec.d;
     }
 
-    if (pid_update_parameters_f(m_pid_handle, &pid_params) != ESP_OK) [[unlikely]] {
+    if (pid_update_parameters_f(m_pid_handle, &pid_config) != ESP_OK) [[unlikely]] {
       return process_inactive_cruise(driver_position);
     }
 
@@ -138,20 +141,7 @@ class ControllerCruise {
   constexpr ~ControllerCruise() noexcept = default;
 
   auto init() noexcept -> bool {
-    static constexpr pid_ctrl_config_f_t pid_config{
-        .init_param =
-            {
-                .kp = 0.0f,
-                .ki = 0.0f,
-                .kd = 0.0f,
-                .max_output = 0.0f,
-                .min_output = 0.0f,
-                .max_integral = 0.0f,
-                .min_integral = 0.0f,
-                .cal_type = PID_CAL_TYPE_INCREMENTAL,
-            },
-    };
-    if (pid_new_control_block_f(&pid_config, &m_pid_handle) != ESP_OK) [[unlikely]] {
+    if (pid_new_control_block_f(&pid_config_init, &m_pid_handle) != ESP_OK) [[unlikely]] {
       return false;
     }
 
@@ -160,7 +150,6 @@ class ControllerCruise {
 
   [[nodiscard]] auto generate_throttle_position(type::Position const accelerator,
                                                 type::Speed const current_speed,
-                                                type::RPM const current_rpm,
                                                 bool const is_safety_active,
                                                 type::Control const& control) noexcept -> type::Position {
     type::Position target_position{accelerator};
@@ -171,7 +160,7 @@ class ControllerCruise {
     if (!is_enabled || !is_active || is_safety_active) {
       target_position = process_inactive_cruise(accelerator);
     } else {
-      target_position = process_active_cruise(accelerator, current_speed, current_rpm, control.cruise);
+      target_position = process_active_cruise(accelerator, current_speed, control.cruise);
     }
 
     return common::map_range(target_position, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);

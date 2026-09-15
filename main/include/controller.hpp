@@ -457,7 +457,7 @@ class Controller {
     bool const is_brake_active = m_brake.is_active();
     bool const is_safety_active = check_safety_active(ecu, control, is_brake_active);
 
-    type::Position const throttle_position = m_cruise.generate_throttle_position(accelerator_telemetry.position, ecu.speed, ecu.rpm, is_safety_active, control);
+    type::Position const throttle_position = m_cruise.generate_throttle_position(accelerator_telemetry.position, ecu.speed, is_safety_active, control);
     m_system_errors.update(type::ErrorMaskServo, m_servo.set_position(throttle_position));
 
     type::ServoTelemetry servo_telemetry;
