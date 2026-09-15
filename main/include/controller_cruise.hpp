@@ -26,6 +26,10 @@
 #include "type/type.hpp"
 
 class ControllerCruise {
+  static constexpr float filter_alpha{0.10f};
+
+  float m_filtered_speed{0};
+
   common::AtomicContainer<bool> m_is_enable{false};
   common::AtomicContainer<bool> m_is_active{false};
   common::AtomicContainer<bool> m_need_reset{true};
@@ -38,17 +42,30 @@ class ControllerCruise {
 
   pid_ctrl_block_handle_f_t m_pid_handle{nullptr};
 
+  auto get_smooth_speed(float const current_speed) noexcept -> float {
+    if (m_filtered_speed <= 0) {
+      m_filtered_speed = current_speed;
+    }
+
+    m_filtered_speed = m_filtered_speed * (1.0f - filter_alpha) + current_speed * filter_alpha;
+
+    return m_filtered_speed;
+  }
+
   auto process_inactive_cruise(type::Position const driver_position) noexcept -> type::Position {
     m_is_active.store(false);
 
     if (m_pid_handle != nullptr) {
-      pid_reset_ctrl_block(m_pid_handle);
+      pid_reset_ctrl_block_f(m_pid_handle);
     }
 
     return driver_position;
   }
 
-  auto process_active_cruise(type::Position const driver_position, type::Speed const current_speed, type::Cruise const& control) noexcept -> type::Position {
+  auto process_active_cruise(type::Position const driver_position,
+                             type::Speed const current_speed,
+                             type::RPM const current_rpm,
+                             type::Cruise const& control) noexcept -> type::Position {
     if (m_pid_handle == nullptr) [[unlikely]] {
       return process_inactive_cruise(driver_position);
     }
@@ -57,31 +74,43 @@ class ControllerCruise {
       m_need_reset.store(false);
       m_target_speed.store(current_speed);
       m_target_position.store(driver_position);
-      pid_reset_ctrl_block(m_pid_handle);
+      pid_reset_ctrl_block_f(m_pid_handle);
     }
 
-    pid_ctrl_parameter_f_t const pid_params{
-        .kp = control.p,
-        .ki = control.i,
-        .kd = control.d,
+    type::Speed const target_speed = m_target_speed.load();
+    auto const target_speed_f = target_speed.as<float>();
+    auto const current_speed_f = current_speed.as<float>();
+    float const smooth_speed_f = get_smooth_speed(current_speed_f);
+    float const error_f = target_speed_f - smooth_speed_f;
+    m_error.store(error_f);
+
+    pid_ctrl_parameter_f_t pid_params{
+        .kp = 0.0f,
+        .ki = 0.0f,
+        .kd = 0.0f,
         .max_output = control.limiter_up.as<float>(),
         .min_output = -control.limiter_down.as<float>(),
         .max_integral = 0.0f,
         .min_integral = 0.0f,
         .cal_type = PID_CAL_TYPE_INCREMENTAL,
     };
-    if (pid_update_parameters(m_pid_handle, &pid_params) != ESP_OK) [[unlikely]] {
+
+    if (error_f >= 0.0f) {
+      pid_params.kp = control.acc.p;
+      pid_params.ki = control.acc.i;
+      pid_params.kd = control.acc.d;
+    } else {
+      pid_params.kp = control.dec.p;
+      pid_params.ki = control.dec.i;
+      pid_params.kd = control.dec.d;
+    }
+
+    if (pid_update_parameters_f(m_pid_handle, &pid_params) != ESP_OK) [[unlikely]] {
       return process_inactive_cruise(driver_position);
     }
 
-    type::Speed const target_speed = m_target_speed.load();
-    auto const target_speed_f = target_speed.as<float>();
-    auto const current_speed_f = current_speed.as<float>();
-    float const error_f = target_speed_f - current_speed_f;
-    m_error.store(error_f);
-
     float pid_correction_f{0.0f};
-    if (pid_compute(m_pid_handle, error_f, &pid_correction_f) != ESP_OK) [[unlikely]] {
+    if (pid_compute_f(m_pid_handle, error_f, &pid_correction_f) != ESP_OK) [[unlikely]] {
       return process_inactive_cruise(driver_position);
     }
     m_correction.store(pid_correction_f);
@@ -90,7 +119,7 @@ class ControllerCruise {
     type::Position const cruise_position = target_position + pid_correction_f;
 
     if (driver_position > cruise_position) {
-      pid_reset_ctrl_block(m_pid_handle);
+      pid_reset_ctrl_block_f(m_pid_handle);
       return driver_position;
     }
 
@@ -122,7 +151,7 @@ class ControllerCruise {
                 .cal_type = PID_CAL_TYPE_INCREMENTAL,
             },
     };
-    if (pid_new_control_block(&pid_config, &m_pid_handle) != ESP_OK) [[unlikely]] {
+    if (pid_new_control_block_f(&pid_config, &m_pid_handle) != ESP_OK) [[unlikely]] {
       return false;
     }
 
@@ -130,7 +159,8 @@ class ControllerCruise {
   }
 
   [[nodiscard]] auto generate_throttle_position(type::Position const accelerator,
-                                                type::Speed const speed,
+                                                type::Speed const current_speed,
+                                                type::RPM const current_rpm,
                                                 bool const is_safety_active,
                                                 type::Control const& control) noexcept -> type::Position {
     type::Position target_position{accelerator};
@@ -141,7 +171,7 @@ class ControllerCruise {
     if (!is_enabled || !is_active || is_safety_active) {
       target_position = process_inactive_cruise(accelerator);
     } else {
-      target_position = process_active_cruise(accelerator, speed, control.cruise);
+      target_position = process_active_cruise(accelerator, current_speed, current_rpm, control.cruise);
     }
 
     return common::map_range(target_position, control.accelerator.min, control.accelerator.max, control.servo.min, control.servo.max);

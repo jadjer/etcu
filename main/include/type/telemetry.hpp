@@ -99,12 +99,11 @@ struct CruiseTelemetry {
 
   float error{0.0f};
   float correction{0};
-  float derivation{0};
 
   Speed target_speed{0};
   Speed current_speed{0};
 
-  Position last_position{0};
+  Position base_position{0};
   Position current_position{0};
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseTelemetryDTO {
@@ -114,12 +113,11 @@ struct CruiseTelemetry {
 
         .error = error,
         .correction = correction,
-        .derivation = derivation,
 
         .target_speed = target_speed.get(),
         .current_speed = current_speed.get(),
 
-        .last_position = last_position.get(),
+        .base_position = base_position.get(),
         .current_position = current_position.get(),
     };
   }

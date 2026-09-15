@@ -27,9 +27,12 @@
 namespace type::dto {
 
 struct CruiseDTO {
-  float p{};                           // 4
-  float i{};                           // 4
-  float d{};                           // 4
+  float acc_p{};                       // 4
+  float acc_i{};                       // 4
+  float acc_d{};                       // 4
+  float dec_p{};                       // 4
+  float dec_i{};                       // 4
+  float dec_d{};                       // 4
   primitive::RPM rpm_min{};            // 2
   primitive::RPM rpm_max{};            // 2
   primitive::Speed speed_min{};        // 1
@@ -40,7 +43,7 @@ struct CruiseDTO {
 } __attribute__((packed));
 
 struct ControlDTO {
-  CruiseDTO cruise{};                     // 22
+  CruiseDTO cruise{};                     // 34
   primitive::Position servo_min{};        // 2
   primitive::Position servo_max{};        // 2
   primitive::Position accelerator_min{};  // 2
@@ -108,12 +111,11 @@ struct CruiseTelemetryDTO {
 
   float error{0};       // 4
   float correction{0};  // 4
-  float derivation{0};  // 4
 
   primitive::Speed target_speed{0};   // 1
   primitive::Speed current_speed{0};  // 1
 
-  primitive::Position last_position{0};     // 2
+  primitive::Position base_position{0};     // 2
   primitive::Position current_position{0};  // 2
 
 } __attribute__((packed));
@@ -134,7 +136,7 @@ struct SystemTelemetryDTO {
 
   ECUTelemetryDTO ecu_telemetry{};                  // 15
   ServoTelemetryDTO servo_telemetry{};              // 12
-  CruiseTelemetryDTO cruise_telemetry{};            // 20
+  CruiseTelemetryDTO cruise_telemetry{};            // 16
   AcceleratorTelemetryDTO accelerator_telemetry{};  // 6
 
   SystemState system_state{SystemState::Off};    // 1

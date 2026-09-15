@@ -49,10 +49,17 @@ struct PositionRange {
   [[nodiscard]] constexpr auto contains(Position const& current_position) const noexcept -> bool { return current_position >= min && current_position <= max; }
 };
 
-struct Cruise {
+struct CruisePID {
   float p{};
   float i{};
   float d{};
+
+  [[nodiscard]] auto operator<=>(CruisePID const&) const = default;
+};
+
+struct Cruise {
+  CruisePID acc;
+  CruisePID dec;
 
   RPMRange rpm{};
   SpeedRange speed{};
@@ -62,9 +69,12 @@ struct Cruise {
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseDTO {
     return dto::CruiseDTO{
-        .p = p,
-        .i = i,
-        .d = d,
+        .acc_p = acc.p,
+        .acc_i = acc.i,
+        .acc_d = acc.d,
+        .dec_p = dec.p,
+        .dec_i = dec.i,
+        .dec_d = dec.d,
         .rpm_min = rpm.min.get(),
         .rpm_max = rpm.max.get(),
         .speed_min = speed.min.get(),
@@ -79,7 +89,7 @@ struct Cruise {
 
 struct Control {
   static constexpr std::string_view name{"control"};
-  static constexpr std::uint32_t current_version{4};
+  static constexpr std::uint32_t current_version{5};
 
   std::uint32_t version{};
 

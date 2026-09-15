@@ -52,9 +52,8 @@ class ControlCallback : public NimBLECharacteristicCallbacks {
     type::Control const control{
         .cruise =
             type::Cruise{
-                .p = cruise.p,
-                .i = cruise.i,
-                .d = cruise.d,
+                .acc = {.p = cruise.acc_p, .i = cruise.acc_i, .d = cruise.acc_d},
+                .dec = {.p = cruise.dec_p, .i = cruise.dec_i, .d = cruise.dec_d},
                 .rpm = {.min = cruise.rpm_min, .max = cruise.rpm_max},
                 .speed = {.min = cruise.speed_min, .max = cruise.speed_max},
                 .limiter_up = cruise.limiter_up,
