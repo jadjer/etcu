@@ -58,10 +58,8 @@ struct CruisePID {
 };
 
 struct Cruise {
-  CruisePID acc;
-  CruisePID dec;
-
   RPMRange rpm{};
+  CruisePID pid{};
   SpeedRange speed{};
 
   Position limiter_up{};
@@ -69,12 +67,9 @@ struct Cruise {
 
   [[nodiscard]] constexpr auto to_dto() const noexcept -> dto::CruiseDTO {
     return dto::CruiseDTO{
-        .acc_p = acc.p,
-        .acc_i = acc.i,
-        .acc_d = acc.d,
-        .dec_p = dec.p,
-        .dec_i = dec.i,
-        .dec_d = dec.d,
+        .p = pid.p,
+        .i = pid.i,
+        .d = pid.d,
         .rpm_min = rpm.min.get(),
         .rpm_max = rpm.max.get(),
         .speed_min = speed.min.get(),
@@ -89,7 +84,7 @@ struct Cruise {
 
 struct Control {
   static constexpr std::string_view name{"control"};
-  static constexpr std::uint32_t current_version{5};
+  static constexpr std::uint32_t current_version{7};
 
   std::uint32_t version{};
 

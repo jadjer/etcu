@@ -97,16 +97,9 @@ class ControllerCruise {
     auto pid_config = pid_config_default;
     pid_config.max_output = control.limiter_up.as<float>();
     pid_config.min_output = -control.limiter_down.as<float>();
-
-    if (error_f >= 0.0f) {
-      pid_config.kp = control.acc.p;
-      pid_config.ki = control.acc.i;
-      pid_config.kd = control.acc.d;
-    } else {
-      pid_config.kp = control.dec.p;
-      pid_config.ki = control.dec.i;
-      pid_config.kd = control.dec.d;
-    }
+    pid_config.kp = control.pid.p;
+    pid_config.ki = control.pid.i;
+    pid_config.kd = control.pid.d;
 
     if (pid_update_parameters_f(m_pid_handle, &pid_config) != ESP_OK) [[unlikely]] {
       return process_inactive_cruise(driver_position);

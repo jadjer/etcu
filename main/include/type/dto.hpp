@@ -27,12 +27,9 @@
 namespace type::dto {
 
 struct CruiseDTO {
-  float acc_p{};                       // 4
-  float acc_i{};                       // 4
-  float acc_d{};                       // 4
-  float dec_p{};                       // 4
-  float dec_i{};                       // 4
-  float dec_d{};                       // 4
+  float p{};                           // 4
+  float i{};                           // 4
+  float d{};                           // 4
   primitive::RPM rpm_min{};            // 2
   primitive::RPM rpm_max{};            // 2
   primitive::Speed speed_min{};        // 1
@@ -43,7 +40,7 @@ struct CruiseDTO {
 } __attribute__((packed));
 
 struct ControlDTO {
-  CruiseDTO cruise{};                     // 34
+  CruiseDTO cruise{};                     // 22
   primitive::Position servo_min{};        // 2
   primitive::Position servo_max{};        // 2
   primitive::Position accelerator_min{};  // 2
@@ -56,7 +53,6 @@ struct OTAChunkDTO {
   std::uint32_t firmware_size{0};  // 4
   std::uint16_t chunk_total{0};    // 2
   std::uint16_t chunk_index{0};    // 2
-
   std::array<std::uint8_t, PayloadSize> chunk{};
 
 } __attribute__((packed));
@@ -79,10 +75,9 @@ struct SystemInfoDTO {
 } __attribute__((packed));
 
 struct ECUTelemetryDTO {
-  bool is_connected{false};  // 1
-  bool is_started{false};    // 1
-  bool is_neutral{false};    // 1
-
+  bool is_connected{false};           // 1
+  bool is_started{false};             // 1
+  bool is_neutral{false};             // 1
   primitive::RPM rpm{0};              // 2
   primitive::Speed speed{0};          // 1
   primitive::Pressure map{0};         // 1
@@ -94,10 +89,9 @@ struct ECUTelemetryDTO {
 } __attribute__((packed));
 
 struct ServoTelemetryDTO {
-  bool is_connected{false};  // 1
-  bool is_enabled{false};    // 1
-  bool is_moved{false};      // 1
-
+  bool is_connected{false};               // 1
+  bool is_enabled{false};                 // 1
+  bool is_moved{false};                   // 1
   primitive::Current current{0};          // 2
   primitive::Voltage voltage{0};          // 4
   primitive::ServoPosition position{0};   // 2
@@ -106,15 +100,12 @@ struct ServoTelemetryDTO {
 } __attribute__((packed));
 
 struct CruiseTelemetryDTO {
-  bool is_enabled{false};    // 1
-  bool is_activated{false};  // 1
-
-  float error{0};       // 4
-  float correction{0};  // 4
-
-  primitive::Speed target_speed{0};   // 1
-  primitive::Speed current_speed{0};  // 1
-
+  bool is_enabled{false};                   // 1
+  bool is_activated{false};                 // 1
+  float error{0};                           // 4
+  float correction{0};                      // 4
+  primitive::Speed target_speed{0};         // 1
+  primitive::Speed current_speed{0};        // 1
   primitive::Position base_position{0};     // 2
   primitive::Position current_position{0};  // 2
 
@@ -123,24 +114,20 @@ struct CruiseTelemetryDTO {
 struct AcceleratorTelemetryDTO {
   primitive::AccPosition hall_a{0};  // 2
   primitive::AccPosition hall_b{0};  // 2
-
-  primitive::Position position{0};  // 2
+  primitive::Position position{0};   // 2
 
 } __attribute__((packed));
 
 struct SystemTelemetryDTO {
-  bool is_guard_active{false};   // 1
-  bool is_brake_enabled{false};  // 1
-
-  primitive::Position throttle_position{0};  // 2
-
+  bool is_guard_active{false};                      // 1
+  bool is_brake_enabled{false};                     // 1
+  primitive::Position throttle_position{0};         // 2
   ECUTelemetryDTO ecu_telemetry{};                  // 15
   ServoTelemetryDTO servo_telemetry{};              // 12
   CruiseTelemetryDTO cruise_telemetry{};            // 16
   AcceleratorTelemetryDTO accelerator_telemetry{};  // 6
-
-  SystemState system_state{SystemState::Off};    // 1
-  SystemError system_errors{SystemError::None};  // 2
+  SystemState system_state{SystemState::Off};       // 1
+  SystemError system_errors{SystemError::None};     // 2
 
 } __attribute__((packed));
 
