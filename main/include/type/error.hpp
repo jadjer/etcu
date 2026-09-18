@@ -21,53 +21,52 @@
 namespace type {
 
 static constexpr std::uint32_t ErrorShiftECU{0};
-static constexpr std::uint32_t ErrorShiftGuard{6};
-static constexpr std::uint32_t ErrorShiftServo{7};
-static constexpr std::uint32_t ErrorShiftBluetooth{14};
-static constexpr std::uint32_t ErrorShiftIndicator{19};
-static constexpr std::uint32_t ErrorShiftPeripheral{20};
-static constexpr std::uint32_t ErrorShiftAccelerator{21};
+static constexpr std::uint32_t ErrorShiftGuard{5};
+static constexpr std::uint32_t ErrorShiftServo{6};
+static constexpr std::uint32_t ErrorShiftBluetooth{13};
+static constexpr std::uint32_t ErrorShiftIndicator{18};
+static constexpr std::uint32_t ErrorShiftPeripheral{19};
+static constexpr std::uint32_t ErrorShiftAccelerator{20};
 
 enum class SystemError : std::uint32_t {
   None = 0,
 
   // ECU (Электронный блок управления)
-  EcuInitFailed = 1 << (ErrorShiftECU + 0),
-  EcuReadFailed = 1 << (ErrorShiftECU + 1),
-  EcuWriteFailed = 1 << (ErrorShiftECU + 2),
-  EcuVoltageFailed = 1 << (ErrorShiftECU + 3),
-  EcuOverVoltage = 1 << (ErrorShiftECU + 4),
-  EcuEngineOverheat = 1 << (ErrorShiftECU + 5),
+  EcuInitFailed = 1 << (ErrorShiftECU + 0),      // 0
+  EcuReadFailed = 1 << (ErrorShiftECU + 1),      // 1
+  EcuWriteFailed = 1 << (ErrorShiftECU + 2),     // 2
+  EcuVoltageFailed = 1 << (ErrorShiftECU + 3),   // 3
+  EcuEngineOverheat = 1 << (ErrorShiftECU + 4),  // 4
 
   // Guard (Защита / Блокировка)
-  GuardLocked = 1 << (ErrorShiftGuard + 0),
+  GuardLocked = 1 << (ErrorShiftGuard + 0),  // 5
 
   // Servo (Сервопривод)
-  ServoInitFailed = 1 << (ErrorShiftServo + 0),
-  ServoReadFailed = 1 << (ErrorShiftServo + 1),
-  ServoWriteFailed = 1 << (ErrorShiftServo + 2),
-  ServoEncoderFailed = 1 << (ErrorShiftServo + 3),
-  ServoVoltageFailed = 1 << (ErrorShiftServo + 4),
-  ServoOverheat = 1 << (ErrorShiftServo + 5),
-  ServoOverload = 1 << (ErrorShiftServo + 6),
+  ServoInitFailed = 1 << (ErrorShiftServo + 0),     // 6
+  ServoReadFailed = 1 << (ErrorShiftServo + 1),     // 7
+  ServoWriteFailed = 1 << (ErrorShiftServo + 2),    // 8
+  ServoEncoderFailed = 1 << (ErrorShiftServo + 3),  // 9
+  ServoVoltageFailed = 1 << (ErrorShiftServo + 4),  // 10
+  ServoOverheat = 1 << (ErrorShiftServo + 5),       // 11
+  ServoOverload = 1 << (ErrorShiftServo + 6),       // 12
 
   // Bluetooth
-  BluetoothInitFailed = 1 << (ErrorShiftBluetooth + 0),
-  BluetoothPowerFailed = 1 << (ErrorShiftBluetooth + 1),
-  BluetoothMtuFailed = 1 << (ErrorShiftBluetooth + 2),
-  BluetoothConnFailed = 1 << (ErrorShiftBluetooth + 3),
-  BluetoothSendFailed = 1 << (ErrorShiftBluetooth + 4),
+  BluetoothInitFailed = 1 << (ErrorShiftBluetooth + 0),   // 13
+  BluetoothPowerFailed = 1 << (ErrorShiftBluetooth + 1),  // 14
+  BluetoothMtuFailed = 1 << (ErrorShiftBluetooth + 2),    // 15
+  BluetoothConnFailed = 1 << (ErrorShiftBluetooth + 3),   // 16
+  BluetoothSendFailed = 1 << (ErrorShiftBluetooth + 4),   // 17
 
   // Indicator (Индикация)
-  IndicatorInitFailed = 1 << (ErrorShiftIndicator + 0),
+  IndicatorInitFailed = 1 << (ErrorShiftIndicator + 0),  // 18
 
   // Peripheral (Периферия)
-  PeripheralInitFailed = 1 << (ErrorShiftPeripheral + 0),
+  PeripheralInitFailed = 1 << (ErrorShiftPeripheral + 0),  // 19
 
   // Accelerator (Акселератор / Ручка газа)
-  AcceleratorInitFailed = 1 << (ErrorShiftAccelerator + 0),
-  AcceleratorReadFailed = 1 << (ErrorShiftAccelerator + 1),
-  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),
+  AcceleratorInitFailed = 1 << (ErrorShiftAccelerator + 0),  // 20
+  AcceleratorReadFailed = 1 << (ErrorShiftAccelerator + 1),  // 21
+  AcceleratorMismatch = 1 << (ErrorShiftAccelerator + 2),    // 22
 };
 
 [[nodiscard]] constexpr auto operator|(SystemError const a, SystemError const b) -> SystemError {
