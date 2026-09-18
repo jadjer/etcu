@@ -1,0 +1,92 @@
+menu "ETCU Configuration"
+
+    menu "Pin Configuration"
+        config ETCU_PIN_BUTTON_MODE
+            int "Button Mode Pin"
+            default 7
+
+        config ETCU_PIN_SWITCH_BRAKE
+            int "Switch Brake Pin"
+            default 15
+
+        config ETCU_PIN_SWITCH_GUARD
+            int "Switch Guard Pin"
+            default 16
+
+        config ETCU_PIN_LED_MODE
+            int "Led Mode Pin"
+            default 6
+
+        config ETCU_PIN_POWER_ENABLE
+            int "Power Enable Pin"
+            default 19
+    endmenu
+
+    menu "UART Configuration"
+        menu "Servo UART"
+            config ETCU_UART_SERVO_PORT
+                int "Servo UART Port Number"
+                default 1
+                range 0 2
+
+            config ETCU_UART_SERVO_TX
+                int "Servo TX Pin"
+                default 5
+
+            config ETCU_UART_SERVO_RX
+                int "Servo RX Pin"
+                default 4
+
+            config ETCU_UART_SERVO_BAUDRATE
+                int "Servo Baudrate"
+                default 1000000
+        endmenu
+
+        menu "ECU UART"
+            config ETCU_UART_ECU_PORT
+                int "ECU UART Port Number"
+                default 2
+                range 0 2
+
+            config ETCU_UART_ECU_TX
+                int "ECU TX Pin"
+                default 17
+
+            config ETCU_UART_ECU_RX
+                int "ECU RX Pin"
+                default 18
+
+            config ETCU_UART_ECU_BAUDRATE
+                int "ECU Baudrate"
+                default 10400
+        endmenu
+    endmenu
+
+    menu "ADC Configuration"
+        config ETCU_ADC_UNIT_NUM
+            int "ADC Unit Number (1 or 2)"
+            default 1
+            range 1 2
+            help
+                1 for ADC_UNIT_1, 2 for ADC_UNIT_2.
+
+        config ETCU_ADC_CHANNEL_A
+            int "ADC Channel A"
+            default 8
+            range 0 9
+
+        config ETCU_ADC_CHANNEL_B
+            int "ADC Channel B"
+            default 9
+            range 0 9
+    endmenu
+
+    menu "System Settings"
+        config ETCU_ACCELERATOR_MISMATCH
+            int "Hall Mismatch"
+            default 100
+            help
+                Mismatch Threshold Between Hall's sensors.
+    endmenu
+
+endmenu

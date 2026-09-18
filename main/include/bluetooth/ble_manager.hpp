@@ -38,6 +38,7 @@ class BLEManager {
   NimBLEServer* m_server{nullptr};
   NimBLECharacteristic* m_ota_characteristic{nullptr};
   NimBLECharacteristic* m_control_characteristic{nullptr};
+  NimBLECharacteristic* m_warning_characteristic{nullptr};
   NimBLECharacteristic* m_telemetry_characteristic{nullptr};
   NimBLECharacteristic* m_calibration_characteristic{nullptr};
   NimBLECharacteristic* m_system_info_characteristic{nullptr};
@@ -92,6 +93,7 @@ class BLEManager {
 
     m_ota_characteristic = service->createCharacteristic(constants::bluetooth::OTACharUUID.data(), WRITE | NOTIFY | WRITE_ENC);
     m_control_characteristic = service->createCharacteristic(constants::bluetooth::ControlCharUUID.data(), READ | WRITE | NOTIFY | READ_ENC | WRITE_ENC);
+    m_warning_characteristic = service->createCharacteristic(constants::bluetooth::WarningCharUUID.data(), NOTIFY);
     m_telemetry_characteristic = service->createCharacteristic(constants::bluetooth::TelemetryCharUUID.data(), READ | NOTIFY | READ_ENC);
     m_calibration_characteristic = service->createCharacteristic(constants::bluetooth::CalibrationCharUUID.data(), READ | WRITE | READ_ENC | WRITE_ENC);
     m_system_info_characteristic = service->createCharacteristic(constants::bluetooth::SysInfoCharUUID.data(), READ | READ_ENC);
@@ -156,6 +158,22 @@ class BLEManager {
     }
 
     if (type::dto::ControlDTO const control_dto = control.to_dto(); !m_control_characteristic->notify(control_dto)) [[unlikely]] {
+      return type::SystemError::BluetoothSendNotifyError;
+    }
+
+    return type::SystemError::None;
+  }
+
+  [[nodiscard]] auto send_warning(type::Warning const& warning) const noexcept -> type::SystemError {
+    if (!isConnected()) {
+      return type::SystemError::BluetoothConnectedFault;
+    }
+
+    if (m_warning_characteristic == nullptr) {
+      return type::SystemError::BluetoothInitFault;
+    }
+
+    if (!m_warning_characteristic->notify(warning)) [[unlikely]] {
       return type::SystemError::BluetoothSendNotifyError;
     }
 

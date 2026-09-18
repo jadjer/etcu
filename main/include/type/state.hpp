@@ -32,4 +32,13 @@ enum class OTAStatus : std::uint8_t {
   Completed,
 };
 
+enum class Warning : std::uint8_t {
+  SPEED_LOW_FOR_CRUISE,
+  SPEED_FAST_FOR_CRUISE,
+  RPM_LOW_FOR_CRUISE,
+  RPM_FAST_FOR_CRUISE,
+  CRUISE_NOT_SET,
+  SAFETY_ENABLE,
+};
+
 }  // namespace type

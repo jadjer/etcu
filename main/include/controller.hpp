@@ -132,21 +132,40 @@ class Controller {
                                                 const char* context) noexcept -> bool {
     if (is_safety_active) {
       m_logger.log_info("Cruise %s error: safety active", context);
+      m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::SAFETY_ENABLE));
       return false;
     }
 
     if (!control.cruise.rpm.contains(current_rpm)) {
       m_logger.log_info("Cruise %s error: RPM out of range", context);
+      if (current_rpm < control.cruise.rpm.min) {
+        m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::RPM_LOW_FOR_CRUISE));
+      }
+      if (current_rpm > control.cruise.rpm.max) {
+        m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::RPM_FAST_FOR_CRUISE));
+      }
       return false;
     }
 
     if (!control.cruise.speed.contains(current_speed)) {
       m_logger.log_info("Cruise %s error: Current Speed (%d km/h) out of range", context, current_speed.get());
+      if (current_speed < control.cruise.speed.min) {
+        m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::SPEED_LOW_FOR_CRUISE));
+      }
+      if (current_speed > control.cruise.speed.max) {
+        m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::SPEED_FAST_FOR_CRUISE));
+      }
       return false;
     }
 
     if (!control.cruise.speed.contains(target_speed)) {
       m_logger.log_info("Cruise %s error: Target Speed (%d km/h) out of range", context, target_speed.get());
+      if (target_speed < control.cruise.speed.min) {
+        m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::SPEED_LOW_FOR_CRUISE));
+      }
+      if (target_speed > control.cruise.speed.max) {
+        m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::SPEED_FAST_FOR_CRUISE));
+      }
       return false;
     }
 
@@ -174,6 +193,7 @@ class Controller {
         if (!is_cruise_enabled) {
           m_logger.log_info("Cruise not enabled");
           m_indicator.blink_times(2);
+          m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::  CRUISE_NOT_SET));
           return;
         }
 
@@ -199,6 +219,7 @@ class Controller {
         if (!is_cruise_enabled) {
           m_logger.log_info("Cruise not enabled");
           m_indicator.blink_times(2);
+          m_system_errors.update(type::ErrorMaskBluetooth, m_ble_manager.send_warning(type::Warning::  CRUISE_NOT_SET));
           return;
         }
 
