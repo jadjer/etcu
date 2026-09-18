@@ -85,7 +85,7 @@ class Button {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]] {
-      return type::SystemError::PeripheralInitError;
+      return type::SystemError::PeripheralInitFailed;
     }
 
     return type::SystemError::None;

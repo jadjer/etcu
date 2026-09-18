@@ -39,6 +39,29 @@ class Servo {
 
   common::AtomicContainer<type::ServoCalibrationData> m_calibration_data{};
 
+  [[nodiscard]] static constexpr auto parse_status_errors(std::uint8_t const instruction_or_status) noexcept -> type::SystemError {
+    auto const current_status = static_cast<ServoError>(instruction_or_status);
+    if (current_status == ServoError::None) {
+      return type::SystemError::None;
+    }
+
+    auto system_error = type::SystemError::None;
+    if (hasError(current_status, ServoError::Voltage)) {
+      system_error = system_error | type::SystemError::ServoVoltageFailed;
+    }
+    if (hasError(current_status, ServoError::Encoder)) {
+      system_error = system_error | type::SystemError::ServoEncoderFailed;
+    }
+    if (hasError(current_status, ServoError::Overheat)) {
+      system_error = system_error | type::SystemError::ServoOverheat;
+    }
+    if (hasError(current_status, ServoError::Overload)) {
+      system_error = system_error | type::SystemError::ServoOverload;
+    }
+
+    return system_error;
+  }
+
  public:
   constexpr explicit Servo(Driver& driver_uart, PowerEnable& driver_power) noexcept : m_protocol(driver_uart, driver_power) {}
 
@@ -54,7 +77,7 @@ class Servo {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_protocol.init()) [[unlikely]] {
-      return type::SystemError::ServoInitError;
+      return type::SystemError::ServoInitFailed;
     }
 
     return type::SystemError::None;
@@ -66,10 +89,9 @@ class Servo {
     static constexpr type::Position position_min{type::Position::value_min};
     static constexpr type::Position position_max{type::Position::value_max};
 
-    type::ServoCalibrationData const calibration_data = m_calibration_data.load();
+    const auto [_, position] = m_calibration_data.load();
 
-    type::ServoPosition const servo_position =
-        common::map_range(target_position, position_min, position_max, calibration_data.position.min, calibration_data.position.max);
+    type::ServoPosition const servo_position = common::map_range(target_position, position_min, position_max, position.min, position.max);
 
     std::array const params{
         common::as_byte(ServoRegister::TargetPosition),
@@ -77,15 +99,17 @@ class Servo {
         common::as_byte(servo_position.value >> 8),
     };
 
-    if (ServoMessage const request{servo_id, ServoInstruction::InstWrite, params}; !m_protocol.send_message(request)) [[unlikely]] {
-      return type::SystemError::ServoWriteError;
+    if (ServoMessage const request{servo_id, ServoInstruction::Write, params}; !m_protocol.send_message(request)) [[unlikely]] {
+      return type::SystemError::ServoWriteFailed;
     }
 
-    if (ServoMessage response_message{}; !m_protocol.receive_message(response_message)) {
-      return type::SystemError::ServoReadError;
+    ServoMessage response_message{};
+
+    if (!m_protocol.receive_message(response_message)) {
+      return type::SystemError::ServoReadFailed;
     }
 
-    return type::SystemError::None;
+    return parse_status_errors(response_message.instruction_or_status);
   }
 
   [[nodiscard]] auto get_telemetry(type::ServoTelemetry& telemetry) noexcept -> type::SystemError {
@@ -94,16 +118,16 @@ class Servo {
         common::as_byte(ServoRegister::TorqueEnable),
         common::as_byte(payload_size),
     };
-    static constexpr ServoMessage request{servo_id, ServoInstruction::InstRead, params};
+    static constexpr ServoMessage request{servo_id, ServoInstruction::Read, params};
 
     if (!m_protocol.send_message(request)) [[unlikely]] {
-      return type::SystemError::ServoWriteError;
+      return type::SystemError::ServoWriteFailed;
     }
 
     ServoMessage<payload_size> response{};
 
     if (!m_protocol.receive_message(response)) {
-      return type::SystemError::ServoReadError;
+      return type::SystemError::ServoReadFailed;
     }
 
     telemetry.is_connected = true;
@@ -116,7 +140,7 @@ class Servo {
     std::uint16_t const raw_current = common::as_ulong(response.payload[30], response.payload[29]) & 0x7FFF;
     telemetry.current = common::calculateValueMultiply10(raw_current);
 
-    return type::SystemError::None;
+    return parse_status_errors(response.instruction_or_status);
   }
 };
 

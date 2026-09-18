@@ -52,15 +52,15 @@ class Accelerator {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver_adc.init()) [[unlikely]] {
-      return type::SystemError::AcceleratorInitError;
+      return type::SystemError::AcceleratorInitFailed;
     }
 
     if (!m_driver_adc.template configure_channel<hall_a>()) [[unlikely]] {
-      return type::SystemError::AcceleratorInitError;
+      return type::SystemError::AcceleratorInitFailed;
     }
 
     if (!m_driver_adc.template configure_channel<hall_b>()) [[unlikely]] {
-      return type::SystemError::AcceleratorInitError;
+      return type::SystemError::AcceleratorInitFailed;
     }
 
     return type::SystemError::None;
@@ -78,7 +78,7 @@ class Accelerator {
     type::AccPosition adc_value_a;
     {
       if (!m_driver_adc.template get_value<hall_a>(adc_value_a)) [[unlikely]] {
-        return type::SystemError::AcceleratorReadError;
+        return type::SystemError::AcceleratorReadFailed;
       }
 
       telemetry.hall_a = adc_value_a;
@@ -87,7 +87,7 @@ class Accelerator {
     type::AccPosition adc_value_b;
     {
       if (!m_driver_adc.template get_value<hall_b>(adc_value_b)) [[unlikely]] {
-        return type::SystemError::AcceleratorReadError;
+        return type::SystemError::AcceleratorReadFailed;
       }
 
       telemetry.hall_b = adc_value_b;

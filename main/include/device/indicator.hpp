@@ -59,7 +59,7 @@ class Indicator {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_driver.init()) [[unlikely]] {
-      return type::SystemError::IndicatorInitFault;
+      return type::SystemError::IndicatorInitFailed;
     }
 
     apply_state(false);

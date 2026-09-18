@@ -181,7 +181,7 @@ class ECU {
 
   [[nodiscard]] auto init() noexcept -> type::SystemError {
     if (!m_protocol.init()) [[unlikely]] {
-      return type::SystemError::ECUInitFault;
+      return type::SystemError::EcuInitFailed;
     }
 
     m_is_connected = false;
@@ -191,12 +191,12 @@ class ECU {
 
   [[nodiscard]] auto update() noexcept -> type::SystemError {
     if (!connect()) [[unlikely]] {
-      return type::SystemError::ECUInitFault;
+      return type::SystemError::EcuInitFailed;
     }
 
     if (!update_active_tables()) [[unlikely]] {
       m_is_connected = false;
-      return type::SystemError::ECUReadError;
+      return type::SystemError::EcuReadFailed;
     }
 
     return type::SystemError::None;

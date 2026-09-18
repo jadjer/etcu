@@ -418,7 +418,7 @@ class Controller {
     m_indicator.update();
 
     if (m_guard.is_active()) [[unlikely]] {
-      m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLock);
+      m_system_errors.update(type::ErrorMaskGuard, type::SystemError::GuardLocked);
       m_system_state.store(type::SystemState::Off);
       m_logger.log_warn("Guard active. System shutdown");
     }

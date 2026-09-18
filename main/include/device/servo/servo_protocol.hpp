@@ -90,6 +90,18 @@ class ServoProtocol {
 
     message = response_message;
 
+    if (auto const current_status = static_cast<ServoError>(response_message.instruction_or_status); current_status != ServoError::None) {
+      if (hasError(current_status, ServoError::InvalidCmd)) {
+        return false;
+      }
+      if (hasError(current_status, ServoError::Checksum)) {
+        return false;
+      }
+      if (hasError(current_status, ServoError::Range)) {
+        return false;
+      }
+    }
+
     return true;
   }
 };

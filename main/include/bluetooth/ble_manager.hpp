@@ -69,15 +69,15 @@ class BLEManager {
     esp_log_level_set("NimBLE", ESP_LOG_WARN);
 
     if (!NimBLEDevice::init(constants::system::Name.data())) [[unlikely]] {
-      return type::SystemError::BluetoothInitFault;
+      return type::SystemError::BluetoothInitFailed;
     }
 
     if (!NimBLEDevice::setPower(ESP_PWR_LVL_N24)) [[unlikely]] {
-      return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetPowerFault;
+      return type::SystemError::BluetoothInitFailed | type::SystemError::BluetoothPowerFailed;
     }
 
     if (!NimBLEDevice::setMTU(517)) [[unlikely]] {
-      return type::SystemError::BluetoothInitFault | type::SystemError::BluetoothSetMTUFault;
+      return type::SystemError::BluetoothInitFailed | type::SystemError::BluetoothMtuFailed;
     }
 
     NimBLEDevice::setSecurityAuth(true, true, true);
@@ -118,15 +118,15 @@ class BLEManager {
 
   [[nodiscard]] auto send_telemetry(type::SystemTelemetry const& data) const noexcept -> type::SystemError {
     if (!isConnected()) {
-      return type::SystemError::BluetoothConnectedFault;
+      return type::SystemError::BluetoothConnFailed;
     }
 
     if (m_telemetry_characteristic == nullptr) {
-      return type::SystemError::BluetoothInitFault;
+      return type::SystemError::BluetoothInitFailed;
     }
 
     if (type::dto::SystemTelemetryDTO const system_telemetry = data.to_dto(); !m_telemetry_characteristic->notify(system_telemetry)) [[unlikely]] {
-      return type::SystemError::BluetoothSendNotifyError;
+      return type::SystemError::BluetoothSendFailed;
     }
 
     return type::SystemError::None;
@@ -134,15 +134,15 @@ class BLEManager {
 
   [[nodiscard]] auto send_ota_status(type::OTAStatus const status) const noexcept -> type::SystemError {
     if (!isConnected()) {
-      return type::SystemError::BluetoothConnectedFault;
+      return type::SystemError::BluetoothConnFailed;
     }
 
     if (m_ota_characteristic == nullptr) {
-      return type::SystemError::BluetoothInitFault;
+      return type::SystemError::BluetoothInitFailed;
     }
 
     if (!m_ota_characteristic->notify(status)) [[unlikely]] {
-      return type::SystemError::BluetoothSendNotifyError;
+      return type::SystemError::BluetoothSendFailed;
     }
 
     return type::SystemError::None;
@@ -150,15 +150,15 @@ class BLEManager {
 
   [[nodiscard]] auto send_control(type::Control const& control) const noexcept -> type::SystemError {
     if (!isConnected()) {
-      return type::SystemError::BluetoothConnectedFault;
+      return type::SystemError::BluetoothConnFailed;
     }
 
     if (m_control_characteristic == nullptr) {
-      return type::SystemError::BluetoothInitFault;
+      return type::SystemError::BluetoothInitFailed;
     }
 
     if (type::dto::ControlDTO const control_dto = control.to_dto(); !m_control_characteristic->notify(control_dto)) [[unlikely]] {
-      return type::SystemError::BluetoothSendNotifyError;
+      return type::SystemError::BluetoothSendFailed;
     }
 
     return type::SystemError::None;
@@ -166,15 +166,15 @@ class BLEManager {
 
   [[nodiscard]] auto send_warning(type::Warning const& warning) const noexcept -> type::SystemError {
     if (!isConnected()) {
-      return type::SystemError::BluetoothConnectedFault;
+      return type::SystemError::BluetoothConnFailed;
     }
 
     if (m_warning_characteristic == nullptr) {
-      return type::SystemError::BluetoothInitFault;
+      return type::SystemError::BluetoothInitFailed;
     }
 
     if (!m_warning_characteristic->notify(warning)) [[unlikely]] {
-      return type::SystemError::BluetoothSendNotifyError;
+      return type::SystemError::BluetoothSendFailed;
     }
 
     return type::SystemError::None;

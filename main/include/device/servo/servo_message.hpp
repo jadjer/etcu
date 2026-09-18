@@ -21,16 +21,9 @@
 #include <array>
 #include <numeric>
 
-namespace device {
+#include "device/servo/register.hpp"
 
-enum class ServoInstruction : std::uint8_t {
-  InstPing = 0x01,
-  InstRead = 0x02,
-  InstWrite = 0x03,
-  InstRegWrite = 0x04,
-  InstAction = 0x05,
-  InstReset = 0x06,
-};
+namespace device {
 
 enum class ServoMessageError {
   NONE,

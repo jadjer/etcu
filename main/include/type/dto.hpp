@@ -127,7 +127,7 @@ struct SystemTelemetryDTO {
   CruiseTelemetryDTO cruise_telemetry{};            // 16
   AcceleratorTelemetryDTO accelerator_telemetry{};  // 6
   SystemState system_state{SystemState::Off};       // 1
-  SystemError system_errors{SystemError::None};     // 2
+  SystemError system_errors{SystemError::None};     // 4
 
 } __attribute__((packed));
 

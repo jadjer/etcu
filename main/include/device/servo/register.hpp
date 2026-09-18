@@ -85,13 +85,43 @@ enum class ServoMode : std::uint8_t {
 };
 
 enum class ServoError : std::uint8_t {
-  None = 0x00,
-  Voltage = 0x01,
-  AngleLimit = 0x02,
-  Overheat = 0x04,
-  Overload = 0x08,
-  Encoder = 0x10,
-  Driver = 0x20,
+  None         = 0x00,
+  Voltage      = 0x01,
+  Encoder      = 0x02,
+  Overheat     = 0x04,
+  InvalidCmd   = 0x08,
+  Overload     = 0x10,
+  Checksum     = 0x20,
+  Range        = 0x40
 };
+
+enum class ServoInstruction : std::uint8_t {
+  Ping = 0x01,
+  Read = 0x02,
+  Write = 0x03,
+  RegWrite = 0x04,
+  Action = 0x05,
+  SyncRead = 0x82,
+  SyncWrite = 0x83,
+  Reset = 0x06,
+};
+
+inline ServoError operator|(ServoError lhs, ServoError rhs) {
+  return static_cast<ServoError>(
+      static_cast<std::underlying_type_t<ServoError>>(lhs) |
+      static_cast<std::underlying_type_t<ServoError>>(rhs)
+  );
+}
+
+inline ServoError operator&(ServoError lhs, ServoError rhs) {
+  return static_cast<ServoError>(
+      static_cast<std::underlying_type_t<ServoError>>(lhs) &
+      static_cast<std::underlying_type_t<ServoError>>(rhs)
+  );
+}
+
+inline bool hasError(ServoError status, ServoError errorFlag) {
+  return (status & errorFlag) != ServoError::None;
+}
 
 }  // namespace device
